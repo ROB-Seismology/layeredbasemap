@@ -195,6 +195,12 @@ class LayeredBasemap:
 		if style.line_color:
 			self.map.drawrivers(linewidth=style.line_width, color=style.line_color)
 
+	def _add_bluemarble(self, style=None):
+		self.map.bluemarble()
+
+	def _add_shadedrelief(self, style=None):
+		self.map.shadedrelief()
+
 	def add_layers(self):
 		for layer in self.layers:
 			if isinstance(layer.data, BuiltinLayerData):
@@ -206,6 +212,10 @@ class LayeredBasemap:
 					self._add_countries(layer.style)
 				if layer.data.feature == "rivers":
 					self._add_rivers(layer.style)
+				if layer.data.feature == "bluemarble":
+					self._add_bluemarble(layer.style)
+				if layer.data.feature == "shadedrelief":
+					self._add_shadedrelief(layer.style)
 			elif isinstance(layer.data, LayerData):
 				if len(layer.data.polygons) > 0 and layer.style.polygon_style:
 					style = layer.style.polygon_style
@@ -300,10 +310,15 @@ def plot_map(layers, region, projection, resolution=None, dlon=None, dlat=None, 
 
 if __name__ == "__main__":
 	layers = []
+	bm_style = None
+	data = BuiltinLayerData("shadedrelief")
+	layer = MapLayer(data, bm_style)
+	layers.append(layer)
+
 	continent_style = PolygonStyle(fill_color="lightgray")
 	data = BuiltinLayerData("continents")
 	layer = MapLayer(data, continent_style)
-	layers.append(layer)
+	#layers.append(layer)
 
 	data = BuiltinLayerData("countries")
 	country_style = LineStyle(line_color="r", line_width=2)
@@ -329,6 +344,7 @@ if __name__ == "__main__":
 	region = (1,8,49,52)
 	projection = "merc"
 	title = "Test"
-	map = LayeredBasemap(layers, region, projection, title)
+	resolution = "h"
+	map = LayeredBasemap(layers, region, projection, title, resolution=resolution)
 	map.plot()
 
