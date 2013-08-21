@@ -122,6 +122,7 @@ class ThematicLayer:
 
 class LayeredBasemap:
 	def __init__(self, layers, region, projection, title, lon_0=None, lat_0=None, resolution="i", dlon=None, dlat=None, legend_location=0):
+		#TODO: width, height
 		self.layers = layers
 		self.region = region
 		self.projection = projection
@@ -193,13 +194,26 @@ class LayeredBasemap:
 
 	def _add_rivers(self, style):
 		if style.line_color:
+			## linestyle argument not supported by current version of basemap
 			self.map.drawrivers(linewidth=style.line_width, color=style.line_color)
 
 	def _add_bluemarble(self, style=None):
-		self.map.bluemarble()
+		try:
+			self.map.bluemarble()
+		except:
+			print("Bluemarble layer failed. This feature requires an internet connection")
 
 	def _add_shadedrelief(self, style=None):
-		self.map.shadedrelief()
+		try:
+			self.map.shadedrelief()
+		except:
+			print("Shadedrelief layer failed. This feature requires an internet connection")
+
+	def _add_etopo(self, style=None):
+		try:
+			self.map.etopo()
+		except:
+			print("Etopo layer failed. This feature requires an internet connection")
 
 	def add_layers(self):
 		for layer in self.layers:
@@ -216,6 +230,8 @@ class LayeredBasemap:
 					self._add_bluemarble(layer.style)
 				if layer.data.feature == "shadedrelief":
 					self._add_shadedrelief(layer.style)
+				if layer.data.feature == "etopo":
+					self._add_etopo(layer.style)
 			elif isinstance(layer.data, LayerData):
 				if len(layer.data.polygons) > 0 and layer.style.polygon_style:
 					style = layer.style.polygon_style
