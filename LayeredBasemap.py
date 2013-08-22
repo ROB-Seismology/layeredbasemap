@@ -2,6 +2,7 @@
 Generic wrapper for creating maps with Basemap
 """
 
+import numpy as np
 from mpl_toolkits.basemap import Basemap
 import pylab
 
@@ -121,7 +122,7 @@ class ThematicLayer:
 
 
 class LayeredBasemap:
-	def __init__(self, layers, region, projection, title, lon_0=None, lat_0=None, resolution="i", dlon=None, dlat=None, legend_location=0):
+	def __init__(self, layers, region, projection, title, lon_0=None, lat_0=None, resolution="i", dlon=None, dlat=None, annot_axes="SE", legend_location=0):
 		#TODO: width, height
 		self.layers = layers
 		self.region = region
@@ -132,6 +133,7 @@ class LayeredBasemap:
 		self.resolution = resolution
 		self.dlon = dlon
 		self.dlat = dlat
+		self.annot_axes = annot_axes
 		self.legend_location = legend_location
 		self.map = self.init_basemap()
 		self.ax = pylab.gca()
@@ -186,7 +188,10 @@ class LayeredBasemap:
 		if continent_style.fill_color or lake_style.fill_color:
 			self.map.fillcontinents(color=continent_style.fill_color, lake_color=lake_style.fill_color)
 		if continent_style.line_color:
-			self.map.drawcoastlines(linewidth=continent_style.line_width, color=continent_style.line_color)
+			self._add_coastlines(continent_style)
+
+	def _add_coastlines(self, coastline_style):
+		self.map.drawcoastlines(linewidth=coastline_style.line_width, color=coastline_style.line_color)
 
 	def _add_countries(self, style):
 		if style.line_color:
@@ -215,6 +220,14 @@ class LayeredBasemap:
 		except:
 			print("Etopo layer failed. This feature requires an internet connection")
 
+	def _add_focmecs(self, points, focmec_data):
+		from obspy.imaging.beachball import Beach
+		x, y = self.map(points.lons, points.lats)
+		for i in range(len(focmec_data)):
+			b = Beach(focmecs[i], xy=(x[i], y[i]), width=1000, linewidth=1)
+			#b.set_zorder(10)
+			self.ax.add_collection(b)
+
 	def add_layers(self):
 		for layer in self.layers:
 			if isinstance(layer.data, BuiltinLayerData):
@@ -222,6 +235,9 @@ class LayeredBasemap:
 					continent_style = layer.style
 					ocean_style = PolygonStyle(fill_color="blue")
 					self._add_continents(continent_style, ocean_style)
+				if layer.data.feature == "coastlines":
+					coastline_style = layer.style
+					self._add_coastlines(coastline_style)
 				if layer.data.feature == "countries":
 					self._add_countries(layer.style)
 				if layer.data.feature == "rivers":
@@ -256,8 +272,28 @@ class LayeredBasemap:
 					self._add_texts(layer.data.texts, style, layer.alpha)
 
 	def add_decoration(self):
+		self.add_graticule()
 		self.ax.set_title(self.title)
 		self.ax.legend()
+
+	def add_graticule(self):
+		"""
+		Draw meridians and parallels
+		"""
+		if self.annot_axes is None:
+			self.annot_axes = "SE"
+		ax_labels = [c in self.annot_axes for c in "WENS"]
+		if self.dlon != None:
+			first_meridian = np.ceil(region[0] / self.dlon) * self.dlon
+			last_meridian = np.floor(region[1] / self.dlon) * self.dlon + self.dlon
+			meridians = np.arange(first_meridian, last_meridian, self.dlon)
+			self.map.drawmeridians(meridians, labels=ax_labels)
+		if self.dlat != None:
+			first_parallel = np.ceil(region[2] / self.dlat) * self.dlat
+			last_parallel = np.floor(region[3] / self.dlat) * self.dlat + self.dlat
+			parallels = np.arange(first_parallel, last_parallel, self.dlat)
+			self.map.drawparallels(parallels, labels=ax_labels)
+
 
 	def plot(self, fig_filespec=None, fig_width=0, dpi=300):
 		#fig = pylab.figure()
@@ -327,7 +363,7 @@ def plot_map(layers, region, projection, resolution=None, dlon=None, dlat=None, 
 if __name__ == "__main__":
 	layers = []
 	bm_style = None
-	data = BuiltinLayerData("shadedrelief")
+	data = BuiltinLayerData("etopo")
 	layer = MapLayer(data, bm_style)
 	layers.append(layer)
 
@@ -335,6 +371,11 @@ if __name__ == "__main__":
 	data = BuiltinLayerData("continents")
 	layer = MapLayer(data, continent_style)
 	#layers.append(layer)
+
+	coastline_style = LineStyle(line_color="r", line_width=2)
+	data = BuiltinLayerData("coastlines")
+	layer = MapLayer(data, coastline_style)
+	layers.append(layer)
 
 	data = BuiltinLayerData("countries")
 	country_style = LineStyle(line_color="r", line_width=2)
@@ -361,6 +402,7 @@ if __name__ == "__main__":
 	projection = "merc"
 	title = "Test"
 	resolution = "h"
-	map = LayeredBasemap(layers, region, projection, title, resolution=resolution)
+	dlon, dlat = 2, 1
+	map = LayeredBasemap(layers, region, projection, title, resolution=resolution, dlon=dlon, dlat=dlat)
 	map.plot()
 
