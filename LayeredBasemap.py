@@ -52,11 +52,25 @@ class PolygonStyle:
 		self.label_style = label_style
 
 
+class FocmecStyle:
+	def __init__(self):
+		pass
+
+
 class GridStyle:
 	def __init__(self, color_map="jet", continuous=True, point_style=None):
 		self.color_map = color_map
 		self.continuous = continuous
 		self.point_style = point_style
+
+
+class CompositeStyle:
+	def __init__(self, point_style=None, line_style=None, polygon_style=None, text_style=None, grid_style=None):
+		self.point_style = point_style
+		self.line_style = line_style
+		self.polygon_style = polygon_style
+		self.text_style = text_style
+		self.grid_style = grid_style
 
 
 class LayerData:
@@ -73,15 +87,6 @@ class BuiltinLayerData:
 		self.feature = feature
 
 
-class CompositeStyle:
-	def __init__(self, point_style=None, line_style=None, polygon_style=None, text_style=None, grid_style=None):
-		self.point_style = point_style
-		self.line_style = line_style
-		self.polygon_style = polygon_style
-		self.text_style = text_style
-		self.grid_style = grid_style
-
-
 class PointData:
 	def __init__(self, lons, lats, values=[], labels=[]):
 		self.lons = lons
@@ -89,8 +94,15 @@ class PointData:
 		self.values = values
 		self.labels = labels
 
+	def __len__(self):
+		return len(self.lons)
+
 	def get_centroid(self):
 		pass
+
+
+class FocmecData(PointData):
+	pass
 
 
 class PolyData:
@@ -103,6 +115,9 @@ class PolyData:
 	def __iter__(self):
 		for lons, lats, value, label in zip(self.lons, self.lats, self.values, self.labels):
 			yield lons, lats, value, label
+
+	def __len__(self):
+		return len(self.lons)
 
 
 class GisData:
@@ -220,11 +235,11 @@ class LayeredBasemap:
 		except:
 			print("Etopo layer failed. This feature requires an internet connection")
 
-	def _add_focmecs(self, points, focmec_data):
+	def _add_focmecs(self, focmec_data, focmec_style):
 		from obspy.imaging.beachball import Beach
-		x, y = self.map(points.lons, points.lats)
+		x, y = self.map(focmec_data.lons, focmec_data.lats)
 		for i in range(len(focmec_data)):
-			b = Beach(focmecs[i], xy=(x[i], y[i]), width=1000, linewidth=1)
+			b = Beach(focmec_data.values[i], xy=(x[i], y[i]), width=100000, linewidth=1)
 			#b.set_zorder(10)
 			self.ax.add_collection(b)
 
@@ -248,6 +263,8 @@ class LayeredBasemap:
 					self._add_shadedrelief(layer.style)
 				if layer.data.feature == "etopo":
 					self._add_etopo(layer.style)
+			elif isinstance(layer.data, FocmecData):
+				self._add_focmecs(layer.data, layer.style)
 			elif isinstance(layer.data, LayerData):
 				if len(layer.data.polygons) > 0 and layer.style.polygon_style:
 					style = layer.style.polygon_style
@@ -293,7 +310,6 @@ class LayeredBasemap:
 			last_parallel = np.floor(region[3] / self.dlat) * self.dlat + self.dlat
 			parallels = np.arange(first_parallel, last_parallel, self.dlat)
 			self.map.drawparallels(parallels, labels=ax_labels)
-
 
 	def plot(self, fig_filespec=None, fig_width=0, dpi=300):
 		#fig = pylab.figure()
@@ -363,14 +379,14 @@ def plot_map(layers, region, projection, resolution=None, dlon=None, dlat=None, 
 if __name__ == "__main__":
 	layers = []
 	bm_style = None
-	data = BuiltinLayerData("etopo")
+	data = BuiltinLayerData("bluemarble")
 	layer = MapLayer(data, bm_style)
-	layers.append(layer)
+	#layers.append(layer)
 
 	continent_style = PolygonStyle(fill_color="lightgray")
 	data = BuiltinLayerData("continents")
 	layer = MapLayer(data, continent_style)
-	#layers.append(layer)
+	layers.append(layer)
 
 	coastline_style = LineStyle(line_color="r", line_width=2)
 	data = BuiltinLayerData("coastlines")
@@ -396,6 +412,11 @@ if __name__ == "__main__":
 	point_style.label_style = text_style
 	style = CompositeStyle(point_style, line_style, polygon_style, text_style)
 	layer = MapLayer(data, style)
+	layers.append(layer)
+
+	focmecs = FocmecData([4.5], [51.], values=[[135, 60, -90]])
+	focmec_style = FocmecStyle()
+	layer = MapLayer(focmecs, focmec_style)
 	layers.append(layer)
 
 	region = (1,8,49,52)
