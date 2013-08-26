@@ -514,14 +514,13 @@ class MapLayer:
 
 
 class LayeredBasemap:
-	def __init__(self, layers, region, projection, title, lon_0=None, lat_0=None, resolution="i", dlon=None, dlat=None, annot_axes="SE", legend_location=0):
-		#TODO: width, height
+	def __init__(self, layers, region, projection, title, origin=(None, None), resolution="i", dlon=None, dlat=None, annot_axes="SE", legend_location=0):
+		#TODO: width, height, origin(lon0, lat0)
 		self.layers = layers
 		self.region = region
 		self.projection = projection
 		self.title = title
-		self.lon_0 = lon_0
-		self.lat_0 = lat_0
+		self.origin = origin
 		self.resolution = resolution
 		self.dlon = dlon
 		self.dlat = dlat
@@ -548,13 +547,23 @@ class LayeredBasemap:
 	def urcrnrlat(self):
 		return self.region[3]
 
+	@property
+	def lon_0(self):
+		return self.origin[0]
+
+	@property
+	def lat_0(self):
+		return self.origin[1]
+
 	def init_basemap(self):
 		self.zorder = 0
 		llcrnrlon, urcrnrlon, llcrnrlat, urcrnrlat = self.region
-		if self.lon_0 is None:
-			self.lon_0 = (llcrnrlon + urcrnrlon) / 2.
-		if self.lat_0 is None:
-			self.lat_0 = (llcrnrlat + urcrnrlat) / 2.
+		lon_0, lat_0 = self.origin
+		if lon_0 is None:
+			lon_0 = (llcrnrlon + urcrnrlon) / 2.
+		if lat_0 is None:
+			lat_0 = (llcrnrlat + urcrnrlat) / 2.
+		self.origin = (lon_0, lat_0)
 
 		map = Basemap(projection=self.projection, resolution=self.resolution, llcrnrlon=self.llcrnrlon, llcrnrlat=self.llcrnrlat, urcrnrlon=self.urcrnrlon, urcrnrlat=self.urcrnrlat, lon_0=self.lon_0, lat_0=self.lat_0)
 		return map
@@ -649,9 +658,38 @@ class LayeredBasemap:
 		"""
 		polygon_data: MultiPolygon
 		"""
+		num_polygons = len(polygon_data)
+		if isinstance(polygon_style.line_pattern, ThematicStyle):
+			line_patterns = polygon_style.line_pattern(polygon_data.values)
+		else:
+			line_patterns = [polygon_style.line_pattern] * num_polygons
+		if isinstance(polygon_style.line_width, ThematicStyle):
+			line_widths = polygon_style.line_width(polygon_data.values)
+		else:
+			line_widths = [polygon_style.line_width] * num_polygons
+		if isinstance(polygon_style.line_color, ThematicStyle):
+			line_colors = polygon_style.line_color(polygon_data.values)
+		else:
+			line_colors = [polygon_style.line_color] * num_polygons
+		if isinstance(polygon_style.fill_color, ThematicStyle):
+			fill_colors = polygon_style.fill_color(polygon_data.values)
+		else:
+			fill_colors = [polygon_style.fill_color] * num_polygons
+		if isinstance(polygon_style.fill_hatch, ThematicStyle):
+			fill_hatches = polygon_style.fill_hatch(polygon_data.values)
+		else:
+			fill_hatches = [polygon_style.fill_hatch] * num_polygons
+
 		for i, polygon in enumerate(polygon_data):
 			legend_label = {True: legend_label, False: "_nolegend_"}[i==0]
-			self._add_polygon(polygon, polygon_style, legend_label)
+			## Apply thematic styles
+			line_pattern = line_patterns[i]
+			line_width = line_widths[i]
+			line_color = line_colors[i]
+			fill_color = fill_colors[i]
+			fill_hatch = fill_hatches[i]
+			style = PolygonStyle(line_pattern=line_pattern, line_width=line_width, line_color=line_color, fill_color=fill_color, fill_hatch=fill_hatch, label_style=None, alpha=polygon_style.alpha)
+			self._add_polygon(polygon, style, legend_label)
 		self.zorder += 1
 		if polygon_data.labels and polygon_style.label_style:
 			centroids = MultiPointData([], [], labels=[])
@@ -667,8 +705,27 @@ class LayeredBasemap:
 		"""
 		line_data: MultiLine
 		"""
+		num_lines = len(line_data)
+		if isinstance(line_style.line_pattern, ThematicStyle):
+			line_patterns = line_style.line_pattern(polygon_data.values)
+		else:
+			line_patterns = [line_style.line_pattern] * num_lines
+		if isinstance(line_style.line_width, ThematicStyle):
+			line_widths = line_style.line_width(polygon_data.values)
+		else:
+			line_widths = [line_style.line_width] * num_lines
+		if isinstance(line_style.line_color, ThematicStyle):
+			line_colors = line_style.line_color(polygon_data.values)
+		else:
+			line_colors = [line_style.line_color] * num_lines
+
 		for i, line in enumerate(line_data):
 			legend_label = {True: legend_label, False: "_nolegend_"}[i==0]
+			## Apply thematic styles
+			line_pattern = line_patterns[i]
+			line_width = line_widths[i]
+			line_color = line_colors[i]
+			style = LineStyle(line_pattern=line_pattern, line_width=line_width, line_color=line_color, label_style=None, alpha=line_style.alpha)
 			self._add_line(line, line_style, legend_label)
 		self.zorder += 1
 		if line_data.labels and line_style.label_style:
@@ -699,9 +756,47 @@ class LayeredBasemap:
 			self._add_texts(text_data, text_style)
 
 	def add_gis_layer(self, gis_data, gis_style, legend_label={"points": "_nolegend_", "lines": "_nolegend_", "polygons": "_nolegend_"}):
+		point_style = gis_style.point_style
+		line_style = gis_style.line_style
+		polygon_style = gis_style.polygon_style
+		point_value_colnames = set()
+		if isinstance(point_style.size, ThematicStyle):
+			point_value_colnames.add(point_style.size.value_key)
+		if isinstance(point_style.line_color, ThematicStyle):
+			point_value_colnames.add(point_style.line_color.value_key)
+		elif isinstance(point_style.fill_color, ThematicStyle):
+			point_value_colnames.add(point_style.fill_color.value_key)
+		line_value_colnames = set()
+		if isinstance(line_style.line_pattern, ThematicStyle):
+			line_value_colnames.add(line_style.line_pattern.value_key)
+		if isinstance(line_style.line_width, ThematicStyle):
+			line_value_colnames.add(line_style.line_width.value_key)
+		if isinstance(line_style.line_color, ThematicStyle):
+			line_value_colnames.add(line_style.line_color.value_key)
+		polygon_value_colnames = set()
+		if isinstance(polygon_style.line_pattern, ThematicStyle):
+			polygon_value_colnames.add(polygon_style.line_pattern.value_key)
+		if isinstance(polygon_style.line_width, ThematicStyle):
+			polygon_value_colnames.add(polygon_style.line_width.value_key)
+		if isinstance(polygon_style.line_color, ThematicStyle):
+			polygon_value_colnames.add(polygon_style.line_color.value_key)
+		if isinstance(polygon_style.fill_color, ThematicStyle):
+			polygon_value_colnames.add(polygon_style.fill_color.value_key)
+		if isinstance(polygon_style.fill_hatch, ThematicStyle):
+			polygon_value_colnames.add(polygon_style.fill_hatch.value_key)
+
 		point_data = MultiPointData([], [], labels=[])
+		point_data.values = {}
+		for colname in point_value_colnames:
+			point_data.values[colname] = []
 		line_data = MultiLineData([], [])
+		line_data.values = {}
+		for colname in line_value_colnames:
+			line_data.values[colname] = []
 		polygon_data = MultiPolygonData([], [])
+		polygon_data.values = {}
+		for colname in polygon_value_colnames:
+			polygon_data.values[colname] = []
 		for rec in read_GIS_file(gis_data.filespec):
 			label = rec.get(gis_data.label_colname)
 			geom = rec['obj']
@@ -711,18 +806,21 @@ class LayeredBasemap:
 				pt = PointData.from_ogr(geom)
 				pt.label = label
 				point_data.append(pt)
+				for colname in point_value_colnames:
+					point_data.values[colname].append(rec[colname])
 			elif geom_type == "LINESTRING":
 				line = LineData.from_ogr(geom)
 				line.label = label
 				line_data.append(line)
+				for colname in line_value_colnames:
+					line_data.values[colname].append(rec[colname])
 			elif geom_type == "POLYGON":
 				polygon = PolygonData.from_ogr(geom)
 				polygon.label = label
 				polygon_data.append(polygon)
+				for colname in polygon_value_colnames:
+					polygon_data.values[colname].append(rec[colname])
 
-		polygon_style = gis_style.polygon_style
-		line_style = gis_style.line_style
-		point_style = gis_style.point_style
 		self.add_composite_layer(point_data=point_data, point_style=point_style, line_data=line_data, line_style=line_style, polygon_data=polygon_data, polygon_style=polygon_style, legend_label=legend_label)
 
 	def add_grid_layer(self, grid_data, grid_style, legend_label=""):
@@ -814,10 +912,10 @@ class LayeredBasemap:
 		self.zorder += 1
 
 	def add_geotiff(self, tif_filespec):
+		# TODO
 		import gdal
 		geo = gdal.Open("file.geotiff")
 		ar = geo.ReadAsArray()
-		# TODO
 
 	def add_layers(self):
 		for layer in self.layers:
@@ -867,7 +965,9 @@ class LayeredBasemap:
 
 	def add_decoration(self):
 		self.add_graticule()
+		# TODO: title style
 		self.ax.set_title(self.title)
+		# TODO: legend location
 		try:
 			## May fail if there is no legend
 			self.ax.legend().set_zorder(self.zorder)
@@ -932,6 +1032,43 @@ if __name__ == "__main__":
 	layer = MapLayer(data, continent_style)
 	layers.append(layer)
 
+	## Gis file: source-zone model
+	#gis_filespec = r"D:\GIS-data\KSB-ORB\Source Zone Models\Seismotectonic Hybrid.TAB"
+	gis_filespec = r"D:\GIS-data\KSB-ORB\Source Zone Models\SLZ+RVG.TAB"
+	gis_data = GisData(gis_filespec, label_colname="ShortName")
+	point_style = PointStyle()
+	line_style = LineStyle(line_width=2)
+	fill_color = ThematicStyleDict({"SLZ": "green", "RVG": "orange"}, value_key="ShortName")
+	polygon_style = PolygonStyle(line_width=2, fill_color=fill_color, alpha=0.5)
+	label_style = TextStyle()
+	gis_style = CompositeStyle(point_style=point_style, line_style=line_style, polygon_style=polygon_style, text_style=label_style)
+	layer = MapLayer(gis_data, gis_style, legend_label={"polygons": "Area sources", "lines": "Fault sources"})
+	layers.append(layer)
+
+	## Grid: hazard map
+	import hazard.rshalib as rshalib
+	#root_folder = r"D:\PSHA\LNE\CRISIS"
+	#model = "VG_Ambr95DD_Leynaud_EC8"
+	root_folder = "D:\PSHA\EGU2013\RVRS_CSS__AkkarBommer2010__AL__NoBG\crisis"
+	model = "RVRS_CSS__AkkarBommer2010__AL__NoBG"
+	crisis_filespec = os.path.join(root_folder, model)
+	return_period = 475
+	hms = rshalib.crisis.readCRISIS_MAP(crisis_filespec)
+	hm = hms.getHazardMap(return_period=return_period)
+	contour_interval = {475: 0.02, 3000:0.04, 5000:0.05}[return_period]
+	num_grid_cells = 100
+	grid_lons, grid_lats = hm.meshgrid(num_cells=num_grid_cells)
+	grid_intensities = hm.get_grid_intensities(num_cells=num_grid_cells)
+	vmin = np.floor(hm.min() / contour_interval) * contour_interval
+	vmax = np.ceil(hm.max() / contour_interval) * contour_interval
+	contour_levels = np.arange(vmin, vmax+contour_interval, contour_interval)
+	norm = matplotlib.colors.Normalize(vmin, vmax)
+	color_map_theme = ThematicStyleColormap(color_map="jet", norm=norm, vmin=vmin, vmax=vmax, alpha=1)
+	grid_style = GridStyle(color_map_theme, continuous=False, line_style=LineStyle(label_style=TextStyle()), contour_levels=contour_levels, label_format='%.2f')
+	grid_data = GridData(grid_lons, grid_lats, grid_intensities)
+	layer = MapLayer(grid_data, grid_style, legend_label="PGA (g)")
+	#layers.append(layer)
+
 	## Coastlines
 	coastline_style = LineStyle(line_color="r", line_width=2)
 	data = BuiltinData("coastlines")
@@ -955,40 +1092,6 @@ if __name__ == "__main__":
 	style = PolygonStyle(fill_color='k', alpha=0.5)
 	layer = MapLayer(data, style)
 	#layers.append(layer)
-
-	## Gis file: source-zone model
-	#gis_filespec = r"D:\GIS-data\KSB-ORB\Source Zone Models\Seismotectonic Hybrid.TAB"
-	gis_filespec = r"D:\GIS-data\KSB-ORB\Source Zone Models\SLZ+RVG.TAB"
-	gis_data = GisData(gis_filespec, label_colname="ShortName")
-	point_style = PointStyle()
-	line_style = LineStyle(line_width=2)
-	polygon_style = PolygonStyle(line_width=2, fill_color='none', alpha=0.5)
-	label_style = TextStyle()
-	gis_style = CompositeStyle(point_style=point_style, line_style=line_style, polygon_style=polygon_style, text_style=label_style)
-	layer = MapLayer(gis_data, gis_style, legend_label={"polygons": "Area sources", "lines": "Fault sources"})
-	layers.append(layer)
-
-	## Grid: hazard map
-	import hazard.rshalib as rshalib
-	root_folder = r"D:\PSHA\LNE\CRISIS"
-	model = "VG_Ambr95DD_Leynaud_EC8"
-	crisis_filespec = os.path.join(root_folder, model)
-	return_period = 475
-	hms = rshalib.crisis.readCRISIS_MAP(crisis_filespec)
-	hm = hms.getHazardMap(return_period=return_period)
-	contour_interval = {475: 0.02, 3000:0.04, 5000:0.05}[return_period]
-	num_grid_cells = 100
-	grid_lons, grid_lats = hm.meshgrid(num_cells=num_grid_cells)
-	grid_intensities = hm.get_grid_intensities(num_cells=num_grid_cells)
-	vmin = np.floor(hm.min() / contour_interval) * contour_interval
-	vmax = np.ceil(hm.max() / contour_interval) * contour_interval
-	contour_levels = np.arange(vmin, vmax+contour_interval, contour_interval)
-	norm = matplotlib.colors.Normalize(vmin, vmax)
-	color_map_theme = ThematicStyleColormap(color_map="jet", norm=norm, vmin=vmin, vmax=vmax, alpha=1)
-	grid_style = GridStyle(color_map_theme, continuous=False, line_style=LineStyle(label_style=TextStyle()), contour_levels=contour_levels, label_format='%.2f')
-	grid_data = GridData(grid_lons, grid_lats, grid_intensities)
-	layer = MapLayer(grid_data, grid_style, legend_label="PGA (g)")
-	layers.append(layer)
 
 	## Point data
 	point_data = MultiPointData([3,4,4,3], [50,50,51,51], labels=['a','b','c','d'], values=[1,2,2,1])
