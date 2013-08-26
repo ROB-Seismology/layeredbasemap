@@ -4,6 +4,7 @@ Generic wrapper for creating maps with Basemap
 
 import datetime
 import numpy as np
+import matplotlib
 from mpl_toolkits.basemap import Basemap
 import pylab
 import shapely
@@ -80,41 +81,36 @@ class CompositeStyle:
 		self.grid_style = grid_style
 
 
-class GridStyle:
-	# TODO
-	def __init__(self, color_map="jet", continuous=True, line_style=None, contour_levels=[], norm=None, point_style=None, label_style=None, label_format='%.2f', alpha=1.0):
-		self.color_map = color_map
-		self.continuous = continuous
-		self.line_style = line_style
-		self.contour_levels = contour_levels
-		self.norm = norm
-		self.point_style = point_style
-		self.label_style = label_style
-		self.label_format = label_format
-		self.alpha = alpha
+class ThematicStyle(object):
+	def __init__(self, value_key=None):
+		self.value_key = value_key
+
+	def apply_value_key(self, values):
+		if self.value_key == None:
+			return values
+		else:
+			return values[self.value_key]
 
 
-class ScatterStyle:
-	pass
-
-
-class ScatterStyleDict(ScatterStyle):
-	def __init__(self, style_dict):
+class ThematicStyleDict(ThematicStyle):
+	def __init__(self, style_dict, value_key=None):
+		super(ThematicStyleDict, self).__init__(value_key)
 		self.style_dict = style_dict
 
 	def __call__(self, values):
 		"""
 		values can be numbers or strings
 		"""
-		return [self.style_dict[val] for val in values]
+		return [self.style_dict[val] for val in self.apply_value_key(values)]
 
 
-class ScatterStyleRanges(ScatterStyle):
-	def __init__(self, bin_edges, bin_values):
+class ThematicStyleRanges(ThematicStyle):
+	def __init__(self, bin_edges, bin_values, value_key=None):
 		"""
 		bin_edges must be monotonically increasing or decreasing
 		bin_values may be colors
 		"""
+		super(ThematicStyleRanges, self).__init__(value_key)
 		self.bin_edges = bin_edges
 		self.bin_values = bin_values
 
@@ -122,21 +118,49 @@ class ScatterStyleRanges(ScatterStyle):
 		"""
 		values must be numbers
 		"""
-		bin_indexes = np.digitize(values, self.bin_edges) - 1
+		bin_indexes = np.digitize(self.apply_value_key(values), self.bin_edges) - 1
 		return [self.bin_values[bi] for bi in bin_indexes]
 
 
-class ScatterStyleGradient(ScatterStyle):
-	def __init__(self, in_values, out_values):
+class ThematicStyleGradient(ThematicStyle):
+	def __init__(self, in_values, out_values, value_key=None):
 		"""
 		in_values must be monotonically increasing or decreasing
 		out_values must be numbers too
 		"""
+		super(ThematicStyleGradient, self).__init__(value_key)
 		self.in_values = in_values
 		self.out_values = out_values
 
 	def __call__(self, values):
-		return np.interp(values, self.in_values, self.out_values)
+		return np.interp(self.apply_value_key(values), self.in_values, self.out_values)
+
+
+class ThematicStyleColormap(ThematicStyle):
+	def __init__(self, color_map="jet", norm=None, vmin=None, vmax=None, alpha=1.0, value_key=None):
+		super(ThematicStyleColormap, self).__init__(value_key)
+		self.color_map = color_map
+		self.norm = norm
+		self.vmin = vmin
+		self.vmax = vmax
+		self.alpha = alpha
+		#TODO set alpha in self.color_map  ??
+
+	def __call__(self, values):
+		from matplotlib.cm import ScalarMappable
+		sm = ScalarMappable(self.color_map, self.norm)
+		sm.set_clim(self.vmin, self.vmax)
+		return sm.to_rgba(self.apply_value_key(values), alpha=self.alpha)
+
+
+class GridStyle:
+	# TODO
+	def __init__(self, color_map_theme=ThematicStyleColormap("jet"), continuous=True, line_style=None, contour_levels=[], label_format='%.2f'):
+		self.color_map_theme = color_map_theme
+		self.continuous = continuous
+		self.line_style = line_style
+		self.contour_levels = contour_levels
+		self.label_format = label_format
 
 
 ## Data types
@@ -489,10 +513,6 @@ class MapLayer:
 		self.legend_label = legend_label
 
 
-class ThematicLayer:
-	pass
-
-
 class LayeredBasemap:
 	def __init__(self, layers, region, projection, title, lon_0=None, lat_0=None, resolution="i", dlon=None, dlat=None, annot_axes="SE", legend_location=0):
 		#TODO: width, height
@@ -543,10 +563,50 @@ class LayeredBasemap:
 
 	def _add_points(self, points, style, legend_label="_nolegend_"):
 		x, y = self.map(points.lons, points.lats)
-		if isinstance(style.size, ScatterStyle):
-			sizes = style.size(points.values)
-			print sizes
-			self.map.scatter(x, y, marker=style.shape, s=sizes, facecolors=style.fill_color, edgecolors=style.line_color, linewidths=style.line_width, label=legend_label, alpha=style.alpha, zorder=self.zorder)
+		if isinstance(style.size, ThematicStyle) or isinstance(style.line_width, ThematicStyle) or isinstance(style.line_color, ThematicStyle) or isinstance(style.fill_color, ThematicStyle):
+			cmap, norm, vmin, vmax = None, None, None, None
+			if isinstance(style.size, ThematicStyle):
+				sizes = style.size(points.values)
+			else:
+				sizes = style.size
+			sizes = np.power(sizes, 2)
+			if isinstance(style.line_width, ThematicStyle):
+				line_widths = style.line_width(points.values)
+			else:
+				line_widths = style.line_width
+			## Note: only one of line_color / fill_color may be a ThematicStyleColormap
+			## Note: thematic line_color only works for markers like '+'
+			## thematic fill_color only works for markers like '-'
+			assert not (isinstance(style.line_color, ThematicStyle) and isinstance(style.fill_color, ThematicStyle)), "Only one of line_color and fill_color may be ThematicStyle!"
+			if isinstance(style.line_color, ThematicStyle):
+				line_colors = None
+				if isinstance(style.line_color, ThematicStyleColormap):
+					c = style.line_color.apply_value_key(points.values)
+					cmap = style.line_color.color_map
+					norm = style.line_color.norm
+					vmin, vmax = style.line_color.vmin, style.line_color.vmax
+				elif isinstance(style.line_color, (ThematicStyleDict, ThematicStyleRanges)):
+					color_conv = matplotlib.colors.ColorConverter()
+					c = style.line_color(points.values)
+					c = color_conv.to_rgba_array(c)
+			else:
+				line_colors = style.line_color
+			if isinstance(style.fill_color, ThematicStyle):
+				fill_colors = None
+				if isinstance(style.fill_color, ThematicStyleColormap):
+					c = style.fill_color.apply_value_key(points.values)
+					cmap = style.fill_color.color_map
+					norm = style.fill_color.norm
+					vmin, vmax = style.fill_color.vmin, style.fill_color.vmax
+				elif isinstance(style.fill_color, (ThematicStyleDict, ThematicStyleRanges)):
+					color_conv = matplotlib.colors.ColorConverter()
+					c = style.fill_color(points.values)
+					c = color_conv.to_rgba_array(c)
+			else:
+				## Note: this is not used at the moment
+				fill_colors = style.fill_color
+
+			self.map.scatter(x, y, marker=style.shape, s=sizes, c=c, edgecolors=line_colors, linewidths=line_widths, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, label=legend_label, alpha=style.alpha, zorder=self.zorder)
 		else:
 			self.map.plot(x, y, marker=style.shape, ms=style.size, mfc=style.fill_color, mec=style.line_color, mew=style.line_width, ls="None", lw=0, label=legend_label, alpha=style.alpha, zorder=self.zorder)
 
@@ -560,20 +620,24 @@ class LayeredBasemap:
 			self.ax.fill(x, y, ls=style.line_pattern, lw=style.line_width, ec=style.line_color, fc=style.fill_color, hatch=style.fill_hatch, label=legend_label, alpha=style.alpha, zorder=self.zorder)
 		else:
 			## Complex polygon with holes
-			from descartes.patch import PolygonPatch
-
 			exterior_x, exterior_y = self.map(polygon.lons, polygon.lats)
 			interior_x, interior_y = [], []
 			for i in range(len(polygon.interior_lons)):
 				x, y = self.map(polygon.interior_lons[i], polygon.interior_lats[i])
 				interior_x.append(x)
 				interior_y.append(y)
-			proj_polygon = PolygonData(exterior_x, exterior_y, interior_x, interior_y).to_shapely()
-			## Make sure exterior and interior rings of polygon are properly oriented
-			proj_polygon = shapely.geometry.polygon.orient(proj_polygon)
-			patch = PolygonPatch(proj_polygon, fill=1, ls=style.line_pattern, lw=style.line_width, ec=style.line_color, fc=style.fill_color, hatch=style.fill_hatch, label=legend_label, alpha=style.alpha)
-			patch.set_zorder(self.zorder)
-			self.ax.add_patch(patch)
+			if style.fill_color in (None, 'None', 'none'):
+				self.map.plot(exterior_x, exterior_y, ls=style.line_pattern, lw=style.line_width, color=style.line_color, label=legend_label, alpha=style.alpha, zorder=self.zorder)
+				for x, y in zip(interior_x, interior_y):
+					self.map.plot(x, y, ls=style.line_pattern, lw=style.line_width, color=style.line_color, label="_nolegend_", alpha=style.alpha, zorder=self.zorder)
+			else:
+				from descartes.patch import PolygonPatch
+				proj_polygon = PolygonData(exterior_x, exterior_y, interior_x, interior_y).to_shapely()
+				## Make sure exterior and interior rings of polygon are properly oriented
+				proj_polygon = shapely.geometry.polygon.orient(proj_polygon)
+				patch = PolygonPatch(proj_polygon, fill=1, ls=style.line_pattern, lw=style.line_width, ec=style.line_color, fc=style.fill_color, hatch=style.fill_hatch, label=legend_label, alpha=style.alpha)
+				patch.set_zorder(self.zorder)
+				self.ax.add_patch(patch)
 
 	def _add_texts(self, text_points, style):
 		# TODO: offset
@@ -661,21 +725,33 @@ class LayeredBasemap:
 		point_style = gis_style.point_style
 		self.add_composite_layer(point_data=point_data, point_style=point_style, line_data=line_data, line_style=line_style, polygon_data=polygon_data, polygon_style=polygon_style, legend_label=legend_label)
 
-	def add_grid_layer(self, grid_data, grid_style):
-		# TODO: alpha?
-		x, y = map(grid_data.lons, grid_data.lats)
+	def add_grid_layer(self, grid_data, grid_style, legend_label=""):
+		# TODO: coloured contour lines
+		x, y = self.map(grid_data.lons, grid_data.lats)
+		cmap = grid_style.color_map_theme.color_map
+		norm = grid_style.color_map_theme.norm
+		vmin = grid_style.color_map_theme.vmin
+		vmax = grid_style.color_map_theme.vmax
+		alpha = grid_style.color_map_theme.alpha
 		if grid_style.continuous == False:
-			cs = self.map.contourf(x, y, grid_data.values, levels=grid_style.contour_levels, cmap=grid_style.color_map, norm=grid_style.norm, zorder=self.zorder)
+			if isinstance(cmap, str):
+				cmap_obj = getattr(matplotlib.cm, cmap)
+			else:
+				cmap_obj = cmap
+			cs = self.map.contourf(x, y, grid_data.values, levels=grid_style.contour_levels, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, extend="both", alpha=alpha, zorder=self.zorder)
 		else:
-			#cs = self.map.pcolor(x, y, grid_data.values, vmin=amin, vmax=amax, cmap=grid_style.cmap, norm=grid_style.norm)
-			cs = self.map.pcolor(x, y, grid_data.values, cmap=grid_style.cmap, norm=grid_style.norm, zorder=self.zorder)
+			cs = self.map.pcolor(x, y, grid_data.values, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, alpha=alpha, zorder=self.zorder)
 		if grid_style.line_style:
 			line_style = grid_style.line_style
-			cl = self.map.contour(x, y, grid_data.values, levels=grid_style.contour_levels, colors=line_style.line_color, linewidths=line_style.line_width, zorder=self.zorder)
-			label_style = grid_style.label_style
-			pylab.clabel(cl, inline=True, fontsize=label_style.font_size, fmt=grid_style.label_format, zorder=self.zorder)
-		cbar = self.map.colorbar(cs, location='bottom', pad="10%", format='%.2f', spacing="uniform", ticks=contour_levels, zorder=self.zorder)
-		self.zorder += 1
+			cl = self.map.contour(x, y, grid_data.values, levels=grid_style.contour_levels, colors=line_style.line_color, linewidths=line_style.line_width, alpha=line_style.alpha, zorder=self.zorder)
+			label_style = line_style.label_style
+			print line_style.alpha, label_style.alpha
+			# TODO: other font properties?
+			pylab.clabel(cl, colors='k', inline=True, fontsize=label_style.font_size, fmt=grid_style.label_format, alpha=label_style.alpha, zorder=self.zorder+1)
+		# TODO: colorbar_style
+		cbar = self.map.colorbar(cs, location='bottom', pad="10%", format='%.2f', spacing="uniform", ticks=contour_levels)
+		cbar.set_label(legend_label)
+		self.zorder += 2
 
 	def add_continents(self, continent_style, lake_style):
 		if continent_style.fill_color or lake_style.fill_color:
@@ -786,11 +862,17 @@ class LayeredBasemap:
 				text_style = layer.style.text_style
 				legend_label = {"points": layer.legend_label, "lines": layer.legend_label, "polygons": layer.legend_label}
 				self.add_composite_layer(point_data=point_data, point_style=point_style, line_data=line_data, line_style=line_style, polygon_data=polygon_data, polygon_style=polygon_style, text_data=text_data, text_style=text_style)
+			elif isinstance(layer.data, GridData):
+				self.add_grid_layer(layer.data, layer.style, layer.legend_label)
 
 	def add_decoration(self):
 		self.add_graticule()
 		self.ax.set_title(self.title)
-		self.ax.legend().set_zorder(self.zorder)
+		try:
+			## May fail if there is no legend
+			self.ax.legend().set_zorder(self.zorder)
+		except:
+			pass
 
 	def add_graticule(self):
 		"""
@@ -821,79 +903,129 @@ class LayeredBasemap:
 			if fig_width:
 				fig_width /= 2.54
 				dpi = dpi * (fig_width / default_figsize[0])
-			fig.savefig(fig_filespec, dpi=dpi)
-			fig.clf()
+			pylab.savefig(fig_filespec, dpi=dpi)
+			pylab.clf()
 		else:
 			pylab.show()
 
 
 if __name__ == "__main__":
-	pt = PointData(4., 51., 0, "test")
-
-	layers = []
-	bm_style = None
-	data = BuiltinData("bluemarble")
-	layer = MapLayer(data, bm_style)
-	#layers.append(layer)
-
-	continent_style = PolygonStyle(fill_color="lightgray")
-	data = BuiltinData("continents")
-	layer = MapLayer(data, continent_style)
-	layers.append(layer)
-
-	coastline_style = LineStyle(line_color="r", line_width=2)
-	data = BuiltinData("coastlines")
-	layer = MapLayer(data, coastline_style)
-	layers.append(layer)
-
-	data = BuiltinData("countries")
-	country_style = LineStyle(line_color="r", line_width=2)
-	layer = MapLayer(data, country_style)
-	layers.append(layer)
-
-	data = BuiltinData("rivers")
-	river_style = LineStyle(line_color="b")
-	layer = MapLayer(data, river_style)
-	layers.append(layer)
-
-	data = BuiltinData("nightshade", date_time=datetime.datetime.now())
-	style = PolygonStyle(fill_color='k', alpha=0.5)
-	layer = MapLayer(data, style)
-	layers.append(layer)
-
-	#gis_filespec = r"D:\GIS-data\KSB-ORB\Source Zone Models\Seismotectonic Hybrid.TAB"
-	gis_filespec = r"D:\GIS-data\KSB-ORB\Source Zone Models\SLZ+RVG.TAB"
-	gis_data = GisData(gis_filespec, label_colname="ShortName")
-	point_style = PointStyle()
-	line_style = LineStyle(line_width=2)
-	polygon_style = PolygonStyle(line_width=2, fill_color='b', alpha=0.5)
-	label_style = TextStyle()
-	gis_style = CompositeStyle(point_style=point_style, line_style=line_style, polygon_style=polygon_style, text_style=label_style)
-	layer = MapLayer(gis_data, gis_style, legend_label={"polygons": "Area sources", "lines": "Fault sources"})
-	layers.append(layer)
-
-	point_data = MultiPointData([3,4,4,3], [50,50,51,51], labels=['a','b','c','d'], values=[1,2,2,1])
-	point_style = PointStyle(shape='o', size=ScatterStyleGradient([1, 2], [100, 200]))
-	text_style = TextStyle(offset=[1,1])
-	point_style.label_style = text_style
-	layer = MapLayer(point_data, point_style)
-	layers.append(layer)
-
-	point_data = MultiPointData([4.259, 5.274], [51.325, 50.534], labels=["Doel", "Tihange"])
-	point_style = PointStyle(fill_color='y', label_style=TextStyle(color='w', horizontal_alignment="left", offset=(20,0)))
-	layer = MapLayer(point_data, point_style, legend_label="NPP")
-	layers.append(layer)
-
-	focmecs = FocmecData([4.5], [51.], values=[[135, 60, -90]])
-	focmec_style = FocmecStyle()
-	layer = MapLayer(focmecs, focmec_style)
-	layers.append(layer)
+	import os
 
 	region = (0,8,49,52)
 	projection = "tmerc"
 	title = "Test"
 	resolution = "h"
 	dlon, dlat = 2, 1
+
+	layers = []
+
+	## BlueMarble image
+	bm_style = None
+	data = BuiltinData("bluemarble")
+	layer = MapLayer(data, bm_style)
+	#layers.append(layer)
+
+	## Continents
+	continent_style = PolygonStyle(fill_color="lightgray")
+	data = BuiltinData("continents")
+	layer = MapLayer(data, continent_style)
+	layers.append(layer)
+
+	## Coastlines
+	coastline_style = LineStyle(line_color="r", line_width=2)
+	data = BuiltinData("coastlines")
+	layer = MapLayer(data, coastline_style)
+	layers.append(layer)
+
+	## Country borders
+	data = BuiltinData("countries")
+	country_style = LineStyle(line_color="r", line_width=2, line_pattern='--')
+	layer = MapLayer(data, country_style)
+	layers.append(layer)
+
+	## Rivers
+	data = BuiltinData("rivers")
+	river_style = LineStyle(line_color="b")
+	layer = MapLayer(data, river_style)
+	layers.append(layer)
+
+	## Night shading
+	data = BuiltinData("nightshade", date_time=datetime.datetime.now())
+	style = PolygonStyle(fill_color='k', alpha=0.5)
+	layer = MapLayer(data, style)
+	#layers.append(layer)
+
+	## Gis file: source-zone model
+	#gis_filespec = r"D:\GIS-data\KSB-ORB\Source Zone Models\Seismotectonic Hybrid.TAB"
+	gis_filespec = r"D:\GIS-data\KSB-ORB\Source Zone Models\SLZ+RVG.TAB"
+	gis_data = GisData(gis_filespec, label_colname="ShortName")
+	point_style = PointStyle()
+	line_style = LineStyle(line_width=2)
+	polygon_style = PolygonStyle(line_width=2, fill_color='none', alpha=0.5)
+	label_style = TextStyle()
+	gis_style = CompositeStyle(point_style=point_style, line_style=line_style, polygon_style=polygon_style, text_style=label_style)
+	layer = MapLayer(gis_data, gis_style, legend_label={"polygons": "Area sources", "lines": "Fault sources"})
+	layers.append(layer)
+
+	## Grid: hazard map
+	import hazard.rshalib as rshalib
+	root_folder = r"D:\PSHA\LNE\CRISIS"
+	model = "VG_Ambr95DD_Leynaud_EC8"
+	crisis_filespec = os.path.join(root_folder, model)
+	return_period = 475
+	hms = rshalib.crisis.readCRISIS_MAP(crisis_filespec)
+	hm = hms.getHazardMap(return_period=return_period)
+	contour_interval = {475: 0.02, 3000:0.04, 5000:0.05}[return_period]
+	num_grid_cells = 100
+	grid_lons, grid_lats = hm.meshgrid(num_cells=num_grid_cells)
+	grid_intensities = hm.get_grid_intensities(num_cells=num_grid_cells)
+	vmin = np.floor(hm.min() / contour_interval) * contour_interval
+	vmax = np.ceil(hm.max() / contour_interval) * contour_interval
+	contour_levels = np.arange(vmin, vmax+contour_interval, contour_interval)
+	norm = matplotlib.colors.Normalize(vmin, vmax)
+	color_map_theme = ThematicStyleColormap(color_map="jet", norm=norm, vmin=vmin, vmax=vmax, alpha=1)
+	grid_style = GridStyle(color_map_theme, continuous=False, line_style=LineStyle(label_style=TextStyle()), contour_levels=contour_levels, label_format='%.2f')
+	grid_data = GridData(grid_lons, grid_lats, grid_intensities)
+	layer = MapLayer(grid_data, grid_style, legend_label="PGA (g)")
+	layers.append(layer)
+
+	## Point data
+	point_data = MultiPointData([3,4,4,3], [50,50,51,51], labels=['a','b','c','d'], values=[1,2,2,1])
+	point_style = PointStyle(shape='o')
+	text_style = TextStyle(offset=[1,1])
+	point_style.label_style = text_style
+	layer = MapLayer(point_data, point_style)
+	#layers.append(layer)
+
+	## ROB earthquake catalog
+	import eqcatalog.seismodb as seismodb
+	catalog = seismodb.query_ROB_LocalEQCatalog(region=region)
+	values = {}
+	values['magnitudes'] = catalog.get_magnitudes()
+	values['depths'] = catalog.get_depths()
+	point_data = MultiPointData(catalog.get_longitudes(), catalog.get_latitudes(), values=values)
+	#point_data = MultiPointData([2.0, 3.0, 4.0, 5.0, 6.0], [50, 50, 50, 50, 50], values=[2,3,4,5,6])
+	thematic_size = ThematicStyleGradient([1,6], [4, 24], value_key="magnitudes")
+	#thematic_color = ThematicStyleColormap(value_key="depths")
+	thematic_color = ThematicStyleRanges([0,1,10,25,50], ['red', 'orange', 'yellow', 'green'], value_key="depths")
+	#point_style = PointStyle(shape='+', size=thematic_size, fill_color='k', line_color=thematic_color, line_width=0.5)
+	point_style = PointStyle(shape='o', size=thematic_size, line_color='k', fill_color=thematic_color, line_width=0.5)
+	layer = MapLayer(point_data, point_style, legend_label="ROB Catalog")
+	layers.append(layer)
+
+	## Point data: NPP sites
+	point_data = MultiPointData([4.259, 5.274], [51.325, 50.534], labels=["Doel", "Tihange"])
+	point_style = PointStyle(fill_color='y', label_style=TextStyle(color='w', horizontal_alignment="left", offset=(20,0)))
+	layer = MapLayer(point_data, point_style, legend_label="NPP")
+	layers.append(layer)
+
+	## Focal mechanisms
+	focmecs = FocmecData([4.5], [51.], values=[[135, 60, -90]])
+	focmec_style = FocmecStyle()
+	layer = MapLayer(focmecs, focmec_style)
+	#layers.append(layer)
+
 	#layers = []
 	map = LayeredBasemap(layers, region, projection, title, resolution=resolution, dlon=dlon, dlat=dlat)
 
@@ -909,5 +1041,7 @@ if __name__ == "__main__":
 	a, b = map.ax.transData.transform((x, y))
 	print x, y
 	print a, b
-	map.plot()
+	#fig_filespec = r"C:\Temp\layeredbasemap.png"
+	fig_filespec = None
+	map.plot(fig_filespec=fig_filespec)
 
