@@ -219,11 +219,19 @@ class MultiPointData():
 	def __getitem__(self, index):
 		lon = self.lons[index]
 		lat = self.lats[index]
-		# TODO: does this work with values with different value_keys??
-		try:
-			value = self.values[index]
-		except:
-			value = None
+		if isinstance(self.values, dict):
+			value = {}
+			value_keys = self.values.keys()
+			for key in value_keys:
+				try:
+					value[key] = self.values[key][i]
+				except:
+					value[key] = None
+		else:
+			try:
+				value = self.values[index]
+			except:
+				value = None
 		try:
 			label = self.labels[index]
 		except:
@@ -320,10 +328,19 @@ class MultiLineData():
 	def __getitem__(self, index):
 		lons = self.lons[index]
 		lats = self.lats[index]
-		try:
-			value = self.values[index]
-		except:
-			value = None
+		if isinstance(self.values, dict):
+			value = {}
+			value_keys = self.values.keys()
+			for key in value_keys:
+				try:
+					value[key] = self.values[key][i]
+				except:
+					value[key] = None
+		else:
+			try:
+				value = self.values[index]
+			except:
+				value = None
 		try:
 			label = self.labels[index]
 		except:
@@ -439,10 +456,19 @@ class MultiPolygonData():
 			interior_lats = self.interior_lats[index]
 		except:
 			interior_lats = []
-		try:
-			value = self.values[index]
-		except:
-			value = None
+		if isinstance(self.values, dict):
+			value = {}
+			value_keys = self.values.keys()
+			for key in value_keys:
+				try:
+					value[key] = self.values[key][i]
+				except:
+					value[key] = None
+		else:
+			try:
+				value = self.values[index]
+			except:
+				value = None
 		try:
 			label = self.labels[index]
 		except:
@@ -655,24 +681,20 @@ class LayeredBasemap:
 			self.ax.fill(x, y, ls=style.line_pattern, lw=style.line_width, ec=style.line_color, fc=style.fill_color, hatch=style.fill_hatch, label=legend_label, alpha=style.alpha, zorder=self.zorder)
 		else:
 			## Complex polygon with holes
-			exterior_x, exterior_y = self.map(polygon.lons, polygon.lats)
-			interior_x, interior_y = [], []
-			for i in range(len(polygon.interior_lons)):
-				x, y = self.map(polygon.interior_lons[i], polygon.interior_lats[i])
-				interior_x.append(x)
-				interior_y.append(y)
+			proj_polygon = self.get_projected_polygon(polygon)
+			exterior_x, exterior_y = proj_polygon.lons, proj_polygon.lats
+			interior_x, interior_y = proj_polygon.interior_lons, proj_polygon.interior_lats
 			if style.fill_color in (None, 'None', 'none'):
 				self.map.plot(exterior_x, exterior_y, ls=style.line_pattern, lw=style.line_width, color=style.line_color, label=legend_label, alpha=style.alpha, zorder=self.zorder)
 				for x, y in zip(interior_x, interior_y):
 					self.map.plot(x, y, ls=style.line_pattern, lw=style.line_width, color=style.line_color, label="_nolegend_", alpha=style.alpha, zorder=self.zorder)
 			else:
 				from descartes.patch import PolygonPatch
-				proj_polygon = PolygonData(exterior_x, exterior_y, interior_x, interior_y).to_shapely()
+				proj_polygon = proj_polygon.to_shapely()
 				## Make sure exterior and interior rings of polygon are properly oriented
 				proj_polygon = shapely.geometry.polygon.orient(proj_polygon)
 				patch = PolygonPatch(proj_polygon, fill=1, ls=style.line_pattern, lw=style.line_width, ec=style.line_color, fc=style.fill_color, hatch=style.fill_hatch, label=legend_label, alpha=style.alpha)
 				patch.set_zorder(self.zorder)
-				print self.ax
 				self.ax.add_patch(patch)
 
 	def _draw_texts(self, text_points, style):
@@ -963,25 +985,26 @@ class LayeredBasemap:
 		ar = geo.ReadAsArray()
 
 	def draw_mask(self, polygon, mask_style=None, outside=True):
+		"""
+		polygon or multipolygon, holes are disregarded
+		"""
 		if not mask_style:
 			mask_style = PolygonStyle(fill_color="w", line_color="None", line_width=0)
 		if not outside:
 			self._draw_polygon(polygon, mask_style)
 		else:
-			proj_polygon = self.get_projected_polygon(polygon)
 			llcrnrx, llcrnry = self.map(self.llcrnrlon, self.llcrnrlat, inverse=True)
 			urcrnrx, urcrnry = self.map(self.urcrnrlon, self.urcrnrlat, inverse=True)
 			ulcrnrlon, ulcrnrlat = self.map(llcrnrx, urcrnry)
 			lrcrnrlon, lrcrnrlat = self.map(urcrnrx, llcrnry)
 			exterior_lons = [self.llcrnrlon, lrcrnrlon, self.urcrnrlon, ulcrnrlon, self.llcrnrlon]
 			exterior_lats = [self.llcrnrlat, lrcrnrlat, self.urcrnrlat, ulcrnrlat, self.llcrnrlat]
-			print zip(exterior_lons, exterior_lats)
-			interior_lons = [polygon.lons]
-			interior_lats = [polygon.lats]
-			for i in range(len(polygon.interior_lons)):
-				interior_lons.append(polygon.interior_lons[i])
-				interior_lats.append(polygon.interior_lats[i])
-			mask_polygon = MultiPolygonData(exterior_lons, exterior_lats, interior_lons, interior_lats)
+			interior_lons = []
+			interior_lats = []
+			for pg in polygon:
+				interior_lons.append(pg.lons)
+				interior_lats.append(pg.lats)
+			mask_polygon = PolygonData(exterior_lons, exterior_lats, interior_lons, interior_lats)
 			self._draw_polygon(mask_polygon, mask_style)
 
 		self.zorder += 1
@@ -1107,6 +1130,7 @@ class LayeredBasemap:
 			interior_x.append(x)
 			interior_y.append(y)
 		proj_polygon = PolygonData(exterior_x, exterior_y, interior_x, interior_y, value=polygon.value, label=polygon.label)
+		return proj_polygon
 
 	def to_display_coordinates(self, lons, lats):
 		## Convert lon, lat to display coordinates
