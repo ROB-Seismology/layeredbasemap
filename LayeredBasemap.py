@@ -64,10 +64,10 @@ class PolygonStyle:
 
 
 class FocmecStyle:
-	def __init__(self, line_width=1, line_color='k', face_color='k', bg_color='w', alpha=1.):
+	def __init__(self, line_width=1, line_color='k', fill_color='k', bg_color='w', alpha=1.):
 		self.line_width = line_width
 		self.line_color = line_color
-		self.face_color = face_color
+		self.fill_color = fill_color
 		self.bg_color = bg_color
 		self.alpha = alpha
 
@@ -214,17 +214,21 @@ class MultiPointData():
 
 	def __iter__(self):
 		for i in range(len(self.lons)):
-			lon = self.lons[i]
-			lat = self.lats[i]
-			try:
-				value = self.values[i]
-			except:
-				value = None
-			try:
-				label = self.labels[i]
-			except:
-				label = ""
-			yield PointData(lon, lat, value, label)
+			yield self.__getitem__(i)
+
+	def __getitem__(self, index):
+		lon = self.lons[index]
+		lat = self.lats[index]
+		# TODO: does this work with values with different value_keys??
+		try:
+			value = self.values[index]
+		except:
+			value = None
+		try:
+			label = self.labels[index]
+		except:
+			label = ""
+		return PointData(lon, lat, value, label)
 
 	def append(self, pt):
 		assert isinstance(pt, PointData)
@@ -311,17 +315,20 @@ class MultiLineData():
 
 	def __iter__(self):
 		for i in range(len(self.lons)):
-			lons = self.lons[i]
-			lats = self.lats[i]
-			try:
-				value = self.values[i]
-			except:
-				value = None
-			try:
-				label = self.labels[i]
-			except:
-				label = ""
-			yield LineData(lons, lats, value, label)
+			yield self.__getitem__(i)
+
+	def __getitem__(self, index):
+		lons = self.lons[index]
+		lats = self.lats[index]
+		try:
+			value = self.values[index]
+		except:
+			value = None
+		try:
+			label = self.labels[index]
+		except:
+			label = ""
+		return LineData(lons, lats, value, label)
 
 	def append(self, line):
 		assert isinstance(line, LineData)
@@ -419,25 +426,28 @@ class MultiPolygonData():
 
 	def __iter__(self):
 		for i in range(len(self.lons)):
-			lons = self.lons[i]
-			lats = self.lats[i]
-			try:
-				interior_lons = self.interior_lons[i]
-			except:
-				interior_lons = []
-			try:
-				interior_lats = self.interior_lats[i]
-			except:
-				interior_lats = []
-			try:
-				value = self.values[i]
-			except:
-				value = None
-			try:
-				label = self.labels[i]
-			except:
-				label = ""
-			yield PolygonData(lons, lats, interior_lons, interior_lats, value, label)
+			yield self.__getitem__(i)
+
+	def __getitem__(self, index):
+		lons = self.lons[index]
+		lats = self.lats[index]
+		try:
+			interior_lons = self.interior_lons[index]
+		except:
+			interior_lons = []
+		try:
+			interior_lats = self.interior_lats[index]
+		except:
+			interior_lats = []
+		try:
+			value = self.values[index]
+		except:
+			value = None
+		try:
+			label = self.labels[index]
+		except:
+			label = ""
+		return PolygonData(lons, lats, interior_lons, interior_lats, value, label)
 
 	def append(self, polygon):
 		assert isinstance(polygon, PolygonData)
@@ -474,7 +484,7 @@ class MultiPolygonData():
 				pg_interior_lats.append(lats)
 			interior_lons.append(pg_interior_lons)
 			interior_lats.append(pg_interior_lats)
-		return MultiPolygonData(interior_lons, interior_lats, exterior_lons, exterior_lats)
+		return MultiPolygonData(exterior_lons, exterior_lats, interior_lons, interior_lats)
 
 	@classmethod
 	def from_ogr(self, geom):
@@ -483,6 +493,12 @@ class MultiPolygonData():
 
 class FocmecData(MultiPointData):
 	pass
+
+
+class MaskData:
+	def __init__(self, polygon, outside=True):
+		self.polygon = polygon
+		self.outside = outside
 
 
 class CompositeData:
@@ -514,22 +530,24 @@ class MapLayer:
 
 
 class LayeredBasemap:
-	def __init__(self, layers, region, projection, title, origin=(None, None), resolution="i", dlon=None, dlat=None, annot_axes="SE", legend_location=0):
-		#TODO: width, height, origin(lon0, lat0)
+	def __init__(self, layers, region, projection, title, origin=(None, None), grid_interval=(None, None), resolution="i", annot_axes="SE", legend_location=0):
+		#TODO: width, height
 		self.layers = layers
 		self.region = region
 		self.projection = projection
 		self.title = title
 		self.origin = origin
+		self.grid_interval = grid_interval
 		self.resolution = resolution
-		self.dlon = dlon
-		self.dlat = dlat
 		self.annot_axes = annot_axes
 		self.legend_location = legend_location
 		self.map = self.init_basemap()
 		self.ax = pylab.gca()
-		self.add_layers()
-		self.add_decoration()
+		#self.draw()
+
+	#@property
+	#def ax(self):
+	#	return pylab.gca()
 
 	@property
 	def llcrnrlon(self):
@@ -555,6 +573,14 @@ class LayeredBasemap:
 	def lat_0(self):
 		return self.origin[1]
 
+	@property
+	def dlon(self):
+		return self.grid_interval[0]
+
+	@property
+	def dlat(self):
+		return self.grid_interval[1]
+
 	def init_basemap(self):
 		self.zorder = 0
 		llcrnrlon, urcrnrlon, llcrnrlat, urcrnrlat = self.region
@@ -570,7 +596,7 @@ class LayeredBasemap:
 
 	## Drawing primitives
 
-	def _add_points(self, points, style, legend_label="_nolegend_"):
+	def _draw_points(self, points, style, legend_label="_nolegend_"):
 		x, y = self.map(points.lons, points.lats)
 		if isinstance(style.size, ThematicStyle) or isinstance(style.line_width, ThematicStyle) or isinstance(style.line_color, ThematicStyle) or isinstance(style.fill_color, ThematicStyle):
 			cmap, norm, vmin, vmax = None, None, None, None
@@ -619,11 +645,11 @@ class LayeredBasemap:
 		else:
 			self.map.plot(x, y, marker=style.shape, ms=style.size, mfc=style.fill_color, mec=style.line_color, mew=style.line_width, ls="None", lw=0, label=legend_label, alpha=style.alpha, zorder=self.zorder)
 
-	def _add_line(self, line, style, legend_label="_nolegend_"):
+	def _draw_line(self, line, style, legend_label="_nolegend_"):
 		x, y = self.map(line.lons, line.lats)
 		self.map.plot(x, y, ls=style.line_pattern, lw=style.line_width, color=style.line_color, label=legend_label, alpha=style.alpha, zorder=self.zorder)
 
-	def _add_polygon(self, polygon, style, legend_label="_nolegend_"):
+	def _draw_polygon(self, polygon, style, legend_label="_nolegend_"):
 		if len(polygon.interior_lons) == 0:
 			x, y = self.map(polygon.lons, polygon.lats)
 			self.ax.fill(x, y, ls=style.line_pattern, lw=style.line_width, ec=style.line_color, fc=style.fill_color, hatch=style.fill_hatch, label=legend_label, alpha=style.alpha, zorder=self.zorder)
@@ -646,15 +672,16 @@ class LayeredBasemap:
 				proj_polygon = shapely.geometry.polygon.orient(proj_polygon)
 				patch = PolygonPatch(proj_polygon, fill=1, ls=style.line_pattern, lw=style.line_width, ec=style.line_color, fc=style.fill_color, hatch=style.fill_hatch, label=legend_label, alpha=style.alpha)
 				patch.set_zorder(self.zorder)
+				print self.ax
 				self.ax.add_patch(patch)
 
-	def _add_texts(self, text_points, style):
+	def _draw_texts(self, text_points, style):
 		# TODO: offset
 		x, y = self.map(text_points.lons, text_points.lats)
 		for i, label in enumerate(text_points.labels):
 			self.ax.text(x[i], y[i], label, family=style.font_family, size=style.font_size, weight=style.font_weight, style=style.font_style, stretch=style.font_stretch, variant=style.font_variant, color=style.color, linespacing=style.line_spacing, rotation=style.rotation, ha=style.horizontal_alignment, va=style.vertical_alignment, alpha=style.alpha, zorder=self.zorder)
 
-	def add_polygon_layer(self, polygon_data, polygon_style, legend_label="_nolegend_"):
+	def draw_polygon_layer(self, polygon_data, polygon_style, legend_label="_nolegend_"):
 		"""
 		polygon_data: MultiPolygon
 		"""
@@ -689,7 +716,7 @@ class LayeredBasemap:
 			fill_color = fill_colors[i]
 			fill_hatch = fill_hatches[i]
 			style = PolygonStyle(line_pattern=line_pattern, line_width=line_width, line_color=line_color, fill_color=fill_color, fill_hatch=fill_hatch, label_style=None, alpha=polygon_style.alpha)
-			self._add_polygon(polygon, style, legend_label)
+			self._draw_polygon(polygon, style, legend_label)
 		self.zorder += 1
 		if polygon_data.labels and polygon_style.label_style:
 			centroids = MultiPointData([], [], labels=[])
@@ -698,10 +725,10 @@ class LayeredBasemap:
 				centroids.lons.append(centroid.lon)
 				centroids.lats.append(centroid.lat)
 				centroids.labels.append(pg.label)
-			self._add_texts(centroids, polygon_style.label_style)
+			self._draw_texts(centroids, polygon_style.label_style)
 			self.zorder += 1
 
-	def add_line_layer(self, line_data, line_style, legend_label="_nolegend_"):
+	def draw_line_layer(self, line_data, line_style, legend_label="_nolegend_"):
 		"""
 		line_data: MultiLine
 		"""
@@ -726,7 +753,7 @@ class LayeredBasemap:
 			line_width = line_widths[i]
 			line_color = line_colors[i]
 			style = LineStyle(line_pattern=line_pattern, line_width=line_width, line_color=line_color, label_style=None, alpha=line_style.alpha)
-			self._add_line(line, line_style, legend_label)
+			self._draw_line(line, line_style, legend_label)
 		self.zorder += 1
 		if line_data.labels and line_style.label_style:
 			midpoints = MultiPointData([], [], labels=[])
@@ -735,55 +762,58 @@ class LayeredBasemap:
 				midpoints.lons.append(midpoint.lon)
 				midpoints.lats.append(midpoint.lat)
 				midpoints.labels.append(line.label)
-			self._add_texts(midpoints, line_style.label_style)
+			self._draw_texts(midpoints, line_style.label_style)
 			self.zorder += 1
 
-	def add_point_layer(self, point_data, point_style, legend_label="_nolegend_"):
-		self._add_points(point_data, point_style, legend_label)
+	def draw_point_layer(self, point_data, point_style, legend_label="_nolegend_"):
+		self._draw_points(point_data, point_style, legend_label)
 		self.zorder += 1
 		if point_data.labels and point_style.label_style:
-			self._add_texts(point_data, point_style.label_style)
+			self._draw_texts(point_data, point_style.label_style)
 			self.zorder += 1
 
-	def add_composite_layer(self, point_data=[], point_style=None, line_data=[], line_style=None, polygon_data=[], polygon_style=None, text_data=[], text_style=None, legend_label={"points": "_nolegend_", "lines": "_nolegend_", "polygons": "_nolegend_"}):
+	def draw_composite_layer(self, point_data=[], point_style=None, line_data=[], line_style=None, polygon_data=[], polygon_style=None, text_data=[], text_style=None, legend_label={"points": "_nolegend_", "lines": "_nolegend_", "polygons": "_nolegend_"}):
 		if polygon_data and len(polygon_data) > 0 and polygon_style:
-			self.add_polygon_layer(polygon_data, polygon_style, legend_label["polygons"])
+			self.draw_polygon_layer(polygon_data, polygon_style, legend_label["polygons"])
 		if line_data and len(line_data) > 0 and line_style:
-			self.add_line_layer(line_data, line_style, legend_label["lines"])
+			self.draw_line_layer(line_data, line_style, legend_label["lines"])
 		if point_data and len(point_data) > 0 and point_style:
-			self.add_point_layer(point_data, point_style, legend_label["points"])
+			self.draw_point_layer(point_data, point_style, legend_label["points"])
 		if text_data and len(text_data) > 0 and text_style:
-			self._add_texts(text_data, text_style)
+			self._draw_texts(text_data, text_style)
 
-	def add_gis_layer(self, gis_data, gis_style, legend_label={"points": "_nolegend_", "lines": "_nolegend_", "polygons": "_nolegend_"}):
+	def draw_gis_layer(self, gis_data, gis_style, legend_label={"points": "_nolegend_", "lines": "_nolegend_", "polygons": "_nolegend_"}):
 		point_style = gis_style.point_style
 		line_style = gis_style.line_style
 		polygon_style = gis_style.polygon_style
 		point_value_colnames = set()
-		if isinstance(point_style.size, ThematicStyle):
-			point_value_colnames.add(point_style.size.value_key)
-		if isinstance(point_style.line_color, ThematicStyle):
-			point_value_colnames.add(point_style.line_color.value_key)
-		elif isinstance(point_style.fill_color, ThematicStyle):
-			point_value_colnames.add(point_style.fill_color.value_key)
+		if point_style:
+			if isinstance(point_style.size, ThematicStyle):
+				point_value_colnames.add(point_style.size.value_key)
+			if isinstance(point_style.line_color, ThematicStyle):
+				point_value_colnames.add(point_style.line_color.value_key)
+			elif isinstance(point_style.fill_color, ThematicStyle):
+				point_value_colnames.add(point_style.fill_color.value_key)
 		line_value_colnames = set()
-		if isinstance(line_style.line_pattern, ThematicStyle):
-			line_value_colnames.add(line_style.line_pattern.value_key)
-		if isinstance(line_style.line_width, ThematicStyle):
-			line_value_colnames.add(line_style.line_width.value_key)
-		if isinstance(line_style.line_color, ThematicStyle):
-			line_value_colnames.add(line_style.line_color.value_key)
+		if line_style:
+			if isinstance(line_style.line_pattern, ThematicStyle):
+				line_value_colnames.add(line_style.line_pattern.value_key)
+			if isinstance(line_style.line_width, ThematicStyle):
+				line_value_colnames.add(line_style.line_width.value_key)
+			if isinstance(line_style.line_color, ThematicStyle):
+				line_value_colnames.add(line_style.line_color.value_key)
 		polygon_value_colnames = set()
-		if isinstance(polygon_style.line_pattern, ThematicStyle):
-			polygon_value_colnames.add(polygon_style.line_pattern.value_key)
-		if isinstance(polygon_style.line_width, ThematicStyle):
-			polygon_value_colnames.add(polygon_style.line_width.value_key)
-		if isinstance(polygon_style.line_color, ThematicStyle):
-			polygon_value_colnames.add(polygon_style.line_color.value_key)
-		if isinstance(polygon_style.fill_color, ThematicStyle):
-			polygon_value_colnames.add(polygon_style.fill_color.value_key)
-		if isinstance(polygon_style.fill_hatch, ThematicStyle):
-			polygon_value_colnames.add(polygon_style.fill_hatch.value_key)
+		if polygon_style:
+			if isinstance(polygon_style.line_pattern, ThematicStyle):
+				polygon_value_colnames.add(polygon_style.line_pattern.value_key)
+			if isinstance(polygon_style.line_width, ThematicStyle):
+				polygon_value_colnames.add(polygon_style.line_width.value_key)
+			if isinstance(polygon_style.line_color, ThematicStyle):
+				polygon_value_colnames.add(polygon_style.line_color.value_key)
+			if isinstance(polygon_style.fill_color, ThematicStyle):
+				polygon_value_colnames.add(polygon_style.fill_color.value_key)
+			if isinstance(polygon_style.fill_hatch, ThematicStyle):
+				polygon_value_colnames.add(polygon_style.fill_hatch.value_key)
 
 		point_data = MultiPointData([], [], labels=[])
 		point_data.values = {}
@@ -814,16 +844,31 @@ class LayeredBasemap:
 				line_data.append(line)
 				for colname in line_value_colnames:
 					line_data.values[colname].append(rec[colname])
+			elif geom_type == "MULTILINESTRING":
+				multi_line = MultiLineData.from_ogr(geom)
+				for line in multi_line:
+					line.label = label
+					line_data.append(line)
+					for colname in line_value_colnames:
+						line_data.values[colname].append(rec[colname])
 			elif geom_type == "POLYGON":
 				polygon = PolygonData.from_ogr(geom)
 				polygon.label = label
 				polygon_data.append(polygon)
 				for colname in polygon_value_colnames:
 					polygon_data.values[colname].append(rec[colname])
+			elif geom_type == "MULTIPOLYGON":
+				multi_polygon = MultiPolygonData.from_ogr(geom)
+				for polygon in multi_polygon:
+					polygon.label = label
+					polygon_data.append(polygon)
+					for colname in polygon_value_colnames:
+						polygon_data.values[colname].append(rec[colname])
 
-		self.add_composite_layer(point_data=point_data, point_style=point_style, line_data=line_data, line_style=line_style, polygon_data=polygon_data, polygon_style=polygon_style, legend_label=legend_label)
 
-	def add_grid_layer(self, grid_data, grid_style, legend_label=""):
+		self.draw_composite_layer(point_data=point_data, point_style=point_style, line_data=line_data, line_style=line_style, polygon_data=polygon_data, polygon_style=polygon_style, legend_label=legend_label)
+
+	def draw_grid_layer(self, grid_data, grid_style, legend_label=""):
 		# TODO: coloured contour lines
 		x, y = self.map(grid_data.lons, grid_data.lats)
 		cmap = grid_style.color_map_theme.color_map
@@ -843,41 +888,41 @@ class LayeredBasemap:
 			line_style = grid_style.line_style
 			cl = self.map.contour(x, y, grid_data.values, levels=grid_style.contour_levels, colors=line_style.line_color, linewidths=line_style.line_width, alpha=line_style.alpha, zorder=self.zorder)
 			label_style = line_style.label_style
-			print line_style.alpha, label_style.alpha
 			# TODO: other font properties?
-			pylab.clabel(cl, colors='k', inline=True, fontsize=label_style.font_size, fmt=grid_style.label_format, alpha=label_style.alpha, zorder=self.zorder+1)
+			self.ax.clabel(cl, colors='k', inline=True, fontsize=label_style.font_size, fmt=grid_style.label_format, alpha=label_style.alpha, zorder=self.zorder+1)
 		# TODO: colorbar_style
-		cbar = self.map.colorbar(cs, location='bottom', pad="10%", format='%.2f', spacing="uniform", ticks=contour_levels)
+		cbar = self.map.colorbar(cs, location='bottom', pad="10%", format='%.2f', spacing="uniform", ticks=grid_style.contour_levels)
 		cbar.set_label(legend_label)
 		self.zorder += 2
 
-	def add_continents(self, continent_style, lake_style):
-		if continent_style.fill_color or lake_style.fill_color:
-			self.map.fillcontinents(color=continent_style.fill_color, lake_color=lake_style.fill_color, zorder=self.zorder)
+	def draw_continents(self, continent_style):
+		if continent_style.fill_color or continent_style.bg_color:
+			self.map.fillcontinents(color=continent_style.fill_color, lake_color=continent_style.fill_color, zorder=self.zorder)
+			#self.map.drawlsmask(land_color=continent_style.fill_color, ocean_color=continent_style.fill_color, resolution=self.resolution, zorder=self.zorder)
 		if continent_style.line_color:
-			self.add_coastlines(continent_style)
+			self.draw_coastlines(continent_style)
 		self.zorder += 1
 
-	def add_coastlines(self, coastline_style):
+	def draw_coastlines(self, coastline_style):
 		self.map.drawcoastlines(linewidth=coastline_style.line_width, color=coastline_style.line_color, zorder=self.zorder)
 		self.zorder += 1
 
-	def add_countries(self, style):
+	def draw_countries(self, style):
 		if style.line_color:
 			self.map.drawcountries(linewidth=style.line_width, color=style.line_color, zorder=self.zorder)
 			self.zorder += 1
 
-	def add_rivers(self, style):
+	def draw_rivers(self, style):
 		if style.line_color:
 			## linestyle argument not supported by current version of basemap
 			self.map.drawrivers(linewidth=style.line_width, color=style.line_color, zorder=self.zorder)
 			self.zorder += 1
 
-	def add_nightshade(self, date_time, style, alpha=0.5):
+	def draw_nightshade(self, date_time, style, alpha=0.5):
 		self.map.nightshade(date_time, color=style.fill_color, alpha=alpha, zorder=self.zorder)
 		self.zorder += 1
 
-	def add_bluemarble(self, style=None):
+	def draw_bluemarble(self, style=None):
 		try:
 			self.map.bluemarble(zorder=self.zorder)
 		except:
@@ -885,7 +930,7 @@ class LayeredBasemap:
 		else:
 			self.zorder += 1
 
-	def add_shadedrelief(self, style=None):
+	def draw_shadedrelief(self, style=None):
 		try:
 			self.map.shadedrelief(zorder=self.zorder)
 		except:
@@ -893,7 +938,7 @@ class LayeredBasemap:
 		else:
 			self.zorder += 1
 
-	def add_etopo(self, style=None):
+	def draw_etopo(self, style=None):
 		try:
 			self.map.etopo(zorder=self.zorder)
 		except:
@@ -901,54 +946,111 @@ class LayeredBasemap:
 		else:
 			self.zorder += 1
 
-	def add_focmecs(self, focmec_data, focmec_style):
+	def draw_focmecs(self, focmec_data, focmec_style):
 		# TODO: (variable) size (width is in map units??)
 		from obspy.imaging.beachball import Beach
 		x, y = self.map(focmec_data.lons, focmec_data.lats)
 		for i in range(len(focmec_data)):
-			b = Beach(focmec_data.values[i], xy=(x[i], y[i]), width=50000, linewidth=focmec_style.line_width, edgecolor=focmec_style.line_color, facecolor=focmec_style.face_color, bgcolor=focmec_style.bg_color, alpha=focmec_style.alpha)
+			b = Beach(focmec_data.values[i], xy=(x[i], y[i]), width=50000, linewidth=focmec_style.line_width, edgecolor=focmec_style.line_color, facecolor=focmec_style.fill_color, bgcolor=focmec_style.bg_color, alpha=focmec_style.alpha)
 			b.set_zorder(self.zorder)
 			self.ax.add_collection(b)
 		self.zorder += 1
 
-	def add_geotiff(self, tif_filespec):
+	def draw_geotiff(self, tif_filespec):
 		# TODO
 		import gdal
 		geo = gdal.Open("file.geotiff")
 		ar = geo.ReadAsArray()
 
-	def add_layers(self):
+	def draw_mask(self, polygon, mask_style=None, outside=True):
+		if not mask_style:
+			mask_style = PolygonStyle(fill_color="w", line_color="None", line_width=0)
+		if not outside:
+			self._draw_polygon(polygon, mask_style)
+		else:
+			proj_polygon = self.get_projected_polygon(polygon)
+			llcrnrx, llcrnry = self.map(self.llcrnrlon, self.llcrnrlat, inverse=True)
+			urcrnrx, urcrnry = self.map(self.urcrnrlon, self.urcrnrlat, inverse=True)
+			ulcrnrlon, ulcrnrlat = self.map(llcrnrx, urcrnry)
+			lrcrnrlon, lrcrnrlat = self.map(urcrnrx, llcrnry)
+			exterior_lons = [self.llcrnrlon, lrcrnrlon, self.urcrnrlon, ulcrnrlon, self.llcrnrlon]
+			exterior_lats = [self.llcrnrlat, lrcrnrlat, self.urcrnrlat, ulcrnrlat, self.llcrnrlat]
+			print zip(exterior_lons, exterior_lats)
+			interior_lons = [polygon.lons]
+			interior_lats = [polygon.lats]
+			for i in range(len(polygon.interior_lons)):
+				interior_lons.append(polygon.interior_lons[i])
+				interior_lats.append(polygon.interior_lats[i])
+			mask_polygon = MultiPolygonData(exterior_lons, exterior_lats, interior_lons, interior_lats)
+			self._draw_polygon(mask_polygon, mask_style)
+
+		self.zorder += 1
+
+	def draw_mask_image(self, polygon, resolution=1000, outside=True):
+		llcrnrx, llcrnry = self.map(self.llcrnrlon, self.llcrnrlat)
+		urcrnrx, urcrnry = self.map(self.urcrnrlon, self.urcrnrlat)
+		llcrnrx = np.floor((llcrnrx / resolution)) * resolution
+		llcrnry = np.floor((llcrnry / resolution)) * resolution
+		urcrnrx = np.ceil((urcrnrx / resolution)) * resolution
+		urcrnry = np.ceil((urcrnry / resolution)) * resolution
+		width = (urcrnrx - llcrnrx) / resolution + 1
+		height = (urcrnry - llcrnry) / resolution + 1
+		y, x = np.mgrid[:height, :width]
+		x = x * resolution + llcrnrx
+		y = y * resolution + llcrnry
+		grid_points = np.transpose((x.ravel(), y.ravel()))
+
+		x, y = self.map(polygon.lons, polygon.lats)
+		vertices = zip(x, y)
+
+		mask = matplotlib.nxutils.points_inside_poly(grid_points, vertices)
+		mask = mask.reshape(height, width)
+		print mask
+		if not outside:
+			mask = -mask
+
+		#img[~mask] = np.uint8(np.clip(img[~mask] - 100., 0, 255))
+
+		cmap = getattr(matplotlib.cm, "binary")
+		cmap._init()
+		cmap._lut[1:,3] = 0
+		self.map.imshow(mask, cmap=cmap, zorder=self.zorder)
+		self.zorder += 1
+
+	def draw_layers(self):
 		for layer in self.layers:
 			if isinstance(layer.data, BuiltinData):
 				if layer.data.feature == "continents":
-					continent_style = layer.style
-					ocean_style = PolygonStyle(fill_color="blue")
-					self.add_continents(continent_style, ocean_style)
+					#continent_style = layer.style
+					#ocean_style = PolygonStyle(fill_color="blue")
+					self.draw_continents(layer.style)
 				if layer.data.feature == "coastlines":
 					coastline_style = layer.style
-					self.add_coastlines(coastline_style)
+					self.draw_coastlines(coastline_style)
 				if layer.data.feature == "countries":
-					self.add_countries(layer.style)
+					self.draw_countries(layer.style)
 				if layer.data.feature == "rivers":
-					self.add_rivers(layer.style)
+					self.draw_rivers(layer.style)
 				if layer.data.feature == "nightshade":
-					self.add_nightshade(layer.data.date_time, layer.style)
+					self.draw_nightshade(layer.data.date_time, layer.style)
 				if layer.data.feature == "bluemarble":
-					self.add_bluemarble(layer.style)
+					self.draw_bluemarble(layer.style)
 				if layer.data.feature == "shadedrelief":
-					self.add_shadedrelief(layer.style)
+					self.draw_shadedrelief(layer.style)
 				if layer.data.feature == "etopo":
-					self.add_etopo(layer.style)
+					self.draw_etopo(layer.style)
 			elif isinstance(layer.data, FocmecData):
-				self.add_focmecs(layer.data, layer.style)
+				self.draw_focmecs(layer.data, layer.style)
+			elif isinstance(layer.data, MaskData):
+				self.draw_mask(layer.data.polygon, layer.style, layer.data.outside)
 			elif isinstance(layer.data, MultiPointData):
-				self.add_point_layer(layer.data, layer.style, layer.legend_label)
+				self.draw_point_layer(layer.data, layer.style, layer.legend_label)
 			elif isinstance(layer.data, (LineData, MultiLineData)):
-				self.add_line_layer(layer.data, layer.style, layer.legend_label)
+				self.draw_line_layer(layer.data, layer.style, layer.legend_label)
 			elif isinstance(layer.data, (PolygonData, MultiPolygonData)):
-				self.add_polygon_layer(layer.data, layer.style, layer.legend_label)
+				self.draw_polygon_layer(layer.data, layer.style, layer.legend_label)
 			elif isinstance(layer.data, GisData):
-				self.add_gis_layer(layer.data, layer.style, layer.legend_label)
+				self.draw_gis_layer(layer.data, layer.style, layer.legend_label)
 			elif isinstance(layer.data, CompositeData):
 				polygon_data = layer.data.polygons
 				polygon_style = layer.style.polygon_style
@@ -959,22 +1061,22 @@ class LayeredBasemap:
 				text_data = layer.data.texts
 				text_style = layer.style.text_style
 				legend_label = {"points": layer.legend_label, "lines": layer.legend_label, "polygons": layer.legend_label}
-				self.add_composite_layer(point_data=point_data, point_style=point_style, line_data=line_data, line_style=line_style, polygon_data=polygon_data, polygon_style=polygon_style, text_data=text_data, text_style=text_style)
+				self.draw_composite_layer(point_data=point_data, point_style=point_style, line_data=line_data, line_style=line_style, polygon_data=polygon_data, polygon_style=polygon_style, text_data=text_data, text_style=text_style)
 			elif isinstance(layer.data, GridData):
-				self.add_grid_layer(layer.data, layer.style, layer.legend_label)
+				self.draw_grid_layer(layer.data, layer.style, layer.legend_label)
 
-	def add_decoration(self):
-		self.add_graticule()
+	def draw_decoration(self):
+		self.draw_graticule()
 		# TODO: title style
 		self.ax.set_title(self.title)
 		# TODO: legend location
 		try:
 			## May fail if there is no legend
-			self.ax.legend().set_zorder(self.zorder)
+			self.ax.legend(loc=self.legend_location).set_zorder(self.zorder)
 		except:
 			pass
 
-	def add_graticule(self):
+	def draw_graticule(self):
 		"""
 		Draw meridians and parallels
 		"""
@@ -982,20 +1084,43 @@ class LayeredBasemap:
 			self.annot_axes = "SE"
 		ax_labels = [c in self.annot_axes for c in "WENS"]
 		if self.dlon != None:
-			first_meridian = np.ceil(region[0] / self.dlon) * self.dlon
-			last_meridian = np.floor(region[1] / self.dlon) * self.dlon + self.dlon
+			first_meridian = np.ceil(self.region[0] / self.dlon) * self.dlon
+			last_meridian = np.floor(self.region[1] / self.dlon) * self.dlon + self.dlon
 			meridians = np.arange(first_meridian, last_meridian, self.dlon)
 			self.map.drawmeridians(meridians, labels=ax_labels, zorder=self.zorder)
 		if self.dlat != None:
-			first_parallel = np.ceil(region[2] / self.dlat) * self.dlat
-			last_parallel = np.floor(region[3] / self.dlat) * self.dlat + self.dlat
+			first_parallel = np.ceil(self.region[2] / self.dlat) * self.dlat
+			last_parallel = np.floor(self.region[3] / self.dlat) * self.dlat + self.dlat
 			parallels = np.arange(first_parallel, last_parallel, self.dlat)
 			self.map.drawparallels(parallels, labels=ax_labels, zorder=self.zorder)
 		self.zorder += 1
 
+	def draw(self):
+		self.draw_layers()
+		self.draw_decoration()
+
+	def get_projected_polygon(self, polygon):
+		exterior_x, exterior_y = self.map(polygon.lons, polygon.lats)
+		interior_x, interior_y = [], []
+		for i in range(len(polygon.interior_lons)):
+			x, y = self.map(polygon.interior_lons[i], polygon.interior_lats[i])
+			interior_x.append(x)
+			interior_y.append(y)
+		proj_polygon = PolygonData(exterior_x, exterior_y, interior_x, interior_y, value=polygon.value, label=polygon.label)
+
+	def to_display_coordinates(self, lons, lats):
+		## Convert lon, lat to display coordinates
+		x, y = self.map(lons, lats)
+		return zip(*self.ax.transData.transform(zip(x, y)))
+
+	def from_display_coordinates(self, display_x, display_y):
+		## Convert display coordinates to lon, lat
+		x, y = self.ax.transData.inverted().transform(display_x, display_y)
+		return self.map(x, y, inverse=True)
+
 	def plot(self, fig_filespec=None, fig_width=0, dpi=300):
 		#fig = pylab.figure()
-		#subplot = fig.add_subplot(111)
+		#subplot = fig.draw_subplot(111)
 		#subplot.set_axes(self.ax)
 		if fig_filespec:
 			default_figsize = pylab.rcParams['figure.figsize']
@@ -1016,7 +1141,7 @@ if __name__ == "__main__":
 	projection = "tmerc"
 	title = "Test"
 	resolution = "h"
-	dlon, dlat = 2, 1
+	grid_interval = (2, 1)
 
 	layers = []
 
@@ -1047,10 +1172,8 @@ if __name__ == "__main__":
 
 	## Grid: hazard map
 	import hazard.rshalib as rshalib
-	#root_folder = r"D:\PSHA\LNE\CRISIS"
-	#model = "VG_Ambr95DD_Leynaud_EC8"
-	root_folder = "D:\PSHA\EGU2013\RVRS_CSS__AkkarBommer2010__AL__NoBG\crisis"
-	model = "RVRS_CSS__AkkarBommer2010__AL__NoBG"
+	root_folder = r"D:\PSHA\LNE\CRISIS"
+	model = "VG_Ambr95DD_Leynaud_EC8"
 	crisis_filespec = os.path.join(root_folder, model)
 	return_period = 475
 	hms = rshalib.crisis.readCRISIS_MAP(crisis_filespec)
@@ -1064,10 +1187,10 @@ if __name__ == "__main__":
 	contour_levels = np.arange(vmin, vmax+contour_interval, contour_interval)
 	norm = matplotlib.colors.Normalize(vmin, vmax)
 	color_map_theme = ThematicStyleColormap(color_map="jet", norm=norm, vmin=vmin, vmax=vmax, alpha=1)
-	grid_style = GridStyle(color_map_theme, continuous=False, line_style=LineStyle(label_style=TextStyle()), contour_levels=contour_levels, label_format='%.2f')
+	grid_style = GridStyle(color_map_theme, continuous=True, line_style=LineStyle(label_style=TextStyle()), contour_levels=contour_levels, label_format='%.2f')
 	grid_data = GridData(grid_lons, grid_lats, grid_intensities)
 	layer = MapLayer(grid_data, grid_style, legend_label="PGA (g)")
-	#layers.append(layer)
+	layers.append(layer)
 
 	## Coastlines
 	coastline_style = LineStyle(line_color="r", line_width=2)
@@ -1130,7 +1253,10 @@ if __name__ == "__main__":
 	#layers.append(layer)
 
 	#layers = []
-	map = LayeredBasemap(layers, region, projection, title, resolution=resolution, dlon=dlon, dlat=dlat)
+	legend_location = 0
+	map = LayeredBasemap(layers, region, projection, title, grid_interval=grid_interval, resolution=resolution, legend_location=legend_location)
+	mask_polygon = PolygonData([2,3,4,4,3,2,2], [50,50,50,51,51,51,50])
+	map.draw_mask(mask_polygon, outside=False)
 
 	## Convert display coordinates to lon, lat
 	x, y = map.ax.transData.inverted().transform((328,237))
