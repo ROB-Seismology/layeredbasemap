@@ -64,7 +64,8 @@ class PolygonStyle:
 
 
 class FocmecStyle:
-	def __init__(self, line_width=1, line_color='k', fill_color='k', bg_color='w', alpha=1.):
+	def __init__(self, size=50, line_width=1, line_color='k', fill_color='k', bg_color='w', alpha=1.):
+		self.size = size
 		self.line_width = line_width
 		self.line_color = line_color
 		self.fill_color = fill_color
@@ -172,7 +173,7 @@ class BuiltinData:
 			setattr(self, key, val)
 
 
-class PointData():
+class PointData(object):
 	def __init__(self, lon, lat, value=None, label=""):
 		self.lon = lon
 		self.lat = lat
@@ -202,7 +203,7 @@ class PointData():
 		return self.from_wkt(geom.ExportToWkt())
 
 
-class MultiPointData():
+class MultiPointData(object):
 	def __init__(self, lons, lats, values=[], labels=[]):
 		self.lons = lons
 		self.lats = lats
@@ -267,7 +268,7 @@ class MultiPointData():
 		return PointData(centroid.x, centroid.y)
 
 
-class LineData():
+class LineData(object):
 	def __init__(self, lons, lats, value=None, label=""):
 		self.lons = lons
 		self.lats = lats
@@ -307,7 +308,7 @@ class LineData():
 		return PointData(centroid.x, centroid.y)
 
 
-class MultiLineData():
+class MultiLineData(object):
 	def __init__(self, lons, lats, values=[], labels=[]):
 		if lons:
 			assert isinstance(lons[0], (list, tuple, np.ndarray)), "lons items must be sequences"
@@ -378,7 +379,7 @@ class MultiLineData():
 		return self.from_wkt(geom.ExportToWkt())
 
 
-class PolygonData():
+class PolygonData(object):
 	def __init__(self, lons, lats, interior_lons=[], interior_lats=[], value=None, label=""):
 		"""
 		lons, lats: lists
@@ -425,7 +426,7 @@ class PolygonData():
 		return PointData(centroid.x, centroid.y)
 
 
-class MultiPolygonData():
+class MultiPolygonData(object):
 	def __init__(self, lons, lats, interior_lons=[], interior_lats=[], values=[], labels=[]):
 		"""
 		lons, lats: 2-D lists
@@ -518,7 +519,9 @@ class MultiPolygonData():
 
 
 class FocmecData(MultiPointData):
-	pass
+	def __init__(self, lons, lats, sdr, values=[], labels=[]):
+		super(FocmecData, self).__init__(lons, lats, values, labels)
+		self.sdr = sdr
 
 
 class MaskData:
@@ -543,9 +546,10 @@ class GridData:
 
 
 class GisData:
-	def __init__(self, filespec, label_colname=None):
+	def __init__(self, filespec, label_colname=None, selection_dict={}):
 		self.filespec = filespec
 		self.label_colname = label_colname
+		self.selection_dict = selection_dict
 
 
 class MapLayer:
@@ -666,8 +670,10 @@ class LayeredBasemap:
 			else:
 				## Note: this is not used at the moment
 				fill_colors = style.fill_color
+			if not (isinstance(style.line_color, ThematicStyle) or isinstance(style.fill_color, ThematicStyle)):
+				c = []
 
-			self.map.scatter(x, y, marker=style.shape, s=sizes, c=c, edgecolors=line_colors, linewidths=line_widths, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, label=legend_label, alpha=style.alpha, zorder=self.zorder)
+			self.map.scatter(x, y, marker=style.shape, s=sizes, c=c, edgecolors=line_colors, facecolors=fill_colors, linewidths=line_widths, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, label=legend_label, alpha=style.alpha, zorder=self.zorder)
 		else:
 			self.map.plot(x, y, marker=style.shape, ms=style.size, mfc=style.fill_color, mec=style.line_color, mew=style.line_width, ls="None", lw=0, label=legend_label, alpha=style.alpha, zorder=self.zorder)
 
@@ -698,10 +704,15 @@ class LayeredBasemap:
 				self.ax.add_patch(patch)
 
 	def _draw_texts(self, text_points, style):
-		# TODO: offset
-		x, y = self.map(text_points.lons, text_points.lats)
+		# TODO: offset in cm rather than display units ?
+		# TODO: check out ax.annotate as well
+		display_x, display_y = self.lonlat_to_display_coordinates(text_points.lons, text_points.lats)
+		display_x = np.array(display_x) + style.offset[0]
+		display_y = np.array(display_y) + style.offset[1]
+		print display_x
+		x, y = self.map_from_display_coordinates(display_x, display_y)
 		for i, label in enumerate(text_points.labels):
-			self.ax.text(x[i], y[i], label, family=style.font_family, size=style.font_size, weight=style.font_weight, style=style.font_style, stretch=style.font_stretch, variant=style.font_variant, color=style.color, linespacing=style.line_spacing, rotation=style.rotation, ha=style.horizontal_alignment, va=style.vertical_alignment, alpha=style.alpha, zorder=self.zorder)
+			self.ax.text(x[i], y[i], label.decode('iso-8859-1'), family=style.font_family, size=style.font_size, weight=style.font_weight, style=style.font_style, stretch=style.font_stretch, variant=style.font_variant, color=style.color, linespacing=style.line_spacing, rotation=style.rotation, ha=style.horizontal_alignment, va=style.vertical_alignment, alpha=style.alpha, zorder=self.zorder)
 
 	def draw_polygon_layer(self, polygon_data, polygon_style, legend_label="_nolegend_"):
 		"""
@@ -812,6 +823,8 @@ class LayeredBasemap:
 		if point_style:
 			if isinstance(point_style.size, ThematicStyle):
 				point_value_colnames.add(point_style.size.value_key)
+			if isinstance(point_style.line_width, ThematicStyle):
+				point_value_colnames.add(point_style.line_width.value_key)
 			if isinstance(point_style.line_color, ThematicStyle):
 				point_value_colnames.add(point_style.line_color.value_key)
 			elif isinstance(point_style.fill_color, ThematicStyle):
@@ -850,42 +863,49 @@ class LayeredBasemap:
 		for colname in polygon_value_colnames:
 			polygon_data.values[colname] = []
 		for rec in read_GIS_file(gis_data.filespec):
-			label = rec.get(gis_data.label_colname)
-			geom = rec['obj']
-			geom_type = geom.GetGeometryName()
-			# TODO: MultiPoint, MultiLineString, MultiPolygon
-			if geom_type == "POINT":
-				pt = PointData.from_ogr(geom)
-				pt.label = label
-				point_data.append(pt)
-				for colname in point_value_colnames:
-					point_data.values[colname].append(rec[colname])
-			elif geom_type == "LINESTRING":
-				line = LineData.from_ogr(geom)
-				line.label = label
-				line_data.append(line)
-				for colname in line_value_colnames:
-					line_data.values[colname].append(rec[colname])
-			elif geom_type == "MULTILINESTRING":
-				multi_line = MultiLineData.from_ogr(geom)
-				for line in multi_line:
+			selected = np.zeros(len(gis_data.selection_dict.keys()))
+			for i, (selection_colname, selection_value) in enumerate(gis_data.selection_dict.items()):
+				if rec[selection_colname] == selection_value or rec[selection_colname] in selection_value:
+					selected[i] = 1
+				else:
+					selected[i] = 0
+			if selected.all():
+				label = rec.get(gis_data.label_colname)
+				geom = rec['obj']
+				geom_type = geom.GetGeometryName()
+				# TODO: MultiPoint
+				if geom_type == "POINT":
+					pt = PointData.from_ogr(geom)
+					pt.label = label
+					point_data.append(pt)
+					for colname in point_value_colnames:
+						point_data.values[colname].append(rec[colname])
+				elif geom_type == "LINESTRING":
+					line = LineData.from_ogr(geom)
 					line.label = label
 					line_data.append(line)
 					for colname in line_value_colnames:
 						line_data.values[colname].append(rec[colname])
-			elif geom_type == "POLYGON":
-				polygon = PolygonData.from_ogr(geom)
-				polygon.label = label
-				polygon_data.append(polygon)
-				for colname in polygon_value_colnames:
-					polygon_data.values[colname].append(rec[colname])
-			elif geom_type == "MULTIPOLYGON":
-				multi_polygon = MultiPolygonData.from_ogr(geom)
-				for polygon in multi_polygon:
+				elif geom_type == "MULTILINESTRING":
+					multi_line = MultiLineData.from_ogr(geom)
+					for line in multi_line:
+						line.label = label
+						line_data.append(line)
+						for colname in line_value_colnames:
+							line_data.values[colname].append(rec[colname])
+				elif geom_type == "POLYGON":
+					polygon = PolygonData.from_ogr(geom)
 					polygon.label = label
 					polygon_data.append(polygon)
 					for colname in polygon_value_colnames:
 						polygon_data.values[colname].append(rec[colname])
+				elif geom_type == "MULTIPOLYGON":
+					multi_polygon = MultiPolygonData.from_ogr(geom)
+					for polygon in multi_polygon:
+						polygon.label = label
+						polygon_data.append(polygon)
+						for colname in polygon_value_colnames:
+							polygon_data.values[colname].append(rec[colname])
 
 
 		self.draw_composite_layer(point_data=point_data, point_style=point_style, line_data=line_data, line_style=line_style, polygon_data=polygon_data, polygon_style=polygon_style, legend_label=legend_label)
@@ -969,11 +989,23 @@ class LayeredBasemap:
 			self.zorder += 1
 
 	def draw_focmecs(self, focmec_data, focmec_style):
-		# TODO: (variable) size (width is in map units??)
 		from obspy.imaging.beachball import Beach
+		## Determine conversion factor between display coordinates
+		## and map coordinates for beachball size
+		x0, y0 = self.map(self.lon_0, self.lat_0)
+		display_x0, display_y0 = self.map_to_display_coordinates([x0], [y0])
+		display_x1 = display_x0[0] + 100
+		x1, y1 = self.map_from_display_coordinates([display_x1], display_y0)
+		conv_factor = float(x1[0] - x0) / 100
+
 		x, y = self.map(focmec_data.lons, focmec_data.lats)
+		if isinstance(focmec_style.size, ThematicStyle):
+			sizes = focmec_style.size(focmec_data.values)
+		else:
+			sizes = [focmec_style.size] * len(focmec_data)
 		for i in range(len(focmec_data)):
-			b = Beach(focmec_data.values[i], xy=(x[i], y[i]), width=50000, linewidth=focmec_style.line_width, edgecolor=focmec_style.line_color, facecolor=focmec_style.fill_color, bgcolor=focmec_style.bg_color, alpha=focmec_style.alpha)
+			width = sizes[i] * conv_factor
+			b = Beach(focmec_data.sdr[i], xy=(x[i], y[i]), width=width, linewidth=focmec_style.line_width, edgecolor=focmec_style.line_color, facecolor=focmec_style.fill_color, bgcolor=focmec_style.bg_color, alpha=focmec_style.alpha)
 			b.set_zorder(self.zorder)
 			self.ax.add_collection(b)
 		self.zorder += 1
@@ -1132,15 +1164,21 @@ class LayeredBasemap:
 		proj_polygon = PolygonData(exterior_x, exterior_y, interior_x, interior_y, value=polygon.value, label=polygon.label)
 		return proj_polygon
 
-	def to_display_coordinates(self, lons, lats):
+	def lonlat_to_display_coordinates(self, lons, lats):
 		## Convert lon, lat to display coordinates
 		x, y = self.map(lons, lats)
+		return self.map_to_display_coordinates(x, y)
+
+	def map_to_display_coordinates(self, x, y):
 		return zip(*self.ax.transData.transform(zip(x, y)))
 
-	def from_display_coordinates(self, display_x, display_y):
+	def lonlat_from_display_coordinates(self, display_x, display_y):
 		## Convert display coordinates to lon, lat
-		x, y = self.ax.transData.inverted().transform(display_x, display_y)
+		x, y = self.map_from_display_coordinates(display_x, display_y)
 		return self.map(x, y, inverse=True)
+
+	def map_from_display_coordinates(self, display_x, display_y):
+		return zip(*self.ax.transData.inverted().transform(zip(display_x, display_y)))
 
 	def plot(self, fig_filespec=None, fig_width=0, dpi=300):
 		#fig = pylab.figure()
@@ -1252,13 +1290,13 @@ if __name__ == "__main__":
 	import eqcatalog.seismodb as seismodb
 	catalog = seismodb.query_ROB_LocalEQCatalog(region=region)
 	values = {}
-	values['magnitudes'] = catalog.get_magnitudes()
-	values['depths'] = catalog.get_depths()
+	values['magnitude'] = catalog.get_magnitudes()
+	values['depth'] = catalog.get_depths()
 	point_data = MultiPointData(catalog.get_longitudes(), catalog.get_latitudes(), values=values)
 	#point_data = MultiPointData([2.0, 3.0, 4.0, 5.0, 6.0], [50, 50, 50, 50, 50], values=[2,3,4,5,6])
-	thematic_size = ThematicStyleGradient([1,6], [4, 24], value_key="magnitudes")
-	#thematic_color = ThematicStyleColormap(value_key="depths")
-	thematic_color = ThematicStyleRanges([0,1,10,25,50], ['red', 'orange', 'yellow', 'green'], value_key="depths")
+	thematic_size = ThematicStyleGradient([1,6], [4, 24], value_key="magnitude")
+	#thematic_color = ThematicStyleColormap(value_key="depth")
+	thematic_color = ThematicStyleRanges([0,1,10,25,50], ['red', 'orange', 'yellow', 'green'], value_key="depth")
 	#point_style = PointStyle(shape='+', size=thematic_size, fill_color='k', line_color=thematic_color, line_width=0.5)
 	point_style = PointStyle(shape='o', size=thematic_size, line_color='k', fill_color=thematic_color, line_width=0.5)
 	layer = MapLayer(point_data, point_style, legend_label="ROB Catalog")
@@ -1271,8 +1309,9 @@ if __name__ == "__main__":
 	layers.append(layer)
 
 	## Focal mechanisms
-	focmecs = FocmecData([4.5], [51.], values=[[135, 60, -90]])
-	focmec_style = FocmecStyle()
+	thematic_size = ThematicStyleRanges([3,4,5,6,7], [20,30,40,50,60])
+	focmecs = FocmecData([4.5, 6.0], [51., 49.5], sdr=[[135, 60, -90], [0, 30, 90]], values=[4,6])
+	focmec_style = FocmecStyle(size=thematic_size, fill_color='k')
 	layer = MapLayer(focmecs, focmec_style)
 	#layers.append(layer)
 
@@ -1296,5 +1335,6 @@ if __name__ == "__main__":
 	print a, b
 	#fig_filespec = r"C:\Temp\layeredbasemap.png"
 	fig_filespec = None
+	map.draw()
 	map.plot(fig_filespec=fig_filespec)
 
