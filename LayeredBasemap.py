@@ -10,7 +10,6 @@ import pylab
 import shapely
 import shapely.geometry
 
-from mapping.geo.readGIS import read_GIS_file
 
 
 ## Styles
@@ -42,6 +41,14 @@ class PointStyle:
 		self.label_style = label_style
 		self.alpha = alpha
 
+	def is_thematic(self):
+		if (isinstance(shape, ThematicStyle) or isinstance(size, ThematicStyle) or
+			isinstance(line_width, ThematicStyle) or isinstance(line_color, ThematicStyle) or
+			isinstance(fill_color, ThematicStyle)):
+			return True
+		else:
+			return False
+
 
 class LineStyle:
 	def __init__(self, line_pattern="solid", line_width=1, line_color='k', label_style=None, alpha=1.):
@@ -50,6 +57,13 @@ class LineStyle:
 		self.line_color = line_color
 		self.label_style = label_style
 		self.alpha = alpha
+
+	def is_thematic(self):
+		if (isinstance(line_pattern, ThematicStyle) or isinstance(line_width, ThematicStyle)
+			or isinstance(line_color, ThematicStyle)):
+			return True
+		else:
+			return False
 
 
 class PolygonStyle:
@@ -62,6 +76,14 @@ class PolygonStyle:
 		self.label_style = label_style
 		self.alpha = alpha
 
+	def is_thematic(self):
+		if (isinstance(line_pattern, ThematicStyle) or isinstance(line_width, ThematicStyle)
+			or isinstance(line_color, ThematicStyle) or isinstance(fill_color, ThematicStyle)
+			or isinstance(fill_hatch, ThematicStyle)):
+			return True
+		else:
+			return False
+
 
 class FocmecStyle:
 	def __init__(self, size=50, line_width=1, line_color='k', fill_color='k', bg_color='w', alpha=1.):
@@ -72,14 +94,25 @@ class FocmecStyle:
 		self.bg_color = bg_color
 		self.alpha = alpha
 
+	def is_thematic(self):
+		if (isinstance(size, ThematicStyle) or isinstance(line_width, ThematicStyle) or
+			isinstance(line_color, ThematicStyle) or isinstance(fill_color, ThematicStyle)):
+			return True
+		else:
+			return False
+
 
 class CompositeStyle:
-	def __init__(self, point_style=None, line_style=None, polygon_style=None, text_style=None, grid_style=None):
+	def __init__(self, point_style=None, line_style=None, polygon_style=None):
 		self.point_style = point_style
 		self.line_style = line_style
 		self.polygon_style = polygon_style
-		self.text_style = text_style
-		self.grid_style = grid_style
+
+	def is_thematic(self):
+		if self.point_style.is_thematic() or self.line_style.is_thematic() or self.polygon_style.is_thematic():
+			return True
+		else:
+			return False
 
 
 class ThematicStyle(object):
@@ -560,7 +593,7 @@ class MapLayer:
 
 
 class LayeredBasemap:
-	def __init__(self, layers, region, projection, title, origin=(None, None), grid_interval=(None, None), resolution="i", annot_axes="SE", legend_location=0):
+	def __init__(self, layers, region, projection, title, origin=(None, None), grid_interval=(None, None), resolution="i", annot_axes="SE", title_style=TextStyle(font_size="large", horizontal_alignment="center", vertical_alignment="baseline"), legend_location=0):
 		#TODO: width, height
 		self.layers = layers
 		self.region = region
@@ -571,6 +604,7 @@ class LayeredBasemap:
 		self.resolution = resolution
 		self.annot_axes = annot_axes
 		self.legend_location = legend_location
+		self.title_style = title_style
 		self.map = self.init_basemap()
 		self.ax = pylab.gca()
 		#self.draw()
@@ -673,7 +707,7 @@ class LayeredBasemap:
 			if not (isinstance(style.line_color, ThematicStyle) or isinstance(style.fill_color, ThematicStyle)):
 				c = []
 
-			self.map.scatter(x, y, marker=style.shape, s=sizes, c=c, edgecolors=line_colors, facecolors=fill_colors, linewidths=line_widths, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, label=legend_label, alpha=style.alpha, zorder=self.zorder)
+			self.map.scatter(x, y, marker=style.shape, s=sizes, c=c, edgecolors=line_colors, linewidths=line_widths, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, label=legend_label, alpha=style.alpha, zorder=self.zorder)
 		else:
 			self.map.plot(x, y, marker=style.shape, ms=style.size, mfc=style.fill_color, mec=style.line_color, mew=style.line_width, ls="None", lw=0, label=legend_label, alpha=style.alpha, zorder=self.zorder)
 
@@ -712,7 +746,9 @@ class LayeredBasemap:
 		print display_x
 		x, y = self.map_from_display_coordinates(display_x, display_y)
 		for i, label in enumerate(text_points.labels):
-			self.ax.text(x[i], y[i], label.decode('iso-8859-1'), family=style.font_family, size=style.font_size, weight=style.font_weight, style=style.font_style, stretch=style.font_stretch, variant=style.font_variant, color=style.color, linespacing=style.line_spacing, rotation=style.rotation, ha=style.horizontal_alignment, va=style.vertical_alignment, alpha=style.alpha, zorder=self.zorder)
+			if isinstance(label, str):
+				label = label.decode('iso-8859-1')
+			self.ax.text(x[i], y[i], label, family=style.font_family, size=style.font_size, weight=style.font_weight, style=style.font_style, stretch=style.font_stretch, variant=style.font_variant, color=style.color, linespacing=style.line_spacing, rotation=style.rotation, ha=style.horizontal_alignment, va=style.vertical_alignment, alpha=style.alpha, zorder=self.zorder)
 
 	def draw_polygon_layer(self, polygon_data, polygon_style, legend_label="_nolegend_"):
 		"""
@@ -816,6 +852,8 @@ class LayeredBasemap:
 			self._draw_texts(text_data, text_style)
 
 	def draw_gis_layer(self, gis_data, gis_style, legend_label={"points": "_nolegend_", "lines": "_nolegend_", "polygons": "_nolegend_"}):
+		from mapping.geo.readGIS import read_GIS_file
+
 		point_style = gis_style.point_style
 		line_style = gis_style.line_style
 		polygon_style = gis_style.polygon_style
@@ -998,14 +1036,28 @@ class LayeredBasemap:
 		x1, y1 = self.map_from_display_coordinates([display_x1], display_y0)
 		conv_factor = float(x1[0] - x0) / 100
 
-		x, y = self.map(focmec_data.lons, focmec_data.lats)
+		## Thematic mapping
 		if isinstance(focmec_style.size, ThematicStyle):
 			sizes = focmec_style.size(focmec_data.values)
 		else:
 			sizes = [focmec_style.size] * len(focmec_data)
+		if isinstance(focmec_style.line_width, ThematicStyle):
+			line_widths = focmec_style.line_width(focmec_data.values)
+		else:
+			line_widths = [focmec_style.line_width] * len(focmec_data)
+		if isinstance(focmec_style.line_color, ThematicStyle):
+			line_colors = focmec_style.line_color(focmec_data.values)
+		else:
+			line_colors = [focmec_style.line_color] * len(focmec_data)
+		if isinstance(focmec_style.fill_color, ThematicStyle):
+			fill_colors = focmec_style.fill_color(focmec_data.values)
+		else:
+			fill_colors = [focmec_style.fill_color] * len(focmec_data)
+
+		x, y = self.map(focmec_data.lons, focmec_data.lats)
 		for i in range(len(focmec_data)):
 			width = sizes[i] * conv_factor
-			b = Beach(focmec_data.sdr[i], xy=(x[i], y[i]), width=width, linewidth=focmec_style.line_width, edgecolor=focmec_style.line_color, facecolor=focmec_style.fill_color, bgcolor=focmec_style.bg_color, alpha=focmec_style.alpha)
+			b = Beach(focmec_data.sdr[i], xy=(x[i], y[i]), width=width, linewidth=line_widths[i], edgecolor=line_colors[i], facecolor=fill_colors[i], bgcolor=focmec_style.bg_color, alpha=focmec_style.alpha)
 			b.set_zorder(self.zorder)
 			self.ax.add_collection(b)
 		self.zorder += 1
@@ -1122,14 +1174,20 @@ class LayeredBasemap:
 
 	def draw_decoration(self):
 		self.draw_graticule()
-		# TODO: title style
-		self.ax.set_title(self.title)
-		# TODO: legend location
+		self.draw_title()
 		try:
 			## May fail if there is no legend
 			self.ax.legend(loc=self.legend_location).set_zorder(self.zorder)
 		except:
 			pass
+
+	def draw_title(self):
+		if isinstance(self.title, str):
+			title = self.title.decode('iso-8859-1')
+		else:
+			title = self.title
+		style = self.title_style
+		self.ax.set_title(title, ha=style.horizontal_alignment, family=style.font_family, size=style.font_size, weight=style.font_weight, style=style.font_style, stretch=style.font_stretch, variant=style.font_variant, color=style.color, linespacing=style.line_spacing, va=style.vertical_alignment, alpha=style.alpha)
 
 	def draw_graticule(self):
 		"""
@@ -1223,12 +1281,11 @@ if __name__ == "__main__":
 	#gis_filespec = r"D:\GIS-data\KSB-ORB\Source Zone Models\Seismotectonic Hybrid.TAB"
 	gis_filespec = r"D:\GIS-data\KSB-ORB\Source Zone Models\SLZ+RVG.TAB"
 	gis_data = GisData(gis_filespec, label_colname="ShortName")
-	point_style = PointStyle()
-	line_style = LineStyle(line_width=2)
-	fill_color = ThematicStyleDict({"SLZ": "green", "RVG": "orange"}, value_key="ShortName")
-	polygon_style = PolygonStyle(line_width=2, fill_color=fill_color, alpha=0.5)
 	label_style = TextStyle()
-	gis_style = CompositeStyle(point_style=point_style, line_style=line_style, polygon_style=polygon_style, text_style=label_style)
+	line_style = LineStyle(line_width=2, label_style=label_style)
+	fill_color = ThematicStyleDict({"SLZ": "green", "RVG": "orange"}, value_key="ShortName")
+	polygon_style = PolygonStyle(line_width=2, fill_color=fill_color, alpha=0.5, label_style=label_style)
+	gis_style = CompositeStyle(line_style=line_style, polygon_style=polygon_style)
 	layer = MapLayer(gis_data, gis_style, legend_label={"polygons": "Area sources", "lines": "Fault sources"})
 	layers.append(layer)
 
@@ -1304,35 +1361,25 @@ if __name__ == "__main__":
 
 	## Point data: NPP sites
 	point_data = MultiPointData([4.259, 5.274], [51.325, 50.534], labels=["Doel", "Tihange"])
-	point_style = PointStyle(fill_color='y', label_style=TextStyle(color='w', horizontal_alignment="left", offset=(20,0)))
+	point_style = PointStyle(fill_color='y', label_style=TextStyle(color='w', horizontal_alignment="left", offset=(10,0)))
 	layer = MapLayer(point_data, point_style, legend_label="NPP")
 	layers.append(layer)
 
 	## Focal mechanisms
-	thematic_size = ThematicStyleRanges([3,4,5,6,7], [20,30,40,50,60])
-	focmecs = FocmecData([4.5, 6.0], [51., 49.5], sdr=[[135, 60, -90], [0, 30, 90]], values=[4,6])
-	focmec_style = FocmecStyle(size=thematic_size, fill_color='k')
+	thematic_size = ThematicStyleRanges([3,4,5,6,7], [20,30,40,50,60], value_key="magnitude")
+	thematic_color = ThematicStyleDict({"normal": 'g', "reverse": "b"}, value_key="sof")
+	focmecs = FocmecData([4.5, 6.0], [51., 49.5], sdr=[[135, 60, -90], [0, 30, 90]], values={"magnitude": [4,6], "sof": ["normal", "reverse"]})
+	focmec_style = FocmecStyle(size=thematic_size, fill_color=thematic_color)
 	layer = MapLayer(focmecs, focmec_style)
-	#layers.append(layer)
+	layers.append(layer)
 
 	#layers = []
 	legend_location = 0
-	map = LayeredBasemap(layers, region, projection, title, grid_interval=grid_interval, resolution=resolution, legend_location=legend_location)
+	title_style = TextStyle(font_size="large", horizontal_alignment="left", font_weight="bold", color="r")
+	map = LayeredBasemap(layers, region, projection, title, title_style=title_style, grid_interval=grid_interval, resolution=resolution, legend_location=legend_location)
 	mask_polygon = PolygonData([2,3,4,4,3,2,2], [50,50,50,51,51,51,50])
 	map.draw_mask(mask_polygon, outside=False)
 
-	## Convert display coordinates to lon, lat
-	x, y = map.ax.transData.inverted().transform((328,237))
-	lon, lat = map.map(x, y, inverse=True)
-	print x, y
-	print lon, lat
-
-	## Convert lon, lat to display coordinates
-	lon, lat = 4, 50.5
-	x, y = map.map(lon, lat)
-	a, b = map.ax.transData.transform((x, y))
-	print x, y
-	print a, b
 	#fig_filespec = r"C:\Temp\layeredbasemap.png"
 	fig_filespec = None
 	map.draw()
