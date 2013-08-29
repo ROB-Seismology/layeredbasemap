@@ -13,14 +13,28 @@ import shapely.geometry
 
 
 ## Styles
+class FontStyle:
+	def __init__(self, family="sans-serif", style="normal", variant="normal", stretch="normal", weight="normal", size=12):
+		self.family = family
+		self.style = style
+		self.variant = variant
+		self.stretch = stretch
+		self.weight = weight
+		self.size = size
+
+	def get_font_prop(self):
+		fp = matplotlib.font_manager.FontProperties(family=self.family, style=self.style, variant=self.variant, stretch=self.stretch, weight=self.weight, size=self.size)
+		return fp
+
+
 class TextStyle:
-	def __init__(self, font_family="sans-serif", font_size=12, font_weight="normal", font_style="normal", font_stretch="normal", font_variant="normal", color='k', background_color=None, line_spacing=12, rotation=0, horizontal_alignment="center", vertical_alignment="center", offset=(0,0), alpha=1.):
+	def __init__(self, font_family="sans-serif", font_style="normal", font_variant="normal", font_stretch="normal", font_weight="normal", font_size=12, color='k', background_color=None, line_spacing=12, rotation=0, horizontal_alignment="center", vertical_alignment="center", offset=(0,0), alpha=1.):
 		self.font_family = font_family
-		self.font_size = font_size
-		self.font_weight = font_weight
 		self.font_style = font_style
-		self.font_stretch = font_stretch
 		self.font_variant = font_variant
+		self.font_stretch = font_stretch
+		self.font_weight = font_weight
+		self.font_size = font_size
 		self.color = color
 		#self.background_color = background_color
 		self.line_spacing = line_spacing
@@ -29,6 +43,10 @@ class TextStyle:
 		self.vertical_alignment = vertical_alignment
 		self.offset = offset
 		self.alpha = alpha
+
+	def get_font_prop(self):
+		fp = matplotlib.font_manager.FontProperties(family=self.font_family, style=self.font_style, variant=self.font_variant, stretch=self.font_stretch, weight=self.font_weight, size=self.font_size)
+		return fp
 
 
 class PointStyle:
@@ -222,10 +240,11 @@ class GridStyle:
 
 
 class LegendStyle:
-	def __init__(self, title="", location=0, label_style=TextStyle(), marker_scale=None, frame_on=True, fancy_box=False, shadow=False, ncol=1, border_pad=None, label_spacing=None, handle_length=None, handle_text_pad=None, border_axes_pad=None, column_spacing=None):
+	def __init__(self, title="", location=0, label_style=FontStyle(), title_style=FontStyle(weight='bold'), marker_scale=None, frame_on=True, fancy_box=False, shadow=False, ncol=1, border_pad=None, label_spacing=None, handle_length=None, handle_text_pad=None, border_axes_pad=None, column_spacing=None):
 		self.title = title
 		self.location = location
 		self.label_style = label_style
+		self.title_style = title_style
 		self.marker_scale = marker_scale
 		self.frame_on = frame_on
 		self.fancy_box = fancy_box
@@ -635,7 +654,7 @@ class MapLayer:
 
 
 class LayeredBasemap:
-	def __init__(self, layers, region, projection, title, origin=(None, None), grid_interval=(None, None), resolution="i", annot_axes="SE", title_style=TextStyle(font_size="large", horizontal_alignment="center", vertical_alignment="baseline"), legend_style=LegendStyle()):
+	def __init__(self, layers, region, projection, title, origin=(None, None), grid_interval=(None, None), resolution="i", annot_axes="SE", title_style=TextStyle(font_size="large", horizontal_alignment="center", vertical_alignment="bottom"), legend_style=LegendStyle(), thematic_legend_style=LegendStyle()):
 		#TODO: width, height
 		self.layers = layers
 		self.region = region
@@ -646,6 +665,7 @@ class LayeredBasemap:
 		self.resolution = resolution
 		self.annot_axes = annot_axes
 		self.legend_style = legend_style
+		self.thematic_legend_style = thematic_legend_style
 		self.title_style = title_style
 		self.map = self.init_basemap()
 		self.ax = pylab.gca()
@@ -856,8 +876,8 @@ class LayeredBasemap:
 			#legend_artists, legend_labels = self.ax.get_legend_handles_labels()
 			if isinstance(polygon_style.fill_color, (ThematicStyleDict, ThematicStyleRanges)) and polygon_style.fill_color.add_legend:
 				#p = matplotlib.patches.Circle((0, 0), radius=0.001, lw=0, fc='none')
-				#legend_artists.append(p)
-				#legend_labels.append("Zone")
+				#self._legend_artists.append(None)
+				#self._legend_labels.append("Zone")
 				for key, val in polygon_style.fill_color.style_dict.items():
 					label = key
 					color = val
@@ -1248,24 +1268,60 @@ class LayeredBasemap:
 		self.draw_title()
 
 	def draw_legend(self):
-		style = self.legend_style
-		title = style.title
-		loc = style.location
-		label_style = style.label_style
-		marker_scale = style.marker_scale
-		frame_on = style.frame_on
-		fancy_box = style.fancy_box
-		shadow = style.shadow
-		ncol = style.ncol
-		border_pad = style.border_pad
-		label_spacing = style.label_spacing
-		handle_length = style.handle_length
-		handle_text_pad = style.handle_text_pad
-		border_axes_pad = style.border_axes_pad
-		column_spacing = style.column_spacing
+		## Thematic legend
+		if self.thematic_legend_style and self._legend_artists:
+			title = self.thematic_legend_style.title
+			if isinstance(title, str):
+				title = title.decode('iso-8859-1')
+			loc = self.thematic_legend_style.location
+			label_style = self.thematic_legend_style.label_style
+			title_style = self.thematic_legend_style.title_style
+			marker_scale = self.thematic_legend_style.marker_scale
+			frame_on = self.thematic_legend_style.frame_on
+			fancy_box = self.thematic_legend_style.fancy_box
+			shadow = self.thematic_legend_style.shadow
+			ncol = self.thematic_legend_style.ncol
+			border_pad = self.thematic_legend_style.border_pad
+			label_spacing = self.thematic_legend_style.label_spacing
+			handle_length = self.thematic_legend_style.handle_length
+			handle_text_pad = self.thematic_legend_style.handle_text_pad
+			border_axes_pad = self.thematic_legend_style.border_axes_pad
+			column_spacing = self.thematic_legend_style.column_spacing
 
-		# TODO: prop (= font)
-		self.ax.legend(self._legend_artists, self._legend_labels, loc=loc, markerscale=marker_scale, frameon=frame_on, fancybox=fancy_box, shadow=shadow, ncol=ncol, borderpad=border_pad, labelspacing=label_spacing, handlelength=handle_length, handletextpad=handle_text_pad, borderaxespad=border_axes_pad, columnspacing=column_spacing).set_zorder(self.zorder)
+			tl = self.ax.legend(self._legend_artists, self._legend_labels, loc=loc, prop=label_style.get_font_prop(), markerscale=marker_scale, frameon=frame_on, fancybox=fancy_box, shadow=shadow, ncol=ncol, borderpad=border_pad, labelspacing=label_spacing, handlelength=handle_length, handletextpad=handle_text_pad, borderaxespad=border_axes_pad, columnspacing=column_spacing)
+			# TODO: in current version of matplotlib set_title does not accept prop
+			#tl.set_title(title, prop=title_style.get_font_prop())
+			tl.set_title(title)
+			tl.set_zorder(self.zorder)
+
+		## Main legend
+		if self.legend_style:
+			title = self.legend_style.title
+			if isinstance(title, str):
+				title = title.decode('iso-8859-1')
+			loc = self.legend_style.location
+			label_style = self.legend_style.label_style
+			title_style = self.legend_style.title_style
+			marker_scale = self.legend_style.marker_scale
+			frame_on = self.legend_style.frame_on
+			fancy_box = self.legend_style.fancy_box
+			shadow = self.legend_style.shadow
+			ncol = self.legend_style.ncol
+			border_pad = self.legend_style.border_pad
+			label_spacing = self.legend_style.label_spacing
+			handle_length = self.legend_style.handle_length
+			handle_text_pad = self.legend_style.handle_text_pad
+			border_axes_pad = self.legend_style.border_axes_pad
+			column_spacing = self.legend_style.column_spacing
+
+			ml = self.ax.legend(loc=loc+1, prop=label_style.get_font_prop(), markerscale=marker_scale, frameon=frame_on, fancybox=fancy_box, shadow=shadow, ncol=ncol, borderpad=border_pad, labelspacing=label_spacing, handlelength=handle_length, handletextpad=handle_text_pad, borderaxespad=border_axes_pad, columnspacing=column_spacing)
+			if ml:
+				ml.set_title(title)
+				ml.set_zorder(self.zorder)
+
+			## Re-attach thematic legend to axes
+			if tl:
+				self.ax.add_artist(tl)
 
 	def draw_title(self):
 		if isinstance(self.title, str):
