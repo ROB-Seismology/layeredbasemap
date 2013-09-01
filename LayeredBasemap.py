@@ -44,8 +44,11 @@ class TextStyle(FontStyle):
 		return fp
 
 
+DefaultTitleTextStyle = TextStyle(font_size="large", horizontal_alignment="center", vertical_alignment="bottom")
+
+
 class PointStyle:
-	def __init__(self, shape='o', size=12, line_width=1, line_color='k', fill_color='None', label_style=None, alpha=1.):
+	def __init__(self, shape='o', size=12, line_width=1, line_color='k', fill_color='None', label_style=None, alpha=1., thematic_legend_style=None):
 		self.shape = shape
 		self.size = size
 		self.line_width = line_width
@@ -53,6 +56,11 @@ class PointStyle:
 		self.fill_color = fill_color
 		self.label_style = label_style
 		self.alpha = alpha
+		self.thematic_legend_style = thematic_legend_style
+		## Adjust label spacing of thematic legend to accommodate largest symbols
+		if isinstance(self.size, ThematicStyle):
+			max_size = max(size.styles)
+			self.thematic_legend_style.label_spacing = max(max_size*0.4/10, self.thematic_legend_style.label_spacing)
 		# TODO: fillstyle, markerfacecoloralt?
 
 	def is_thematic(self):
@@ -63,14 +71,48 @@ class PointStyle:
 		else:
 			return False
 
+	def get_non_thematic_style(self):
+		if isinstance(self.shape, ThematicStyle):
+			shape = 'o'
+		else:
+			shape = self.shape
+		if isinstance(self.size, ThematicStyle):
+			size = 10
+		else:
+			size = self.size
+		if isinstance(self.line_width, ThematicStyle):
+			line_width = 1
+		else:
+			line_width = self.line_width
+		if isinstance(self.line_color, ThematicStyle):
+			line_color = 'k'
+		else:
+			line_color = self.line_color
+		if isinstance(self.fill_color, ThematicStyle):
+			fill_color = 'none'
+		else:
+			fill_color = self.fill_color
+		return PointStyle(shape, size, line_width, line_color, fill_color, self.label_style, self.alpha, self.thematic_legend_style)
+
+	def to_kwargs(self):
+		d = {}
+		d["marker"] = self.shape
+		d["ms"] = self.size
+		d["mew"] = self.line_width
+		d["mfc"] = self.fill_color
+		d["mec"] = self.line_color
+		d["alpha"] = self.alpha
+		return d
+
 
 class LineStyle:
-	def __init__(self, line_pattern="solid", line_width=1, line_color='k', label_style=None, alpha=1.):
+	def __init__(self, line_pattern="solid", line_width=1, line_color='k', label_style=None, alpha=1., thematic_legend_style=None):
 		self.line_pattern = line_pattern
 		self.line_width = line_width
 		self.line_color = line_color
 		self.label_style = label_style
 		self.alpha = alpha
+		self.thematic_legend_style = thematic_legend_style
 
 	def is_thematic(self):
 		if (isinstance(self.line_pattern, ThematicStyle) or isinstance(self.line_width, ThematicStyle)
@@ -79,9 +121,32 @@ class LineStyle:
 		else:
 			return False
 
+	def get_non_thematic_style(self):
+		if isinstance(self.line_pattern, ThematicStyle):
+			line_pattern = '-'
+		else:
+			line_pattern = self.line_pattern
+		if isinstance(self.line_width, ThematicStyle):
+			line_width = 1
+		else:
+			line_width = self.line_width
+		if isinstance(self.line_color, ThematicStyle):
+			line_color = 'k'
+		else:
+			line_color = self.line_color
+		return LineStyle(line_pattern, line_width, line_color, self.label_style, self.alpha, self.thematic_legend_style)
+
+	def to_kwargs(self):
+		d = {}
+		d["ls"] = self.line_pattern
+		d["lw"] = self.line_width
+		d["color"] = self.line_color
+		d["alpha"] = self.alpha
+		return d
+
 
 class PolygonStyle:
-	def __init__(self, line_pattern="solid", line_width=1, line_color='k', fill_color='y', fill_hatch=None, label_style=None, alpha=1.):
+	def __init__(self, line_pattern="solid", line_width=1, line_color='k', fill_color='w', fill_hatch=None, label_style=None, alpha=1., thematic_legend_style=None):
 		self.line_pattern = line_pattern
 		self.line_width = line_width
 		self.line_color = line_color
@@ -89,6 +154,8 @@ class PolygonStyle:
 		self.fill_hatch = fill_hatch
 		self.label_style = label_style
 		self.alpha = alpha
+		self.thematic_legend_style = thematic_legend_style
+		# TODO: check line_patterns ('solid' versus '-' etc)
 
 	def is_thematic(self):
 		if (isinstance(self.line_pattern, ThematicStyle) or isinstance(self.line_width, ThematicStyle)
@@ -98,15 +165,52 @@ class PolygonStyle:
 		else:
 			return False
 
+	def get_non_thematic_style(self):
+		if isinstance(self.line_pattern, ThematicStyle):
+			line_pattern = 'solid'
+		else:
+			line_pattern = self.line_pattern
+		if isinstance(self.line_width, ThematicStyle):
+			line_width = 1
+		else:
+			line_width = self.line_width
+		if isinstance(self.line_color, ThematicStyle):
+			line_color = 'k'
+		else:
+			line_color = self.line_color
+		if isinstance(self.fill_color, ThematicStyle):
+			fill_color = 'w'
+		else:
+			fill_color = self.fill_color
+		if isinstance(self.fill_hatch, ThematicStyle):
+			fill_hatch = None
+		else:
+			fill_hatch = self.fill_hatch
+		return PolygonStyle(line_pattern, line_width, line_color, fill_color, fill_hatch, self.label_style, self.alpha, self.thematic_legend_style)
+
+	def to_line_style(self):
+		return LineStyle(self.line_pattern, self.line_width, self.line_color, self.label_style, self.alpha, self.thematic_legend_style)
+
+	def to_kwargs(self):
+		d = {}
+		d["ls"] = self.line_pattern
+		d["lw"] = self.line_width
+		d["ec"] = self.line_color
+		d["fc"] = self.fill_color
+		d["hatch"] = self.fill_hatch
+		d["alpha"] = self.alpha
+		return d
+
 
 class FocmecStyle:
-	def __init__(self, size=50, line_width=1, line_color='k', fill_color='k', bg_color='w', alpha=1.):
+	def __init__(self, size=50, line_width=1, line_color='k', fill_color='k', bg_color='w', alpha=1., thematic_legend_style=None):
 		self.size = size
 		self.line_width = line_width
 		self.line_color = line_color
 		self.fill_color = fill_color
 		self.bg_color = bg_color
 		self.alpha = alpha
+		self.thematic_legend_style = thematic_legend_style
 
 	def is_thematic(self):
 		if (isinstance(self.size, ThematicStyle) or isinstance(self.line_width, ThematicStyle) or
@@ -130,9 +234,10 @@ class CompositeStyle:
 
 
 class ThematicStyle(object):
-	def __init__(self, value_key=None, add_legend=True):
+	def __init__(self, value_key=None, add_legend=True, colorbar_style=None):
 		self.value_key = value_key
 		self.add_legend = add_legend
+		self.colorbar_style = colorbar_style
 
 	def apply_value_key(self, values):
 		if self.value_key == None:
@@ -140,11 +245,10 @@ class ThematicStyle(object):
 		else:
 			return values[self.value_key]
 
-# TODO: need more consistent names for thematic style parameters
 
 class ThematicStyleIndividual(ThematicStyle):
-	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True):
-		super(ThematicStyleIndividual, self).__init__(value_key, add_legend)
+	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True, colorbar_style=None):
+		super(ThematicStyleIndividual, self).__init__(value_key, add_legend, colorbar_style)
 		self.values = values
 		self.styles = styles
 		self.style_dict = {}
@@ -170,25 +274,34 @@ class ThematicStyleIndividual(ThematicStyle):
 
 	def to_colormap(self):
 		try:
-			cmap = matplotlib.colors.ListedColormap(self.styles, name=value_key)
+			cmap = matplotlib.colors.ListedColormap(self.styles, name=self.value_key)
 		except:
 			pass
 		else:
 			return cmap
 
+	def get_norm(self):
+		# TODO: can probably be replaced with matplotlib.colors.from_levels_and_colors
+		# in newer versions of matplotlib
+		step = self.values[1] - self.values[0]
+		boundaries = np.array(self.values) - step / 2.
+		boundaries = np.append(boundaries, [self.values[-1] + step / 2.])
+		return matplotlib.colors.BoundaryNorm(boundaries, len(self.values))
+
 	def to_scalar_mappable(self):
-		norm = matplotlib.colors.BoundaryNorm(self.values, len(self.values))
-		return matplotlib.cm.ScalarMappable(norm=norm, cmap=self.to_colormap())
+		norm = self.get_norm()
+		cmap = self.to_colormap()
+		return matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
 
 
 class ThematicStyleRanges(ThematicStyle):
-	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True):
+	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True, colorbar_style=None):
 		"""
 		values must be monotonically increasing or decreasing
 		styles may be colors
 		values contains one element less than styles
 		"""
-		super(ThematicStyleRanges, self).__init__(value_key, add_legend)
+		super(ThematicStyleRanges, self).__init__(value_key, add_legend, colorbar_style)
 		self.values = np.array(values, dtype='f')
 		self.styles = styles
 		if labels:
@@ -208,24 +321,29 @@ class ThematicStyleRanges(ThematicStyle):
 	def to_colormap(self):
 		# TODO: possible to check if a style spec is a matplotlib color spec?
 		try:
-			cmap = matplotlib.colors.ListedColormap(self.styles, name=value_key)
+			cmap = matplotlib.colors.ListedColormap(self.styles, name=self.value_key)
 		except:
 			pass
 		else:
 			return cmap
 
+	def get_norm(self):
+		return matplotlib.colors.BoundaryNorm(self.values, len(self.styles))
+
 	def to_scalar_mappable(self):
-		cmap, norm = matplotlib.colors.from_levels_and_colors(self.values, self.styles)
+		#cmap, norm = matplotlib.colors.from_levels_and_colors(self.values, self.styles)
+		cmap = self.to_colormap()
+		norm = self.get_norm()
 		return matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
 
 
 class ThematicStyleGradient(ThematicStyle):
-	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True):
+	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True, colorbar_style=None):
 		"""
 		values must be monotonically increasing or decreasing
 		styles must be numbers or colors
 		"""
-		super(ThematicStyleGradient, self).__init__(value_key, add_legend)
+		super(ThematicStyleGradient, self).__init__(value_key, add_legend, colorbar_style)
 		self.values = np.array(values, dtype='f')
 		self.styles = styles
 		if labels:
@@ -248,6 +366,7 @@ class ThematicStyleGradient(ThematicStyle):
 		return matplotlib.colors.LinearSegmentedColormap.from_list(self.value_key, zip(x, self.styles))
 
 	def get_norm(self):
+		# TODO: use LevelNorm !
 		return matplotlib.colors.Normalize(vmin=self.values.min(), vmax=self.values.max())
 
 	def to_scalar_mappable(self):
@@ -257,8 +376,8 @@ class ThematicStyleGradient(ThematicStyle):
 
 
 class ThematicStyleColormap(ThematicStyle):
-	def __init__(self, color_map="jet", norm=None, vmin=None, vmax=None, alpha=1.0, value_key=None, add_legend=True):
-		super(ThematicStyleColormap, self).__init__(value_key, add_legend)
+	def __init__(self, color_map="jet", norm=None, vmin=None, vmax=None, alpha=1.0, value_key=None, add_legend=True, colorbar_style=None):
+		super(ThematicStyleColormap, self).__init__(value_key, add_legend, colorbar_style)
 		self.color_map = color_map
 		self.norm = norm
 		self.vmin = vmin
@@ -351,7 +470,7 @@ class GridStyle:
 
 
 class LegendStyle:
-	def __init__(self, title="", location=0, label_style=FontStyle(), title_style=FontStyle(font_weight='bold'), marker_scale=None, frame_on=True, fancy_box=False, shadow=False, ncol=1, border_pad=None, label_spacing=None, handle_length=None, handle_text_pad=None, border_axes_pad=None, column_spacing=None, alpha=1.):
+	def __init__(self, title="", location=0, label_style=FontStyle(), title_style=FontStyle(font_weight='bold'), marker_scale=None, frame_on=True, fancy_box=False, shadow=False, ncol=1, border_pad=None, label_spacing=None, handle_length=None, handle_text_pad=None, border_axes_pad=None, column_spacing=None, num_points=1, alpha=1.):
 		self.title = title
 		self.location = location
 		self.label_style = label_style
@@ -367,6 +486,7 @@ class LegendStyle:
 		self.handle_text_pad = handle_text_pad
 		self.border_axes_pad = border_axes_pad
 		self.column_spacing = column_spacing
+		self.num_points = num_points
 		self.alpha = alpha
 
 
@@ -444,6 +564,27 @@ class MultiPointData(object):
 		except:
 			label = ""
 		return PointData(lon, lat, value, label)
+
+	@classmethod
+	def from_points(self, point_list):
+		lons, lats, labels = [], [], []
+		pt0 = point_list[0]
+		if isinstance(pt0.value, dict):
+			values = {}
+			for key in pt0.value.keys():
+				values[key] = []
+		else:
+			values = []
+		for pt in point_list:
+			lons.append(pt.lon)
+			lats.append(pt.lat)
+			labels.append(pt.label)
+			if isinstance(values, dict):
+				for key in values.keys():
+					values[key].append(pt.value[key])
+			else:
+				values.append(pt.value)
+		return MultiPointData(lons, lats, values, labels)
 
 	def append(self, pt):
 		assert isinstance(pt, PointData)
@@ -765,8 +906,25 @@ class MapLayer:
 		self.legend_label = legend_label
 
 
+class ThematicLegend:
+	"""
+	Container holding information to draw thematic legends
+
+	:param artists:
+		list of matplotlib artists
+	:param labels:
+		list of labels corresponding to artists
+	:param style:
+		instance of :class:`LegendStyle`, legend style
+	"""
+	def __init__(self, artists, labels, style):
+		self.artists = artists
+		self.labels = labels
+		self.style = style
+
+
 class LayeredBasemap:
-	def __init__(self, layers, region, projection, title, origin=(None, None), grid_interval=(None, None), resolution="i", annot_axes="SE", title_style=TextStyle(font_size="large", horizontal_alignment="center", vertical_alignment="bottom"), legend_style=LegendStyle(), thematic_legend_style=LegendStyle()):
+	def __init__(self, layers, region, projection, title, origin=(None, None), grid_interval=(None, None), resolution="i", annot_axes="SE", title_style=DefaultTitleTextStyle, legend_style=LegendStyle()):
 		#TODO: width, height
 		self.layers = layers
 		self.region = region
@@ -777,12 +935,10 @@ class LayeredBasemap:
 		self.resolution = resolution
 		self.annot_axes = annot_axes
 		self.legend_style = legend_style
-		self.thematic_legend_style = thematic_legend_style
 		self.title_style = title_style
 		self.map = self.init_basemap()
 		self.ax = pylab.gca()
-		self._legend_artists = []
-		self._legend_labels = []
+		self.thematic_legends = []
 		#self.draw()
 
 	#@property
@@ -836,108 +992,134 @@ class LayeredBasemap:
 
 	## Drawing primitives
 
-	def _draw_points(self, points, style, legend_label="_nolegend_"):
+	def _draw_points(self, points, style, legend_label="_nolegend_", thematic_legend_artists=[], thematic_legend_labels=[]):
 		x, y = self.map(points.lons, points.lats)
-		if style.is_thematic():
-			cmap, norm, vmin, vmax = None, None, None, None
+		if not style.is_thematic():
+			self.map.plot(x, y, ls="None", lw=0, label=legend_label, zorder=self.zorder, **style.to_kwargs())
+		else:
+			legend_label = "_nolegend_"
+			## Thematic style, use scatter method
 			if isinstance(style.size, ThematicStyle):
 				sizes = style.size(points.values)
 			else:
-				sizes = style.size
-			sizes = np.power(sizes, 2)
+				sizes = [style.size] * len(points)
+
 			if isinstance(style.line_width, ThematicStyle):
 				line_widths = style.line_width(points.values)
 			else:
-				line_widths = style.line_width
+				line_widths = [style.line_width] * len(points)
+
 			## Note: only one of line_color / fill_color may be a ThematicStyleColormap
 			## Note: thematic line_color only works for markers like '+'
-			## thematic fill_color only works for markers like '-'
+			## thematic fill_color only works for markers like 'o'
 			assert not (isinstance(style.line_color, ThematicStyle) and isinstance(style.fill_color, ThematicStyle)), "Only one of line_color and fill_color may be ThematicStyle!"
-			if isinstance(style.line_color, ThematicStyle):
-				line_colors = None
-				if isinstance(style.line_color, ThematicStyleColormap):
-					c = style.line_color.apply_value_key(points.values)
-					cmap = style.line_color.color_map
-					norm = style.line_color.norm
-					vmin, vmax = style.line_color.vmin, style.line_color.vmax
-				elif isinstance(style.line_color, (ThematicStyleIndividual, ThematicStyleRanges)):
-					color_conv = matplotlib.colors.ColorConverter()
-					c = style.line_color(points.values)
-					c = color_conv.to_rgba_array(c)
-			else:
-				line_colors = style.line_color
+			## Fill color
 			if isinstance(style.fill_color, ThematicStyle):
 				fill_colors = None
-				if isinstance(style.fill_color, ThematicStyleColormap):
-					c = style.fill_color.apply_value_key(points.values)
-					cmap = style.fill_color.color_map
-					norm = style.fill_color.norm
-					vmin, vmax = style.fill_color.vmin, style.fill_color.vmax
-				elif isinstance(style.fill_color, (ThematicStyleIndividual, ThematicStyleRanges)):
-					color_conv = matplotlib.colors.ColorConverter()
-					c = style.fill_color(points.values)
-					c = color_conv.to_rgba_array(c)
+				cmap = style.fill_color.to_colormap()
+				norm = style.fill_color.get_norm()
+				colors = style.fill_color.apply_value_key(points.values)
+				vmin, vmax = None, None
+				#cmap, norm = None, None
+				#colors = style.fill_color(points.values)
 			else:
 				## Note: this is not used at the moment
 				fill_colors = style.fill_color
+			if isinstance(style.line_color, ThematicStyle):
+				line_colors = None
+				cmap = style.line_color.to_colormap()
+				norm = style.line_color.get_norm()
+				colors = style.line_color.apply_value_key(points.values)
+				vmin, vmax = None, None
+				#colors = style.line_color(points.values)
+				#cmap, norm = None, None
+			else:
+				line_colors = style.line_color
 			if not (isinstance(style.line_color, ThematicStyle) or isinstance(style.fill_color, ThematicStyle)):
-				c = []
+				cmap, norm, vmin, vmax = None, None, None, None
+				colors = []
 
-			cs = self.map.scatter(x, y, marker=style.shape, s=sizes, c=c, edgecolors=line_colors, linewidths=line_widths, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, label=legend_label, alpha=style.alpha, zorder=self.zorder)
+			cs = self.map.scatter(x, y, marker=style.shape, s=np.power(sizes, 2), c=colors, edgecolors=line_colors, linewidths=line_widths, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, label=legend_label, alpha=style.alpha, zorder=self.zorder)
 
-			## thematic legend
-			if isinstance(style.fill_color, ThematicStyleColormap) or isinstance(style.line_color, ThematicStyleColormap):
-				colorbar_style = self.thematic_legend_style
-				self.draw_colorbar(cs, colorbar_style)
-			if fill_colors is None:
-				markerfacecolor = c[0]
-			else:
-				markerfacecolor = fill_colors
-			if line_colors is None:
-				markeredgecolor = c[0]
-			else:
-				markeredgecolor = line_colors
-			if isinstance(style.size, (ThematicStyleIndividual, ThematicStyleRanges, ThematicStyleGradient)):
-				for label, size in zip(style.size.labels, style.size.styles):
-					l = matplotlib.lines.Line2D([0,1], [0,1], marker=style.shape, markersize=size, markeredgewidth=line_widths[0], markerfacecolor=markerfacecolor, markeredgecolor=markeredgecolor, alpha=line_style.alpha)
-					self._legend_artists.append(l)
-					self._legend_labels.append(label)
-			if isinstance(style.line_width, (ThematicStyleIndividual, ThematicStyleRanges, ThematicStyleGradient)):
-				for label, line_width in zip(style.line_width.labels, style.line_width.styles):
-					l = matplotlib.lines.Line2D([0,1], [0,1], marker=style.shape, markersize=sizes[0], markeredgewidth=line_width, markerfacecolor=markerfacecolor, markeredgecolor=markeredgecolor, alpha=line_style.alpha)
-					self._legend_artists.append(l)
-					self._legend_labels.append(label)
-		else:
-			self.map.plot(x, y, marker=style.shape, ms=style.size, mfc=style.fill_color, mec=style.line_color, mew=style.line_width, ls="None", lw=0, label=legend_label, alpha=style.alpha, zorder=self.zorder)
+			## Thematic legend
+			## Fill color
+			if isinstance(style.fill_color, ThematicStyle) and style.fill_color.add_legend:
+				colorbar_style = style.fill_color.colorbar_style
+				if isinstance(style.fill_color, ThematicStyleColormap) or colorbar_style:
+					if colorbar_style is None:
+						## interpret thematic_legend_style as colorbar_style
+						colorbar_style = style.thematic_legend_style
+					#sm = style.fill_color.to_scalar_mappable()
+					#sm.set_array(style.fill_color.values)
+					#self.draw_colorbar(sm, colorbar_style)
+					self.draw_colorbar(cs, colorbar_style)
+				else:
+					thematic_legend_labels.extend(style.fill_color.labels)
+					for fill_color in style.fill_color.styles:
+						ntl = style.get_non_thematic_style()
+						ntl.fill_color = fill_color
+						l = matplotlib.lines.Line2D([0], [0], ls="None", lw=0, **ntl.to_kwargs())
+						thematic_legend_artists.append(l)
+			## Line color
+			elif isinstance(style.line_color, ThematicStyle) and style.line_color.add_legend:
+				colorbar_style = style.line_color.colorbar_style
+				if isinstance(style.line_color, ThematicStyleColormap) or colorbar_style:
+					if colorbar_style is None:
+						## interpret thematic_legend_style as colorbar_style
+						colorbar_style = style.thematic_legend_style
+					self.draw_colorbar(cs, colorbar_style)
+				else:
+					thematic_legend_labels.extend(style.line_color.labels)
+					for line_color in style.line_color.styles:
+						ntl = style.get_non_thematic_style()
+						ntl.line_color = line_color
+						l = matplotlib.lines.Line2D([0], [0], ls="None", lw=0, **ntl.to_kwargs())
+						thematic_legend_artists.append(l)
+			## Marker size
+			if isinstance(style.size, (ThematicStyleIndividual, ThematicStyleRanges, ThematicStyleGradient)) and style.size.add_legend:
+				thematic_legend_labels.extend(style.size.labels)
+				for size in style.size.styles:
+					ntl = style.get_non_thematic_style()
+					ntl.size = size
+					l = matplotlib.lines.Line2D([0], [0], ls="None", lw=0, **ntl.to_kwargs())
+					thematic_legend_artists.append(l)
+			## Line width
+			if isinstance(style.line_width, (ThematicStyleIndividual, ThematicStyleRanges, ThematicStyleGradient)) and style.line_width.add_legend:
+				thematic_legend_labels.extend(style.line_width.labels)
+				for line_width in style.line_width.styles:
+					ntl = style.get_non_thematic_style()
+					ntl.line_width = line_width
+					l = matplotlib.lines.Line2D([0], [0], lw=0, **ntl.to_kwargs())
+					thematic_legend_artists.append(l)
 
 	def _draw_line(self, line, style, legend_label="_nolegend_"):
 		x, y = self.map(line.lons, line.lats)
-		self.map.plot(x, y, ls=style.line_pattern, lw=style.line_width, color=style.line_color, label=legend_label, alpha=style.alpha, zorder=self.zorder)
+		self.map.plot(x, y, label=legend_label, zorder=self.zorder, **style.to_kwargs())
 
 	def _draw_polygon(self, polygon, style, legend_label="_nolegend_"):
 		if len(polygon.interior_lons) == 0:
 			x, y = self.map(polygon.lons, polygon.lats)
-			self.ax.fill(x, y, ls=style.line_pattern, lw=style.line_width, ec=style.line_color, fc=style.fill_color, hatch=style.fill_hatch, label=legend_label, alpha=style.alpha, zorder=self.zorder)
+			self.ax.fill(x, y, label=legend_label, zorder=self.zorder, **style.to_kwargs())
 		else:
 			## Complex polygon with holes
 			proj_polygon = self.get_projected_polygon(polygon)
 			exterior_x, exterior_y = proj_polygon.lons, proj_polygon.lats
 			interior_x, interior_y = proj_polygon.interior_lons, proj_polygon.interior_lats
-			if style.fill_color in (None, 'None', 'none'):
-				self.map.plot(exterior_x, exterior_y, ls=style.line_pattern, lw=style.line_width, color=style.line_color, label=legend_label, alpha=style.alpha, zorder=self.zorder)
+			if style.fill_color in (None, 'None', 'none') and style.fill_hatch in (None, 'None', "none"):
+				self.map.plot(exterior_x, exterior_y, label=legend_label, zorder=self.zorder, **style.to_line_style().to_kwargs())
 				for x, y in zip(interior_x, interior_y):
-					self.map.plot(x, y, ls=style.line_pattern, lw=style.line_width, color=style.line_color, label="_nolegend_", alpha=style.alpha, zorder=self.zorder)
+					self.map.plot(x, y, label="_nolegend_", zorder=self.zorder, **style.to_line_style().to_kwargs())
 			else:
 				from descartes.patch import PolygonPatch
 				proj_polygon = proj_polygon.to_shapely()
 				## Make sure exterior and interior rings of polygon are properly oriented
 				proj_polygon = shapely.geometry.polygon.orient(proj_polygon)
-				patch = PolygonPatch(proj_polygon, fill=1, ls=style.line_pattern, lw=style.line_width, ec=style.line_color, fc=style.fill_color, hatch=style.fill_hatch, label=legend_label, alpha=style.alpha)
+				patch = PolygonPatch(proj_polygon, fill=1, label=legend_label, **style.to_kwargs())
 				patch.set_zorder(self.zorder)
 				self.ax.add_patch(patch)
 
 	def _draw_texts(self, text_points, style):
-		## Compute offset in map units
+		## Compute offset in map units (not needed for annotate method)
 		#display_x, display_y = self.lonlat_to_display_coordinates(text_points.lons, text_points.lats)
 		#display_x = np.array(display_x) + style.offset[0]
 		#display_y = np.array(display_y) + style.offset[1]
@@ -983,7 +1165,10 @@ class LayeredBasemap:
 			fill_hatches = [polygon_style.fill_hatch] * num_polygons
 
 		for i, polygon in enumerate(polygon_data):
-			legend_label = {True: legend_label, False: "_nolegend_"}[i==0]
+			if polygon_style.is_thematic():
+				legend_label = "_nolegend_"
+			else:
+				legend_label = {True: legend_label, False: "_nolegend_"}[i==0]
 			## Apply thematic styles
 			line_pattern = line_patterns[i]
 			line_width = line_widths[i]
@@ -1003,58 +1188,76 @@ class LayeredBasemap:
 			self._draw_texts(centroids, polygon_style.label_style)
 			self.zorder += 1
 
-		## thematic legend
-		# TODO: thematic_legend_style should be property of ThematicStyle
-		# TODO: decide what to do based on thematic_legend_style, whether it is a LegendStyle or a ColorbarStyle
-		# This gives us the choice to plot ranges and gradients as a legend or as a colorbar
+		## Thematic legend
 		if polygon_style.is_thematic():
+			legend_artists, legend_labels = [], []
+			## Fill color
 			if isinstance(polygon_style.fill_color, ThematicStyle) and polygon_style.fill_color.add_legend:
-				if isinstance(polygon_style.fill_color, (ThematicStyleIndividual, ThematicStyleRanges)):
-					for label, color in zip(polygon_style.fill_color.labels, polygon_style.fill_color.styles):
-						# TODO: check line_patterns ('solid' versus '-' etc)
-						p = matplotlib.patches.Rectangle((0, 0), 1, 1, fill=1, ls=line_patterns[0], lw=line_widths[0], fc=color, ec=line_colors[0], hatch=fill_hatches[0], alpha=polygon_style.alpha)
-						#p = matplotlib.patches.Circle((0,0), 1, fill=1, fc=color)
-						self._legend_artists.append(p)
-						self._legend_labels.append(label)
-				elif isinstance(polygon_style.fill_color, (ThematicStyleGradient, ThematicStyleColormap)):
+				colorbar_style = polygon_style.fill_color.colorbar_style
+				if isinstance(polygon_style.fill_color, ThematicStyleColormap) or colorbar_style:
+					if colorbar_style is None:
+						## interpret thematic_legend_style as colorbar_style
+						colorbar_style = polygon_style.thematic_legend_style
 					sm = polygon_style.fill_color.to_scalar_mappable()
 					sm.set_array(polygon_style.fill_color.values)
-					## interpret thematic_legend_style as colorbar_style
-					colorbar_style = self.thematic_legend_style
-					if isinstance(polygon_style.fill_color, ThematicStyleGradient):
+					if not isinstance(polygon_style.fill_color, ThematicStyleColormap):
 						colorbar_style.ticks = polygon_style.fill_color.values
 					self.draw_colorbar(sm, colorbar_style)
-			if isinstance(polygon_style.line_color, ThematicStyle) and  polygon_style.line_color.add_legend:
-				if isinstance(polygon_style.line_color, (ThematicStyleIndividual,  ThematicStyleRanges)):
-					for label, color in zip(polygon_style.line_color.labels, polygon_style.line_color.styles):
-						## Use this for lines and points
-						#l = matplotlib.lines.Line2D([0,1], [0,1], color=color, lw=line_widths[0], ls=line_patterns[i])
-						p = matplotlib.patches.Rectangle((0, 0), 1, 1, ls=line_patterns[0], lw=line_widths[0], fc=fill_colors[0], ec=color, hatch=fill_hatches[0], alpha=polygon_style.alpha)
-						self._legend_artists.append(p)
-						self._legend_labels.append(label)
-				elif isinstance(polygon_style.line_color, (ThematicStyleGradient, ThematicStyleColormap)):
+				else:
+					legend_labels.extend(polygon_style.fill_color.labels)
+					for color in polygon_style.fill_color.styles:
+						ntl = polygon_style.get_non_thematic_style()
+						ntl.fill_color = color
+						p = matplotlib.patches.Rectangle((0, 0), 1, 1, fill=1, **ntl.to_kwargs())
+						#p = matplotlib.patches.Circle((0,0), 1, fill=1, fc=color)
+						legend_artists.append(p)
+			## Line color
+			if isinstance(polygon_style.line_color, ThematicStyle) and polygon_style.line_color.add_legend:
+				colorbar_style = polygon_style.line_color.colorbar_style
+				if isinstance(polygon_style.line_color, ThematicStyleColormap) or colorbar_style:
+					if colorbar_style is None:
+						## interpret thematic_legend_style as colorbar_style
+						colorbar_style = polygon_style.thematic_legend_style
 					sm = polygon_style.line_color.to_scalar_mappable()
 					sm.set_array(polygon_style.line_color.values)
-					## interpret thematic_legend_style as colorbar_style
-					colorbar_style = self.thematic_legend_style
-					if isinstance(polygon_style.line_color, ThematicStyleGradient):
+					if not isinstance(polygon_style.line_color, ThematicStyleColormap):
 						colorbar_style.ticks = polygon_style.line_color.values
 					self.draw_colorbar(sm, colorbar_style)
+				if isinstance(polygon_style.line_color, (ThematicStyleIndividual,  ThematicStyleRanges)):
+					legend_labels.extend(polygon_style.line_color.labels)
+					for color in polygon_style.line_color.styles:
+						ntl = polygon_style.get_non_thematic_style()
+						ntl.line_color = color
+						p = matplotlib.patches.Rectangle((0, 0), 1, 1, **ntl.to_kwargs())
+						legend_artists.append(p)
+			## Fill hatch
 			if isinstance(polygon_style.fill_hatch, (ThematicStyleIndividual, ThematicStyleRanges)):
-				for label, hatch in zip(polygon_style.fill_hatch.labels, polygon_style.fill_hatch.styles):
-					p = matplotlib.patches.Rectangle((0, 0), 1, 1, ls=line_patterns[0], lw=line_widths[0], fc=fill_colors[0], ec=line_colors[0], hatch=hatch, alpha=polygon_style.alpha)
-					self._legend_artists.append(p)
-					self._legend_labels.append(label)
+				legend_labels.extend(polygon_style.fill_hatch.labels)
+				for hatch in polygon_style.fill_hatch.styles:
+					ntl = polygon_style.get_non_thematic_style()
+					ntl.fill_hatch = hatch
+					p = matplotlib.patches.Rectangle((0, 0), 1, 1, **ntl.to_kwargs())
+					legend_artists.append(p)
+			## Line pattern
 			if isinstance(polygon_style.line_pattern, (ThematicStyleIndividual, ThematicStyleRanges)):
-				for label, line_pattern in zip(polygon_style.line_pattern.labels, polygon_style.fill_hatch.styles):
-					p = matplotlib.patches.Rectangle((0, 0), 1, 1, ls=line_pattern, lw=line_widths[0], fc=fill_colors[0], ec=line_colors[0], hatch=fill_hatches[0], alpha=polygon_style.alpha)
-					self._legend_artists.append(p)
-					self._legend_labels.append(label)
+				legend_labels.extend(polygon_style.line_pattern.labels)
+				for line_pattern in polygon_style.fill_hatch.styles:
+					ntl = polygon_style.get_non_thematic_style()
+					ntl.line_pattern = line_pattern
+					p = matplotlib.patches.Rectangle((0, 0), 1, 1, **ntl_to_kwargs())
+					legend_artists.append(p)
+			## Line width
 			if isinstance(polygon_style.line_width, (ThematicStyleIndividual, ThematicStyleRanges, ThematicStyleGradient)):
-				for label, line_width in zip(polygon_style.line_width.labels, polygon_style.line_width.styles):
-					p = matplotlib.patches.Rectangle((0, 0), 1, 1, ls=line_patterns[0], lw=line_width, fc=fill_colors[0], ec=line_colors[0], hatch=fill_hatches[0], alpha=polygon_style.alpha)
-					self._legend_artists.append(p)
-					self._legend_labels.append(label)
+				legend_labels.extend(polygon_style.line_width.labels)
+				for line_width in polygon_style.line_width.styles:
+					ntl = polygon_style.get_non_thematic_style()
+					ntl.line_width = line_width
+					p = matplotlib.patches.Rectangle((0, 0), 1, 1, **ntl.to_kwargs())
+					legend_artists.append(p)
+
+			if len(legend_artists) > 0:
+				thematic_legend = ThematicLegend(legend_artists, legend_labels, polygon_style.thematic_legend_style)
+				self.thematic_legends.append(thematic_legend)
 
 	def draw_line_layer(self, line_data, line_style, legend_label="_nolegend_"):
 		"""
@@ -1075,7 +1278,10 @@ class LayeredBasemap:
 			line_colors = [line_style.line_color] * num_lines
 
 		for i, line in enumerate(line_data):
-			legend_label = {True: legend_label, False: "_nolegend_"}[i==0]
+			if line_style.is_thematic():
+				legend_label = "_nolegend_"
+			else:
+				legend_label = {True: legend_label, False: "_nolegend_"}[i==0]
 			## Apply thematic styles
 			line_pattern = line_patterns[i]
 			line_width = line_widths[i]
@@ -1093,40 +1299,80 @@ class LayeredBasemap:
 			self._draw_texts(midpoints, line_style.label_style)
 			self.zorder += 1
 
-		# thematic legend
+		# Thematic legend
 		if line_style.is_thematic:
+			legend_artists, legend_labels = [], []
+			## Line color
 			if isinstance(line_style.line_color, ThematicStyle) and line_style.line_color.add_legend:
-				if isinstance(line_style.line_color, (ThematicStyleIndividual,  ThematicStyleRanges)):
-					for label, color in zip(line_style.line_color.labels, line_style.line_color.styles):
-						l = matplotlib.lines.Line2D([0,1], [0,1], color=color, lw=line_widths[0], ls=line_patterns[i], alpha=line_style.alpha)
-						self._legend_artists.append(l)
-						self._legend_labels.append(label)
-				elif isinstance(line_style.line_color, (ThematicStyleGradient, ThematicStyleColormap)):
+				colorbar_style = line_style.line_color.colorbar_style
+				if isinstance(line_style.line_color, ThematicStyleColormap) or colorbar_style:
+					if colorbar_style is None:
+						## interpret thematic_legend_style as colorbar_style
+						colorbar_style = line_style.thematic_legend_style
 					sm = line_style.line_color.to_scalar_mappable()
 					sm.set_array(line_style.line_color.values)
-					## interpret thematic_legend_style as colorbar_style
-					colorbar_style = self.thematic_legend_style
-					if isinstance(line_style.line_color, ThematicStyleGradient):
+					if not isinstance(line_style.line_color, ThematicStyleColormap):
 						colorbar_style.ticks = line_style.line_color.values
 					self.draw_colorbar(sm, colorbar_style)
+				if isinstance(line_style.line_color, (ThematicStyleIndividual,  ThematicStyleRanges)):
+					legend_labels.extend(line_style.line_color.labels)
+					for color in line_style.line_color.styles:
+						ntl = line_style.get_non_thematic_style()
+						ntl.color = color
+						l = matplotlib.lines.Line2D([0,1], [0,1], **ntl.to_kwargs())
+						legend_artists.append(l)
+			## Line pattern
 			if isinstance(line_style.line_pattern, (ThematicStyleIndividual, ThematicStyleRanges)):
-				for label, line_pattern in zip(line_style.line_pattern.labels, line_style.fill_hatch.styles):
-					l = matplotlib.lines.Line2D([0,1], [0,1], color=line_colors[i], lw=line_widths[0], ls=line_pattern, alpha=line_style.alpha)
-					self._legend_artists.append(l)
-					self._legend_labels.append(label)
+				legend_labels.extend(line_style.line_pattern.labels)
+				for line_pattern in line_style.line_pattern.styles:
+					ntl = line_style.get_non_thematic_style()
+					ntl.line_pattern = line_pattern
+					l = matplotlib.lines.Line2D([0,1], [0,1], **ntl.to_kwargs())
+					legend_artists.append(l)
+			## Line width
 			if isinstance(line_style.line_width, (ThematicStyleIndividual, ThematicStyleRanges, ThematicStyleGradient)):
-				for label, line_width in zip(line_style.line_width.labels, line_style.line_width.styles):
-					l = matplotlib.lines.Line2D([0,1], [0,1], color=line_colors[i], lw=line_width, ls=line_patterns[i], alpha=line_style.alpha)
-					self._legend_artists.append(l)
-					self._legend_labels.append(label)
+				legend_labels.extend(line_style.line_width.labels)
+				for line_width in line_style.line_width.styles:
+					ntl = line_style.get_non_thematic_style()
+					ntl.line_width = line_width
+					l = matplotlib.lines.Line2D([0,1], [0,1], **ntl.to_kwargs())
+					legend_artists.append(l)
+
+			if len(legend_artists) > 0:
+				thematic_legend = ThematicLegend(legend_artists, legend_labels, polygon_style.thematic_legend_style)
+				self.thematic_legends.append(thematic_legend)
 
 	def draw_point_layer(self, point_data, point_style, legend_label="_nolegend_"):
-		# TODO: allow for different marker shapes
-		self._draw_points(point_data, point_style, legend_label)
+		legend_artists, legend_labels = [], []
+		if not isinstance(point_style.shape, ThematicStyle):
+			self._draw_points(point_data, point_style, legend_label, thematic_legend_artists=legend_artists, thematic_legend_labels=legend_labels)
+		else:
+			## scatter does not support different markers, so we have to do this separately
+			data_marker_shapes = np.array(point_style.shape(point_data.values))
+			for i, marker_shape in enumerate(point_style.shape.styles):
+				indexes = np.where(data_marker_shapes == marker_shape)[0]
+				point_list = [point_data[index] for index in indexes]
+				marker_shape_points = MultiPointData.from_points(point_list)
+				marker_shape_style = PointStyle(shape=marker_shape, size=point_style.size, line_width=point_style.line_width, line_color=point_style.line_color, fill_color=point_style.fill_color, label_style=point_style.label_style, alpha=point_style.alpha, thematic_legend_style=point_style.thematic_legend_style)
+				legend_label = "_nolegend_"
+				self._draw_points(marker_shape_points, marker_shape_style, legend_label, thematic_legend_artists=legend_artists, thematic_legend_labels=legend_labels)
+				## Thematic legend
+				ntl_style = point_style.get_non_thematic_style()
+				ntl_style.shape = marker_shape
+				l = matplotlib.lines.Line2D([0], [0], lw=0, ls="None", **ntl_style.to_kwargs())
+				legend_artists.append(l)
+				label = point_style.shape.labels[i]
+				legend_labels.append(label)
+
 		self.zorder += 1
 		if point_data.labels and point_style.label_style:
 			self._draw_texts(point_data, point_style.label_style)
 			self.zorder += 1
+
+		if point_style.is_thematic:
+			if len(legend_artists) > 0:
+				thematic_legend = ThematicLegend(legend_artists, legend_labels, point_style.thematic_legend_style)
+				self.thematic_legends.append(thematic_legend)
 
 	def draw_composite_layer(self, point_data=[], point_style=None, line_data=[], line_style=None, polygon_data=[], polygon_style=None, text_data=[], text_style=None, legend_label={"points": "_nolegend_", "lines": "_nolegend_", "polygons": "_nolegend_"}):
 		if polygon_data and len(polygon_data) > 0 and polygon_style:
@@ -1231,7 +1477,6 @@ class LayeredBasemap:
 						polygon_data.append(polygon)
 						for colname in polygon_value_colnames:
 							polygon_data.values[colname].append(rec[colname])
-
 
 		self.draw_composite_layer(point_data=point_data, point_style=point_style, line_data=line_data, line_style=line_style, polygon_data=polygon_data, polygon_style=polygon_style, legend_label=legend_label)
 
@@ -1485,34 +1730,36 @@ class LayeredBasemap:
 		self.draw_title()
 
 	def draw_legend(self):
-		## Thematic legend
-		tl = None
-		if self.thematic_legend_style and self._legend_artists:
-			title = self.thematic_legend_style.title
-			if isinstance(title, str):
-				title = title.decode('iso-8859-1')
-			loc = self.thematic_legend_style.location
-			label_style = self.thematic_legend_style.label_style
-			title_style = self.thematic_legend_style.title_style
-			marker_scale = self.thematic_legend_style.marker_scale
-			frame_on = self.thematic_legend_style.frame_on
-			fancy_box = self.thematic_legend_style.fancy_box
-			shadow = self.thematic_legend_style.shadow
-			ncol = self.thematic_legend_style.ncol
-			border_pad = self.thematic_legend_style.border_pad
-			label_spacing = self.thematic_legend_style.label_spacing
-			handle_length = self.thematic_legend_style.handle_length
-			handle_text_pad = self.thematic_legend_style.handle_text_pad
-			border_axes_pad = self.thematic_legend_style.border_axes_pad
-			column_spacing = self.thematic_legend_style.column_spacing
-			alpha = self.thematic_legend_style.alpha
+		## Thematic legends
+		for thematic_legend in self.thematic_legends:
+			if thematic_legend.style:
+				title = thematic_legend.style.title
+				if isinstance(title, str):
+					title = title.decode('iso-8859-1')
+				loc = thematic_legend.style.location
+				label_style = thematic_legend.style.label_style
+				title_style = thematic_legend.style.title_style
+				marker_scale = thematic_legend.style.marker_scale
+				frame_on = thematic_legend.style.frame_on
+				fancy_box = thematic_legend.style.fancy_box
+				shadow = thematic_legend.style.shadow
+				ncol = thematic_legend.style.ncol
+				border_pad = thematic_legend.style.border_pad
+				label_spacing = thematic_legend.style.label_spacing
+				handle_length = thematic_legend.style.handle_length
+				handle_text_pad = thematic_legend.style.handle_text_pad
+				border_axes_pad = thematic_legend.style.border_axes_pad
+				column_spacing = thematic_legend.style.column_spacing
+				numpoints = thematic_legend_style.num_points
+				alpha = thematic_legend.style.alpha
 
-			# TODO: in current version of matplotlib, legend does not support framealpha parameter
-			tl = self.ax.legend(self._legend_artists, self._legend_labels, loc=loc, prop=label_style.get_font_prop(), markerscale=marker_scale, frameon=frame_on, fancybox=fancy_box, shadow=shadow, ncol=ncol, borderpad=border_pad, labelspacing=label_spacing, handlelength=handle_length, handletextpad=handle_text_pad, borderaxespad=border_axes_pad, columnspacing=column_spacing)
-			# TODO: in current version of matplotlib set_title does not accept prop
-			#tl.set_title(title, prop=title_style.get_font_prop())
-			tl.set_title(title)
-			tl.set_zorder(self.zorder)
+				# TODO: in current version of matplotlib, legend does not support framealpha parameter
+				tl = self.ax.legend(thematic_legend.artists, thematic_legend.labels, loc=loc, prop=label_style.get_font_prop(), markerscale=marker_scale, frameon=frame_on, fancybox=fancy_box, shadow=shadow, ncol=ncol, borderpad=border_pad, labelspacing=label_spacing, handlelength=handle_length, handletextpad=handle_text_pad, borderaxespad=border_axes_pad, columnspacing=column_spacing, numpoints=numpoints)
+				# TODO: in current version of matplotlib set_title does not accept prop
+				#tl.set_title(title, prop=title_style.get_font_prop())
+				tl.set_title(title)
+				tl.set_zorder(self.zorder)
+				self.ax.add_artist(tl)
 
 		## Main legend
 		if self.legend_style:
@@ -1533,16 +1780,13 @@ class LayeredBasemap:
 			handle_text_pad = self.legend_style.handle_text_pad
 			border_axes_pad = self.legend_style.border_axes_pad
 			column_spacing = self.legend_style.column_spacing
+			numpoints = self.legend_style.num_points
 			alpha = self.legend_style.alpha
 
-			ml = self.ax.legend(loc=loc+1, prop=label_style.get_font_prop(), markerscale=marker_scale, frameon=frame_on, fancybox=fancy_box, shadow=shadow, ncol=ncol, borderpad=border_pad, labelspacing=label_spacing, handlelength=handle_length, handletextpad=handle_text_pad, borderaxespad=border_axes_pad, columnspacing=column_spacing)
+			ml = self.ax.legend(loc=loc+1, prop=label_style.get_font_prop(), markerscale=marker_scale, frameon=frame_on, fancybox=fancy_box, shadow=shadow, ncol=ncol, borderpad=border_pad, labelspacing=label_spacing, handlelength=handle_length, handletextpad=handle_text_pad, borderaxespad=border_axes_pad, columnspacing=column_spacing, numpoints=numpoints)
 			if ml:
 				ml.set_title(title)
 				ml.set_zorder(self.zorder)
-
-			## Re-attach thematic legend to axes
-			if tl:
-				self.ax.add_artist(tl)
 
 	def draw_title(self):
 		if isinstance(self.title, str):
@@ -1644,10 +1888,11 @@ if __name__ == "__main__":
 	#gis_filespec = r"D:\GIS-data\KSB-ORB\Source Zone Models\Seismotectonic Hybrid.TAB"
 	gis_filespec = r"D:\GIS-data\KSB-ORB\Source Zone Models\SLZ+RVG.TAB"
 	gis_data = GisData(gis_filespec, label_colname="ShortName")
+	thematic_legend_style = LegendStyle(title="Area sources", location=2, shadow=True, fancy_box=True, label_spacing=0.4)
 	label_style = TextStyle()
 	line_style = LineStyle(line_width=2, label_style=label_style)
 	fill_color = ThematicStyleIndividual(["SLZ", "RVG"], ["green", "orange"], value_key="ShortName")
-	polygon_style = PolygonStyle(line_width=2, fill_color=fill_color, alpha=0.5, label_style=label_style)
+	polygon_style = PolygonStyle(line_width=2, fill_color=fill_color, alpha=0.5, label_style=label_style, thematic_legend_style=thematic_legend_style)
 	gis_style = CompositeStyle(line_style=line_style, polygon_style=polygon_style)
 	layer = MapLayer(gis_data, gis_style, legend_label={"polygons": "Area sources", "lines": "Fault sources"})
 	layers.append(layer)
@@ -1715,18 +1960,22 @@ if __name__ == "__main__":
 	values['year'] = [eq.datetime.year for eq in catalog]
 	point_data = MultiPointData(catalog.get_longitudes(), catalog.get_latitudes(), values=values)
 	#point_data = MultiPointData([2.0, 3.0, 4.0, 5.0, 6.0], [50, 50, 50, 50, 50], values=[2,3,4,5,6])
+	thematic_legend_style = LegendStyle(title="Magnitude", location=3, shadow=True, fancy_box=True, label_spacing=0.7)
+	colorbar_style = ColorbarStyle(title="Depth", location="bottom", format="%d")
 	thematic_size = ThematicStyleGradient([1,6], [2, 24], value_key="magnitude")
 	#thematic_color = ThematicStyleColormap(value_key="depth")
-	thematic_color = ThematicStyleRanges([0,1,10,25,50], ['red', 'orange', 'yellow', 'green'], value_key="depth")
+	thematic_color = ThematicStyleRanges([0,1,10,25,50], ['red', 'orange', 'yellow', 'green'], value_key="depth", colorbar_style=colorbar_style)
 	#thematic_color = ThematicStyleRanges([1350,1910,2050], ['green', (1,1,1,0)], value_key="year")
 	#point_style = PointStyle(shape='+', size=thematic_size, fill_color='k', line_color=thematic_color, line_width=0.5)
-	point_style = PointStyle(shape='o', size=thematic_size, line_color='k', fill_color=thematic_color, line_width=0.5)
+	point_style = PointStyle(shape='o', size=thematic_size, line_color='k', fill_color=thematic_color, line_width=0.5, thematic_legend_style=thematic_legend_style)
 	layer = MapLayer(point_data, point_style, legend_label="ROB Catalog")
 	layers.append(layer)
 
 	## Point data: NPP sites
-	point_data = MultiPointData([4.259, 5.274], [51.325, 50.534], labels=["Doel", "Tihange"])
-	point_style = PointStyle(fill_color='y', label_style=TextStyle(color='w', horizontal_alignment="left", offset=(10,0)))
+	point_data = MultiPointData([4.259, 5.274], [51.325, 50.534], values=["Doel", "Tihange"], labels=["Doel", "Tihange"])
+	thematic_shape = ThematicStyleIndividual(["Doel", "Tihange"], ['o', 's'])
+	thematic_legend_style = LegendStyle(title="NPP", location=1)
+	point_style = PointStyle(shape=thematic_shape, fill_color='w', label_style=TextStyle(color='w', horizontal_alignment="left", offset=(10,0)), thematic_legend_style=thematic_legend_style)
 	layer = MapLayer(point_data, point_style, legend_label="NPP")
 	layers.append(layer)
 
@@ -1740,7 +1989,9 @@ if __name__ == "__main__":
 
 	#layers = []
 	legend_style = LegendStyle(location=0)
-	title_style = TextStyle(font_size="large", horizontal_alignment="left", font_weight="bold", color="r")
+	title_style = DefaultTitleTextStyle
+	title_style.color = "red"
+	title_style.weight = "bold"
 	map = LayeredBasemap(layers, region, projection, title, title_style=title_style, grid_interval=grid_interval, resolution=resolution, legend_style=legend_style)
 	mask_polygon = PolygonData([2,3,4,4,3,2,2], [50,50,50,51,51,51,50])
 	map.draw_mask(mask_polygon, outside=False)
