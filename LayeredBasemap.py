@@ -39,9 +39,21 @@ class TextStyle(FontStyle):
 		self.offset = offset
 		self.alpha = alpha
 
-	def get_font_prop(self):
-		fp = matplotlib.font_manager.FontProperties(family=self.font_family, style=self.font_style, variant=self.font_variant, stretch=self.font_stretch, weight=self.font_weight, size=self.font_size)
-		return fp
+	def to_kwargs(self):
+		d = {}
+		d["family"] = self.font_family
+		d["size"] = self.font_size
+		d["weight"] = self.font_weight
+		d["style"] = self.font_style
+		d["stretch"] = self.font_stretch
+		d["variant"] = self.font_variant
+		d["color"] = self.color
+		d["linespacing"] = self.line_spacing
+		d["rotation"] = self.rotation
+		d["ha"] = self.horizontal_alignment
+		d["va"] = self.vertical_alignment
+		d["alpha"] = self.alpha
+		return d
 
 
 DefaultTitleTextStyle = TextStyle(font_size="large", horizontal_alignment="center", vertical_alignment="bottom")
@@ -219,6 +231,26 @@ class FocmecStyle:
 		else:
 			return False
 
+	def get_non_thematic_style(self):
+		if isinstance(self.size, ThematicStyle):
+			size = 50
+		else:
+			size = self.size
+		if isinstance(self.line_width, ThematicStyle):
+			line_width = 1
+		else:
+			line_width = self.line_width
+		if isinstance(self.line_color, ThematicStyle):
+			line_color = 'k'
+		else:
+			line_color = self.line_color
+		if isinstance(self.fill_color, ThematicStyle):
+			fill_color = 'k'
+		else:
+			fill_color = self.fill_color
+		bg_color = self.bg_color
+		return FocmecStyle(size, line_width, line_color, fill_color, bg_color, self.alpha, self.thematic_legend_style)
+
 
 class CompositeStyle:
 	def __init__(self, point_style=None, line_style=None, polygon_style=None):
@@ -283,9 +315,13 @@ class ThematicStyleIndividual(ThematicStyle):
 	def get_norm(self):
 		# TODO: can probably be replaced with matplotlib.colors.from_levels_and_colors
 		# in newer versions of matplotlib
-		step = self.values[1] - self.values[0]
-		boundaries = np.array(self.values) - step / 2.
-		boundaries = np.append(boundaries, [self.values[-1] + step / 2.])
+		if isinstance(self.values[0], (int, float)):
+			values = np.array(self.values)
+		else:
+			values = np.arange(len(self.values))
+		diff = values[1:] - values[:-1]
+		boundaries = values[1:] - diff / 2.
+		boundaries = np.concatenate([[values[0] - diff[0] / 2.], boundaries, [values[-1] + diff[-1] / 2.]])
 		return matplotlib.colors.BoundaryNorm(boundaries, len(self.values))
 
 	def to_scalar_mappable(self):
@@ -595,6 +631,22 @@ class MultiPointData(object):
 		if pt.label:
 			self.labels.append(pt.label)
 
+	def get_masked_data(self, bbox):
+		import numpy.ma as ma
+		lonmin, lonmax, latmin, latmax = bbox
+		lon_mask = ma.mask_outside(self.lons, lonmin, lonmax)
+		lat_mask = ma.mask_outside(self.lats, latmin, latmax)
+		lons = ma.array(self.lons, mask=lon_mask.mask + latmask.mask).compressed()
+		lats = ma.array(self.lats, mask=lon_mask.mask + latmask.mask).compressed()
+		labels = ma.array(self.labels, mask=lon_mask.mask + latmask.mask).compressed()
+		if isinstance(self.values, dict):
+			values = {}
+			for key, val in self.values.items():
+				values[key] = ma.array(val, mask=lon_mask.mask + latmask.mask).compressed()
+		else:
+			values = ma.array(values, mask=lon_mask.mask + latmask.mask).compressed()
+		return MultiPointData(lons, lats, values, labels)
+
 	def to_shapely(self):
 		return shapely.geometry.MultiPoint(zip(self.lons, self.lats))
 
@@ -891,6 +943,10 @@ class GridData:
 		self.lats = lats
 		self.values = values
 
+	def mask_oceans(self, resolution, mask_lakes=False, grid_spacing=1.25):
+		from mpl_toolkits.basemap import maskoceans
+		return maskoceans(self.lons, self.lats, self.values, inlands=mask_lakes, resolution=resolution, grid=grid_spacing)
+
 
 class GisData:
 	def __init__(self, filespec, label_colname=None, selection_dict={}):
@@ -1128,14 +1184,14 @@ class LayeredBasemap:
 		for i, label in enumerate(text_points.labels):
 			if isinstance(label, str):
 				label = label.decode('iso-8859-1')
-			#self.ax.text(x[i], y[i], label, family=style.font_family, size=style.font_size, weight=style.font_weight, style=style.font_style, stretch=style.font_stretch, variant=style.font_variant, color=style.color, linespacing=style.line_spacing, rotation=style.rotation, ha=style.horizontal_alignment, va=style.vertical_alignment, alpha=style.alpha, zorder=self.zorder)
+			#self.ax.text(x[i], y[i], label, zorder=self.zorder, **style.to_kwargs())
 			if style.offset:
 				xytext = style.offset
 				textcoords = "offset points"
 			else:
 				xytext = None
 				textcoords = ""
-			self.ax.annotate(label, (x[i], y[i]), xytext=xytext, textcoords=textcoords, family=style.font_family, size=style.font_size, weight=style.font_weight, style=style.font_style, stretch=style.font_stretch, variant=style.font_variant, color=style.color, linespacing=style.line_spacing, rotation=style.rotation, ha=style.horizontal_alignment, va=style.vertical_alignment, alpha=style.alpha, zorder=self.zorder)
+			self.ax.annotate(label, (x[i], y[i]), xytext=xytext, textcoords=textcoords, zorder=self.zorder, **style.to_kwargs())
 
 	def draw_polygon_layer(self, polygon_data, polygon_style, legend_label="_nolegend_"):
 		"""
