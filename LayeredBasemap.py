@@ -11,948 +11,8 @@ import shapely
 import shapely.geometry
 
 
-
-## Styles
-class FontStyle(object):
-	def __init__(self, font_family="sans-serif", font_style="normal", font_variant="normal", font_stretch="normal", font_weight="normal", font_size=12):
-		self.font_family = font_family
-		self.font_style = font_style
-		self.font_variant = font_variant
-		self.font_stretch = font_stretch
-		self.font_weight = font_weight
-		self.font_size = font_size
-
-	def get_font_prop(self):
-		fp = matplotlib.font_manager.FontProperties(family=self.font_family, style=self.font_style, variant=self.font_variant, stretch=self.font_stretch, weight=self.font_weight, size=self.font_size)
-		return fp
-
-
-class TextStyle(FontStyle):
-	def __init__(self, font_family="sans-serif", font_style="normal", font_variant="normal", font_stretch="normal", font_weight="normal", font_size=12, color='k', background_color=None, line_spacing=12, rotation=0, horizontal_alignment="center", vertical_alignment="center", offset=(0,0), alpha=1.):
-		super(TextStyle, self).__init__(font_family, font_style, font_variant, font_stretch, font_weight, font_size)
-		self.color = color
-		#self.background_color = background_color
-		self.line_spacing = line_spacing
-		self.rotation = rotation
-		self.horizontal_alignment = horizontal_alignment
-		self.vertical_alignment = vertical_alignment
-		self.offset = offset
-		self.alpha = alpha
-
-	def to_kwargs(self):
-		d = {}
-		d["family"] = self.font_family
-		d["size"] = self.font_size
-		d["weight"] = self.font_weight
-		d["style"] = self.font_style
-		d["stretch"] = self.font_stretch
-		d["variant"] = self.font_variant
-		d["color"] = self.color
-		d["linespacing"] = self.line_spacing
-		d["rotation"] = self.rotation
-		d["ha"] = self.horizontal_alignment
-		d["va"] = self.vertical_alignment
-		d["alpha"] = self.alpha
-		return d
-
-
-DefaultTitleTextStyle = TextStyle(font_size="large", horizontal_alignment="center", vertical_alignment="bottom")
-
-
-class PointStyle:
-	def __init__(self, shape='o', size=12, line_width=1, line_color='k', fill_color='None', label_style=None, alpha=1., thematic_legend_style=None):
-		self.shape = shape
-		self.size = size
-		self.line_width = line_width
-		self.line_color = line_color
-		self.fill_color = fill_color
-		self.label_style = label_style
-		self.alpha = alpha
-		self.thematic_legend_style = thematic_legend_style
-		## Adjust label spacing of thematic legend to accommodate largest symbols
-		if isinstance(self.size, ThematicStyle):
-			max_size = max(size.styles)
-			self.thematic_legend_style.label_spacing = max(max_size*0.4/10, self.thematic_legend_style.label_spacing)
-		# TODO: fillstyle, markerfacecoloralt?
-
-	def is_thematic(self):
-		if (isinstance(self.shape, ThematicStyle) or isinstance(self.size, ThematicStyle) or
-			isinstance(self.line_width, ThematicStyle) or isinstance(self.line_color, ThematicStyle) or
-			isinstance(self.fill_color, ThematicStyle)):
-			return True
-		else:
-			return False
-
-	def get_non_thematic_style(self):
-		if isinstance(self.shape, ThematicStyle):
-			shape = 'o'
-		else:
-			shape = self.shape
-		if isinstance(self.size, ThematicStyle):
-			size = 10
-		else:
-			size = self.size
-		if isinstance(self.line_width, ThematicStyle):
-			line_width = 1
-		else:
-			line_width = self.line_width
-		if isinstance(self.line_color, ThematicStyle):
-			line_color = 'k'
-		else:
-			line_color = self.line_color
-		if isinstance(self.fill_color, ThematicStyle):
-			fill_color = 'none'
-		else:
-			fill_color = self.fill_color
-		return PointStyle(shape, size, line_width, line_color, fill_color, self.label_style, self.alpha, self.thematic_legend_style)
-
-	def to_kwargs(self):
-		d = {}
-		d["marker"] = self.shape
-		d["ms"] = self.size
-		d["mew"] = self.line_width
-		d["mfc"] = self.fill_color
-		d["mec"] = self.line_color
-		d["alpha"] = self.alpha
-		return d
-
-
-class LineStyle:
-	def __init__(self, line_pattern="solid", line_width=1, line_color='k', label_style=None, alpha=1., thematic_legend_style=None):
-		self.line_pattern = line_pattern
-		self.line_width = line_width
-		self.line_color = line_color
-		self.label_style = label_style
-		self.alpha = alpha
-		self.thematic_legend_style = thematic_legend_style
-
-	def is_thematic(self):
-		if (isinstance(self.line_pattern, ThematicStyle) or isinstance(self.line_width, ThematicStyle)
-			or isinstance(self.line_color, ThematicStyle)):
-			return True
-		else:
-			return False
-
-	def get_non_thematic_style(self):
-		if isinstance(self.line_pattern, ThematicStyle):
-			line_pattern = '-'
-		else:
-			line_pattern = self.line_pattern
-		if isinstance(self.line_width, ThematicStyle):
-			line_width = 1
-		else:
-			line_width = self.line_width
-		if isinstance(self.line_color, ThematicStyle):
-			line_color = 'k'
-		else:
-			line_color = self.line_color
-		return LineStyle(line_pattern, line_width, line_color, self.label_style, self.alpha, self.thematic_legend_style)
-
-	def to_kwargs(self):
-		d = {}
-		d["ls"] = self.line_pattern
-		d["lw"] = self.line_width
-		d["color"] = self.line_color
-		d["alpha"] = self.alpha
-		return d
-
-
-class PolygonStyle:
-	def __init__(self, line_pattern="solid", line_width=1, line_color='k', fill_color='w', fill_hatch=None, label_style=None, alpha=1., thematic_legend_style=None):
-		self.line_pattern = line_pattern
-		self.line_width = line_width
-		self.line_color = line_color
-		self.fill_color = fill_color
-		self.fill_hatch = fill_hatch
-		self.label_style = label_style
-		self.alpha = alpha
-		self.thematic_legend_style = thematic_legend_style
-		# TODO: check line_patterns ('solid' versus '-' etc)
-
-	def is_thematic(self):
-		if (isinstance(self.line_pattern, ThematicStyle) or isinstance(self.line_width, ThematicStyle)
-			or isinstance(self.line_color, ThematicStyle) or isinstance(self.fill_color, ThematicStyle)
-			or isinstance(self.fill_hatch, ThematicStyle)):
-			return True
-		else:
-			return False
-
-	def get_non_thematic_style(self):
-		if isinstance(self.line_pattern, ThematicStyle):
-			line_pattern = 'solid'
-		else:
-			line_pattern = self.line_pattern
-		if isinstance(self.line_width, ThematicStyle):
-			line_width = 1
-		else:
-			line_width = self.line_width
-		if isinstance(self.line_color, ThematicStyle):
-			line_color = 'k'
-		else:
-			line_color = self.line_color
-		if isinstance(self.fill_color, ThematicStyle):
-			fill_color = 'w'
-		else:
-			fill_color = self.fill_color
-		if isinstance(self.fill_hatch, ThematicStyle):
-			fill_hatch = None
-		else:
-			fill_hatch = self.fill_hatch
-		return PolygonStyle(line_pattern, line_width, line_color, fill_color, fill_hatch, self.label_style, self.alpha, self.thematic_legend_style)
-
-	def to_line_style(self):
-		return LineStyle(self.line_pattern, self.line_width, self.line_color, self.label_style, self.alpha, self.thematic_legend_style)
-
-	def to_kwargs(self):
-		d = {}
-		d["ls"] = self.line_pattern
-		d["lw"] = self.line_width
-		d["ec"] = self.line_color
-		d["fc"] = self.fill_color
-		d["hatch"] = self.fill_hatch
-		d["alpha"] = self.alpha
-		return d
-
-
-class FocmecStyle:
-	def __init__(self, size=50, line_width=1, line_color='k', fill_color='k', bg_color='w', alpha=1., thematic_legend_style=None):
-		self.size = size
-		self.line_width = line_width
-		self.line_color = line_color
-		self.fill_color = fill_color
-		self.bg_color = bg_color
-		self.alpha = alpha
-		self.thematic_legend_style = thematic_legend_style
-
-	def is_thematic(self):
-		if (isinstance(self.size, ThematicStyle) or isinstance(self.line_width, ThematicStyle) or
-			isinstance(self.line_color, ThematicStyle) or isinstance(self.fill_color, ThematicStyle)):
-			return True
-		else:
-			return False
-
-	def get_non_thematic_style(self):
-		if isinstance(self.size, ThematicStyle):
-			size = 50
-		else:
-			size = self.size
-		if isinstance(self.line_width, ThematicStyle):
-			line_width = 1
-		else:
-			line_width = self.line_width
-		if isinstance(self.line_color, ThematicStyle):
-			line_color = 'k'
-		else:
-			line_color = self.line_color
-		if isinstance(self.fill_color, ThematicStyle):
-			fill_color = 'k'
-		else:
-			fill_color = self.fill_color
-		bg_color = self.bg_color
-		return FocmecStyle(size, line_width, line_color, fill_color, bg_color, self.alpha, self.thematic_legend_style)
-
-
-class CompositeStyle:
-	def __init__(self, point_style=None, line_style=None, polygon_style=None):
-		self.point_style = point_style
-		self.line_style = line_style
-		self.polygon_style = polygon_style
-
-	def is_thematic(self):
-		if self.point_style.is_thematic() or self.line_style.is_thematic() or self.polygon_style.is_thematic():
-			return True
-		else:
-			return False
-
-
-class ThematicStyle(object):
-	def __init__(self, value_key=None, add_legend=True, colorbar_style=None):
-		self.value_key = value_key
-		self.add_legend = add_legend
-		self.colorbar_style = colorbar_style
-
-	def apply_value_key(self, values):
-		if self.value_key == None:
-			return values
-		else:
-			return values[self.value_key]
-
-
-class ThematicStyleIndividual(ThematicStyle):
-	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True, colorbar_style=None):
-		super(ThematicStyleIndividual, self).__init__(value_key, add_legend, colorbar_style)
-		self.values = values
-		self.styles = styles
-		self.style_dict = {}
-		for value, style in zip(self.values, self.styles):
-			self.style_dict[value] = style
-		if labels:
-			self.labels = labels
-		else:
-			self.labels = []
-			for val in self.values:
-				if isinstance(val, str):
-					self.labels.append(val.decode('iso-8859-1'))
-				elif isinstance(val, unicode):
-					self.labels.append(val)
-				else:
-					self.labels.append(str(val))
-
-	def __call__(self, values):
-		"""
-		values can be numbers or strings
-		"""
-		return [self.style_dict[val] for val in self.apply_value_key(values)]
-
-	def to_colormap(self):
-		try:
-			cmap = matplotlib.colors.ListedColormap(self.styles, name=self.value_key)
-		except:
-			pass
-		else:
-			return cmap
-
-	def get_norm(self):
-		# TODO: can probably be replaced with matplotlib.colors.from_levels_and_colors
-		# in newer versions of matplotlib
-		if isinstance(self.values[0], (int, float)):
-			values = np.array(self.values)
-		else:
-			values = np.arange(len(self.values))
-		diff = values[1:] - values[:-1]
-		boundaries = values[1:] - diff / 2.
-		boundaries = np.concatenate([[values[0] - diff[0] / 2.], boundaries, [values[-1] + diff[-1] / 2.]])
-		return matplotlib.colors.BoundaryNorm(boundaries, len(self.values))
-
-	def to_scalar_mappable(self):
-		norm = self.get_norm()
-		cmap = self.to_colormap()
-		return matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
-
-
-class ThematicStyleRanges(ThematicStyle):
-	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True, colorbar_style=None):
-		"""
-		values must be monotonically increasing or decreasing
-		styles may be colors
-		values contains one element less than styles
-		"""
-		super(ThematicStyleRanges, self).__init__(value_key, add_legend, colorbar_style)
-		self.values = np.array(values, dtype='f')
-		self.styles = styles
-		if labels:
-			self.labels = labels
-		else:
-			self.labels = []
-			for i in range(len(self.styles)):
-				self.labels.append("%s - %s" % (self.values[i], self.values[i+1]))
-
-	def __call__(self, values):
-		"""
-		values must be numbers
-		"""
-		bin_indexes = np.digitize(self.apply_value_key(values), self.values) - 1
-		return [self.styles[bi] for bi in bin_indexes]
-
-	def to_colormap(self):
-		# TODO: possible to check if a style spec is a matplotlib color spec?
-		try:
-			cmap = matplotlib.colors.ListedColormap(self.styles, name=self.value_key)
-		except:
-			pass
-		else:
-			return cmap
-
-	def get_norm(self):
-		return matplotlib.colors.BoundaryNorm(self.values, len(self.styles))
-
-	def to_scalar_mappable(self):
-		#cmap, norm = matplotlib.colors.from_levels_and_colors(self.values, self.styles)
-		cmap = self.to_colormap()
-		norm = self.get_norm()
-		return matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
-
-
-class ThematicStyleGradient(ThematicStyle):
-	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True, colorbar_style=None):
-		"""
-		values must be monotonically increasing or decreasing
-		styles must be numbers or colors
-		"""
-		super(ThematicStyleGradient, self).__init__(value_key, add_legend, colorbar_style)
-		self.values = np.array(values, dtype='f')
-		self.styles = styles
-		if labels:
-			self.labels = labels
-		else:
-			self.labels = map(str, self.values)
-
-	def __call__(self, values):
-		try:
-			return np.interp(self.apply_value_key(values), self.values, self.styles)
-		except:
-			sm = self.to_scalar_mappable()
-			return sm.to_rgba(self.apply_value_key(values), alpha=self.alpha)
-			#cmap = self.to_colormap()
-			#norm = self.get_norm()
-			#return cmap(norm(self.apply_value_key(values)))
-
-	def to_colormap(self):
-		x = self.values.max()
-		return matplotlib.colors.LinearSegmentedColormap.from_list(self.value_key, zip(x, self.styles))
-
-	def get_norm(self):
-		# TODO: use LevelNorm !
-		return matplotlib.colors.Normalize(vmin=self.values.min(), vmax=self.values.max())
-
-	def to_scalar_mappable(self):
-		norm = self.get_norm()
-		cmap = self.to_colormap()
-		return matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
-
-
-class ThematicStyleColormap(ThematicStyle):
-	def __init__(self, color_map="jet", norm=None, vmin=None, vmax=None, alpha=1.0, value_key=None, add_legend=True, colorbar_style=None):
-		super(ThematicStyleColormap, self).__init__(value_key, add_legend, colorbar_style)
-		self.color_map = color_map
-		self.norm = norm
-		self.vmin = vmin
-		self.vmax = vmax
-		self.alpha = alpha
-		#TODO set alpha in self.color_map  ??
-
-	@property
-	def values(self):
-		norm = self.get_norm()
-		return np.array([norm.vmin, norm.vmax])
-
-	def __call__(self, values):
-		#from matplotlib.cm import ScalarMappable
-		#sm = ScalarMappable(self.color_map, self.norm)
-		#sm.set_clim(self.vmin, self.vmax)
-		sm = self.to_scalar_mappable()
-		return sm.to_rgba(self.apply_value_key(values), alpha=self.alpha)
-
-	def get_norm(self):
-		if not self.norm:
-			norm = matplotlib.colors.Normalize(self.vmin, self.vmax)
-		else:
-			norm = self.norm
-		return norm
-
-	def to_colormap(self):
-		return self.color_map
-
-	def to_scalar_mappable(self):
-		norm = self.get_norm()
-		return matplotlib.cm.ScalarMappable(norm=norm, cmap=self.color_map)
-
-
-class ColorbarStyle:
-	def __init__(self, title="", location="bottom", size='5%', pad='10%', extend="neither", spacing="uniform", ticks=None, format=None, drawedges=False, alpha=1.):
-		self.title = title
-		self.location = location
-		if location in ("top", "bottom"):
-			self.orientation = "horizontal"
-		else:
-			self.orientation = "vertical"
-		#self.orientation = orientation
-		#self.fraction = fraction
-		self.size = size
-		self.pad = pad
-		#if pad:
-		#	self.pad = pad
-		#else:
-		#	if orientation == "horizontal":
-		#		self.pad = 0.15
-		#	else:
-		#		self.pad = 0.05
-		#self.shrink = shrink
-		#self.aspect = aspect
-		#self.anchor = anchor
-		#if anchor:
-		#	self.anchor = anchor
-		#else:
-		#	if orientation == "horizontal":
-		#		self.anchor = (0.5, 1.0)
-		#	if orientation == "vertical":
-		#		self.anchor = (0.0, 0.5)
-		#self.panchor = panchor
-		#if panchor:
-		#	self.panchor = panchor
-		#else:
-		#	if orientation == "horizontal":
-		#		self.panchor = (0.5, 0.0)
-		#	else:
-		#		self.panchor = (1.0, 0.5)
-		self.extend = extend
-		#self.extendfrac = extendfrac
-		#self.extendrect = extendrect
-		self.spacing = spacing
-		self.ticks = ticks
-		self.format = format
-		self.drawedges = drawedges
-		self.alpha = alpha
-
-
-class GridStyle:
-	def __init__(self, color_map_theme=ThematicStyleColormap("jet"), continuous=True, line_style=None, contour_levels=[], label_format="%.2f", colorbar_style=ColorbarStyle()):
-		self.color_map_theme = color_map_theme
-		self.continuous = continuous
-		self.line_style = line_style
-		self.contour_levels = contour_levels
-		self.label_format = label_format
-		self.colorbar_style = colorbar_style
-
-
-class LegendStyle:
-	def __init__(self, title="", location=0, label_style=FontStyle(), title_style=FontStyle(font_weight='bold'), marker_scale=None, frame_on=True, fancy_box=False, shadow=False, ncol=1, border_pad=None, label_spacing=None, handle_length=None, handle_text_pad=None, border_axes_pad=None, column_spacing=None, num_points=1, alpha=1.):
-		self.title = title
-		self.location = location
-		self.label_style = label_style
-		self.title_style = title_style
-		self.marker_scale = marker_scale
-		self.frame_on = frame_on
-		self.fancy_box = fancy_box
-		self.shadow = shadow
-		self.ncol = ncol
-		self.border_pad = border_pad
-		self.label_spacing = label_spacing
-		self.handle_length = handle_length
-		self.handle_text_pad = handle_text_pad
-		self.border_axes_pad = border_axes_pad
-		self.column_spacing = column_spacing
-		self.num_points = num_points
-		self.alpha = alpha
-
-
-## Data types
-class BuiltinData:
-	def __init__(self, feature="continents", **kwargs):
-		assert feature in ("bluemarble", "coastlines", "continents", "countries", "nightshade", "rivers", "shadedrelief"), "%s not recognized as builtin data" % feature
-		self.feature = feature
-		for key, val in kwargs.items():
-			setattr(self, key, val)
-
-
-class PointData(object):
-	def __init__(self, lon, lat, value=None, label=""):
-		self.lon = lon
-		self.lat = lat
-		self.value = value
-		self.label = label
-
-	def __len__(self):
-		return 1
-
-	def __iter__(self):
-		for i in range(1):
-			yield self
-
-	def to_shapely(self):
-		return shapely.geometry.Point(self.lon, self.lat)
-
-	def to_wkt(self):
-		return self.to_shapely().wkt
-
-	@classmethod
-	def from_wkt(self, wkt):
-		pt = shapely.geometry.Point(shapely.wkt.loads(wkt))
-		return PointData(pt.x, pt.y)
-
-	@classmethod
-	def from_ogr(self, geom):
-		return self.from_wkt(geom.ExportToWkt())
-
-
-class MultiPointData(object):
-	def __init__(self, lons, lats, values=[], labels=[]):
-		self.lons = lons
-		self.lats = lats
-		self.values = values
-		self.labels = labels
-
-	def __len__(self):
-		return len(self.lons)
-
-	def __iter__(self):
-		for i in range(len(self.lons)):
-			yield self.__getitem__(i)
-
-	def __getitem__(self, index):
-		lon = self.lons[index]
-		lat = self.lats[index]
-		if isinstance(self.values, dict):
-			value = {}
-			value_keys = self.values.keys()
-			for key in value_keys:
-				try:
-					value[key] = self.values[key][i]
-				except:
-					value[key] = None
-		else:
-			try:
-				value = self.values[index]
-			except:
-				value = None
-		try:
-			label = self.labels[index]
-		except:
-			label = ""
-		return PointData(lon, lat, value, label)
-
-	@classmethod
-	def from_points(self, point_list):
-		lons, lats, labels = [], [], []
-		pt0 = point_list[0]
-		if isinstance(pt0.value, dict):
-			values = {}
-			for key in pt0.value.keys():
-				values[key] = []
-		else:
-			values = []
-		for pt in point_list:
-			lons.append(pt.lon)
-			lats.append(pt.lat)
-			labels.append(pt.label)
-			if isinstance(values, dict):
-				for key in values.keys():
-					values[key].append(pt.value[key])
-			else:
-				values.append(pt.value)
-		return MultiPointData(lons, lats, values, labels)
-
-	def append(self, pt):
-		assert isinstance(pt, PointData)
-		self.lons.append(pt.lon)
-		self.lats.append(pt.lat)
-		if pt.value:
-			self.values.append(pt.value)
-		if pt.label:
-			self.labels.append(pt.label)
-
-	def get_masked_data(self, bbox):
-		import numpy.ma as ma
-		lonmin, lonmax, latmin, latmax = bbox
-		lon_mask = ma.mask_outside(self.lons, lonmin, lonmax)
-		lat_mask = ma.mask_outside(self.lats, latmin, latmax)
-		lons = ma.array(self.lons, mask=lon_mask.mask + latmask.mask).compressed()
-		lats = ma.array(self.lats, mask=lon_mask.mask + latmask.mask).compressed()
-		labels = ma.array(self.labels, mask=lon_mask.mask + latmask.mask).compressed()
-		if isinstance(self.values, dict):
-			values = {}
-			for key, val in self.values.items():
-				values[key] = ma.array(val, mask=lon_mask.mask + latmask.mask).compressed()
-		else:
-			values = ma.array(values, mask=lon_mask.mask + latmask.mask).compressed()
-		return MultiPointData(lons, lats, values, labels)
-
-	def to_shapely(self):
-		return shapely.geometry.MultiPoint(zip(self.lons, self.lats))
-
-	def to_wkt(self):
-		return self.to_shapely().wkt
-
-	@classmethod
-	def from_wkt(self, wkt):
-		mp = shapely.geometry.MultiPoint(shapely.wkt.loads(wkt))
-		return MultiPointData([pt.x for pt in mp], [pt.y for pt in mp])
-
-	@classmethod
-	def from_ogr(self, geom):
-		return self.from_wkt(geom.ExportToWkt())
-
-	def get_centroid(self):
-		centroid = self.to_shapely().centroid
-		return PointData(centroid.x, centroid.y)
-
-
-class LineData(object):
-	def __init__(self, lons, lats, value=None, label=""):
-		self.lons = lons
-		self.lats = lats
-		self.value = value
-		self.label = label
-
-	def __len__(self):
-		return 1
-
-	def __iter__(self):
-		for i in range(1):
-			yield self
-
-	def to_shapely(self):
-		return shapely.geometry.LineString(zip(self.lons, self.lats))
-
-	def to_wkt(self):
-		return self.to_shapely().wkt
-
-	@classmethod
-	def from_wkt(self, wkt):
-		ls = shapely.geometry.LineString(shapely.wkt.loads(wkt))
-		lons, lats = zip(*ls.coords)
-		return LineData(lons, lats)
-
-	@classmethod
-	def from_ogr(self, geom):
-		return self.from_wkt(geom.ExportToWkt())
-
-	def get_midpoint(self):
-		ls = self.to_shapely()
-		midPoint = ls.interpolate(ls.length/2)
-		return PointData(midPoint.x, midPoint.y)
-
-	def get_centroid(self):
-		centroid = self.to_shapely().centroid
-		return PointData(centroid.x, centroid.y)
-
-
-class MultiLineData(object):
-	def __init__(self, lons, lats, values=[], labels=[]):
-		if lons:
-			assert isinstance(lons[0], (list, tuple, np.ndarray)), "lons items must be sequences"
-		self.lons = lons
-		if lats:
-			assert isinstance(lats[0], (list, tuple, np.ndarray)), "lats items must be sequences"
-		self.lats = lats
-		self.values = values
-		self.labels = labels
-
-	def __len__(self):
-		return len(self.lons)
-
-	def __iter__(self):
-		for i in range(len(self.lons)):
-			yield self.__getitem__(i)
-
-	def __getitem__(self, index):
-		lons = self.lons[index]
-		lats = self.lats[index]
-		if isinstance(self.values, dict):
-			value = {}
-			value_keys = self.values.keys()
-			for key in value_keys:
-				try:
-					value[key] = self.values[key][i]
-				except:
-					value[key] = None
-		else:
-			try:
-				value = self.values[index]
-			except:
-				value = None
-		try:
-			label = self.labels[index]
-		except:
-			label = ""
-		return LineData(lons, lats, value, label)
-
-	def append(self, line):
-		assert isinstance(line, LineData)
-		self.lons.append(line.lons)
-		self.lats.append(line.lats)
-		if line.value:
-			self.values.append(line.value)
-		if line.label:
-			self.labels.append(line.label)
-
-	def to_shapely(self):
-		coords = [zip(self.lons[i], self.lats[i]) for i in range(len(lons))]
-		return shapely.geometry.MultiLineString(coords)
-
-	def to_wkt(self):
-		return self.to_shapely().wkt
-
-	@classmethod
-	def from_wkt(self, wkt):
-		mls = shapely.geometry.MultiLineString(shapely.wkt.loads(wkt))
-		lons, lats =  [], []
-		for ls in mls:
-			x, y = zip(*ls.coords)
-			lons.append(x)
-			lats.append(y)
-		yield MultiLineData(lons, lats)
-
-	@classmethod
-	def from_ogr(self, geom):
-		return self.from_wkt(geom.ExportToWkt())
-
-
-class PolygonData(object):
-	def __init__(self, lons, lats, interior_lons=[], interior_lats=[], value=None, label=""):
-		"""
-		lons, lats: lists
-		interior_lons, interior_lats: 3-D lists
-		"""
-		self.lons = lons
-		self.lats = lats
-		self.interior_lons = interior_lons
-		self.interior_lats = interior_lats
-		self.value = value
-		self.label = label
-
-	def __len__(self):
-		return 1
-
-	def __iter__(self):
-		for i in range(1):
-			return self
-
-	def to_shapely(self):
-		return shapely.geometry.Polygon(zip(self.lons, self.lats), [zip(self.interior_lons[i], self.interior_lats[i]) for i in range(len(self.interior_lons))])
-
-	def to_wkt(self):
-		return self.to_shapely().wkt
-
-	@classmethod
-	def from_wkt(self, wkt):
-		#pg = shapely.geometry.Polygon(shapely.wkt.loads(wkt))
-		pg = shapely.wkt.loads(wkt)
-		exterior_lons, exterior_lats = zip(*pg.exterior.coords)
-		interior_lons, interior_lats = [], []
-		for interior_ring in pg.interiors:
-			lons, lats = zip(*interior_ring.coords)
-			interior_lons.append(lons)
-			interior_lats.append(lats)
-		return PolygonData(exterior_lons, exterior_lats, interior_lons, interior_lats)
-
-	@classmethod
-	def from_ogr(self, geom):
-		return self.from_wkt(geom.ExportToWkt())
-
-	def get_centroid(self):
-		centroid = self.to_shapely().centroid
-		return PointData(centroid.x, centroid.y)
-
-
-class MultiPolygonData(object):
-	def __init__(self, lons, lats, interior_lons=[], interior_lats=[], values=[], labels=[]):
-		"""
-		lons, lats: 2-D lists
-		interior_lons, interior_lats: 3-D lists
-		"""
-		self.lons = lons
-		self.lats = lats
-		self.interior_lons = interior_lons
-		self.interior_lats = interior_lats
-		self.values = values
-		self.labels = labels
-
-	def __len__(self):
-		return len(self.lons)
-
-	def __iter__(self):
-		for i in range(len(self.lons)):
-			yield self.__getitem__(i)
-
-	def __getitem__(self, index):
-		lons = self.lons[index]
-		lats = self.lats[index]
-		try:
-			interior_lons = self.interior_lons[index]
-		except:
-			interior_lons = []
-		try:
-			interior_lats = self.interior_lats[index]
-		except:
-			interior_lats = []
-		if isinstance(self.values, dict):
-			value = {}
-			value_keys = self.values.keys()
-			for key in value_keys:
-				try:
-					value[key] = self.values[key][i]
-				except:
-					value[key] = None
-		else:
-			try:
-				value = self.values[index]
-			except:
-				value = None
-		try:
-			label = self.labels[index]
-		except:
-			label = ""
-		return PolygonData(lons, lats, interior_lons, interior_lats, value, label)
-
-	def append(self, polygon):
-		assert isinstance(polygon, PolygonData)
-		self.lons.append(polygon.lons)
-		self.lats.append(polygon.lats)
-		if polygon.interior_lons:
-			self.interior_lons.append(polygon.interior_lons)
-			self.interior_lats.append(polygon.interior_lats)
-		if polygon.value:
-			self.values.append(polygon.value)
-		if polygon.label:
-			self.labels.append(polygon.label)
-
-	def to_shapely(self):
-		shapely_polygons = [pg.to_shapely() for pg in self]
-		return shapely.geometry.MultiPolygon(shapely_polygons)
-
-	def to_wkt(self):
-		return self.to_shapely().wkt
-
-	@classmethod
-	def from_wkt(self, wkt):
-		mpg = shapely.geometry.MultiPolygon(shapely.wkt.loads(wkt))
-		exterior_lons, exterior_lats = [], []
-		interior_lons, interior_lats = [], []
-		for pg in mpg:
-			lons, lats = zip(*pg.exterior.coords)
-			exterior_lons.append(lons)
-			exterior_lats.append(lats)
-			pg_interior_lons, pg_interior_lats = [], []
-			for interior_ring in pg.interiors:
-				lons, lats = zip(*interior_ring.coords)
-				pg_interior_lons.append(lons)
-				pg_interior_lats.append(lats)
-			interior_lons.append(pg_interior_lons)
-			interior_lats.append(pg_interior_lats)
-		return MultiPolygonData(exterior_lons, exterior_lats, interior_lons, interior_lats)
-
-	@classmethod
-	def from_ogr(self, geom):
-		return self.from_wkt(geom.ExportToWkt())
-
-
-class FocmecData(MultiPointData):
-	def __init__(self, lons, lats, sdr, values=[], labels=[]):
-		super(FocmecData, self).__init__(lons, lats, values, labels)
-		self.sdr = sdr
-
-
-class MaskData:
-	def __init__(self, polygon, outside=True):
-		self.polygon = polygon
-		self.outside = outside
-
-
-class CompositeData:
-	def __init__(self, points=None, lines=[], polygons=[], texts=[]):
-		self.points = points
-		self.lines = lines
-		self.polygons = polygons
-		self.texts = texts
-
-
-class GridData:
-	def __init__(self, lons, lats, values):
-		self.lons = lons
-		self.lats = lats
-		self.values = values
-
-	def mask_oceans(self, resolution, mask_lakes=False, grid_spacing=1.25):
-		from mpl_toolkits.basemap import maskoceans
-		return maskoceans(self.lons, self.lats, self.values, inlands=mask_lakes, resolution=resolution, grid=grid_spacing)
-
-
-class GisData:
-	def __init__(self, filespec, label_colname=None, selection_dict={}):
-		self.filespec = filespec
-		self.label_colname = label_colname
-		self.selection_dict = selection_dict
+from styles import *
+from data_types import *
 
 
 class MapLayer:
@@ -980,13 +40,14 @@ class ThematicLegend:
 
 
 class LayeredBasemap:
-	def __init__(self, layers, region, projection, title, origin=(None, None), grid_interval=(None, None), resolution="i", annot_axes="SE", title_style=DefaultTitleTextStyle, legend_style=LegendStyle()):
+	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), size=(None, None), grid_interval=(None, None), resolution="i", annot_axes="SE", title_style=DefaultTitleTextStyle, legend_style=LegendStyle()):
 		#TODO: width, height
 		self.layers = layers
+		self.title = title
 		self.region = region
 		self.projection = projection
-		self.title = title
 		self.origin = origin
+		self.size = size
 		self.grid_interval = grid_interval
 		self.resolution = resolution
 		self.annot_axes = annot_axes
@@ -1026,6 +87,14 @@ class LayeredBasemap:
 		return self.origin[1]
 
 	@property
+	def width(self):
+		return self.size[0]
+
+	@property
+	def height(self):
+		return self.size[1]
+
+	@property
 	def dlon(self):
 		return self.grid_interval[0]
 
@@ -1035,15 +104,22 @@ class LayeredBasemap:
 
 	def init_basemap(self):
 		self.zorder = 0
-		llcrnrlon, urcrnrlon, llcrnrlat, urcrnrlat = self.region
 		lon_0, lat_0 = self.origin
-		if lon_0 is None:
-			lon_0 = (llcrnrlon + urcrnrlon) / 2.
-		if lat_0 is None:
-			lat_0 = (llcrnrlat + urcrnrlat) / 2.
-		self.origin = (lon_0, lat_0)
+		llcrnrlon, urcrnrlon, llcrnrlat, urcrnrlat = self.region
+		if not None in (llcrnrlon, urcrnrlon, llcrnrlat, urcrnrlat):
+			if lon_0 is None:
+				lon_0 = (llcrnrlon + urcrnrlon) / 2.
+			if lat_0 is None:
+				lat_0 = (llcrnrlat + urcrnrlat) / 2.
+			self.origin = (lon_0, lat_0)
+			width, height = None, None
+			self.size = (width, height)
+		else:
+			width, height = self.size
 
-		map = Basemap(projection=self.projection, resolution=self.resolution, llcrnrlon=self.llcrnrlon, llcrnrlat=self.llcrnrlat, urcrnrlon=self.urcrnrlon, urcrnrlat=self.urcrnrlat, lon_0=self.lon_0, lat_0=self.lat_0)
+		map = Basemap(projection=self.projection, resolution=self.resolution, llcrnrlon=llcrnrlon, llcrnrlat=llcrnrlat, urcrnrlon=urcrnrlon, urcrnrlat=urcrnrlat, lon_0=lon_0, lat_0=lat_0, width=width, height=height)
+		self.region = (map.llcrnrlon, map.urcrnrlon, map.llcrnrlat, map.urcrnrlat)
+		self.is_drawn = False
 		return map
 
 	## Drawing primitives
@@ -1051,7 +127,7 @@ class LayeredBasemap:
 	def _draw_points(self, points, style, legend_label="_nolegend_", thematic_legend_artists=[], thematic_legend_labels=[]):
 		x, y = self.map(points.lons, points.lats)
 		if not style.is_thematic():
-			self.map.plot(x, y, ls="None", lw=0, label=legend_label, zorder=self.zorder, **style.to_kwargs())
+			self.map.plot(x, y, ls="None", lw=0, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
 		else:
 			legend_label = "_nolegend_"
 			## Thematic style, use scatter method
@@ -1095,7 +171,7 @@ class LayeredBasemap:
 				cmap, norm, vmin, vmax = None, None, None, None
 				colors = []
 
-			cs = self.map.scatter(x, y, marker=style.shape, s=np.power(sizes, 2), c=colors, edgecolors=line_colors, linewidths=line_widths, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, label=legend_label, alpha=style.alpha, zorder=self.zorder)
+			cs = self.map.scatter(x, y, marker=style.shape, s=np.power(sizes, 2), c=colors, edgecolors=line_colors, linewidths=line_widths, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, label=legend_label, alpha=style.alpha, zorder=self.zorder, axes=self.ax)
 
 			## Thematic legend
 			## Fill color
@@ -1150,21 +226,21 @@ class LayeredBasemap:
 
 	def _draw_line(self, line, style, legend_label="_nolegend_"):
 		x, y = self.map(line.lons, line.lats)
-		self.map.plot(x, y, label=legend_label, zorder=self.zorder, **style.to_kwargs())
+		self.map.plot(x, y, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
 
 	def _draw_polygon(self, polygon, style, legend_label="_nolegend_"):
 		if len(polygon.interior_lons) == 0:
 			x, y = self.map(polygon.lons, polygon.lats)
-			self.ax.fill(x, y, label=legend_label, zorder=self.zorder, **style.to_kwargs())
+			self.ax.fill(x, y, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
 		else:
 			## Complex polygon with holes
 			proj_polygon = self.get_projected_polygon(polygon)
 			exterior_x, exterior_y = proj_polygon.lons, proj_polygon.lats
 			interior_x, interior_y = proj_polygon.interior_lons, proj_polygon.interior_lats
 			if style.fill_color in (None, 'None', 'none') and style.fill_hatch in (None, 'None', "none"):
-				self.map.plot(exterior_x, exterior_y, label=legend_label, zorder=self.zorder, **style.to_line_style().to_kwargs())
+				self.map.plot(exterior_x, exterior_y, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_line_style().to_kwargs())
 				for x, y in zip(interior_x, interior_y):
-					self.map.plot(x, y, label="_nolegend_", zorder=self.zorder, **style.to_line_style().to_kwargs())
+					self.map.plot(x, y, label="_nolegend_", zorder=self.zorder, axes=self.ax, **style.to_line_style().to_kwargs())
 			else:
 				from descartes.patch import PolygonPatch
 				proj_polygon = proj_polygon.to_shapely()
@@ -1191,7 +267,7 @@ class LayeredBasemap:
 			else:
 				xytext = None
 				textcoords = ""
-			self.ax.annotate(label, (x[i], y[i]), xytext=xytext, textcoords=textcoords, zorder=self.zorder, **style.to_kwargs())
+			self.ax.annotate(label, (x[i], y[i]), xytext=xytext, textcoords=textcoords, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
 
 	def draw_polygon_layer(self, polygon_data, polygon_style, legend_label="_nolegend_"):
 		"""
@@ -1311,7 +387,7 @@ class LayeredBasemap:
 					p = matplotlib.patches.Rectangle((0, 0), 1, 1, **ntl.to_kwargs())
 					legend_artists.append(p)
 
-			if len(legend_artists) > 0:
+			if polygon_style.thematic_legend_style and len(legend_artists) > 0:
 				thematic_legend = ThematicLegend(legend_artists, legend_labels, polygon_style.thematic_legend_style)
 				self.thematic_legends.append(thematic_legend)
 
@@ -1394,8 +470,8 @@ class LayeredBasemap:
 					l = matplotlib.lines.Line2D([0,1], [0,1], **ntl.to_kwargs())
 					legend_artists.append(l)
 
-			if len(legend_artists) > 0:
-				thematic_legend = ThematicLegend(legend_artists, legend_labels, polygon_style.thematic_legend_style)
+			if line_style.thematic_legend_style and len(legend_artists) > 0:
+				thematic_legend = ThematicLegend(legend_artists, legend_labels, line_style.thematic_legend_style)
 				self.thematic_legends.append(thematic_legend)
 
 	def draw_point_layer(self, point_data, point_style, legend_label="_nolegend_"):
@@ -1426,7 +502,8 @@ class LayeredBasemap:
 			self.zorder += 1
 
 		if point_style.is_thematic:
-			if len(legend_artists) > 0:
+			# TODO: if point_style.thematic_legend_style is None, add to main legend
+			if point_style.thematic_legend_style and len(legend_artists) > 0:
 				thematic_legend = ThematicLegend(legend_artists, legend_labels, point_style.thematic_legend_style)
 				self.thematic_legends.append(thematic_legend)
 
@@ -1874,6 +951,7 @@ class LayeredBasemap:
 	def draw(self):
 		self.draw_layers()
 		self.draw_decoration()
+		self.is_drawn = True
 
 	def get_projected_polygon(self, polygon):
 		exterior_x, exterior_y = self.map(polygon.lons, polygon.lats)
@@ -1905,6 +983,8 @@ class LayeredBasemap:
 		#fig = pylab.figure()
 		#subplot = fig.draw_subplot(111)
 		#subplot.set_axes(self.ax)
+		if not self.is_drawn:
+			self.draw()
 		if fig_filespec:
 			default_figsize = pylab.rcParams['figure.figsize']
 			default_dpi = pylab.rcParams['figure.dpi']
@@ -2048,7 +1128,7 @@ if __name__ == "__main__":
 	title_style = DefaultTitleTextStyle
 	title_style.color = "red"
 	title_style.weight = "bold"
-	map = LayeredBasemap(layers, region, projection, title, title_style=title_style, grid_interval=grid_interval, resolution=resolution, legend_style=legend_style)
+	map = LayeredBasemap(layers, title, projection, region=region, title_style=title_style, grid_interval=grid_interval, resolution=resolution, legend_style=legend_style)
 	mask_polygon = PolygonData([2,3,4,4,3,2,2], [50,50,50,51,51,51,50])
 	map.draw_mask(mask_polygon, outside=False)
 
