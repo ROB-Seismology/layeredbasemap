@@ -48,7 +48,7 @@ class FontStyle(object):
 
 	def get_font_prop(self):
 		"""
-		Return instance of :class:´FontProperties`
+		Return instance of :class:`FontProperties`
 		"""
 		fp = matplotlib.font_manager.FontProperties(family=self.font_family, style=self.font_style, variant=self.font_variant, stretch=self.font_stretch, weight=self.font_weight, size=self.font_size)
 		return fp
