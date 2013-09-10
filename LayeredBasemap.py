@@ -621,6 +621,7 @@ class LayeredBasemap:
 		vmin = grid_style.color_map_theme.vmin
 		vmax = grid_style.color_map_theme.vmax
 		alpha = grid_style.color_map_theme.alpha
+		# TODO: automatic contour levels?
 		if grid_style.continuous == False:
 			if isinstance(cmap, str):
 				#cmap_obj = getattr(matplotlib.cm, cmap)
@@ -636,8 +637,9 @@ class LayeredBasemap:
 			label_style = line_style.label_style
 			# TODO: other font properties?
 			self.ax.clabel(cl, colors='k', inline=True, fontsize=label_style.font_size, fmt=grid_style.label_format, alpha=label_style.alpha, zorder=self.zorder+1)
+		# TODO: use grid_style.color_map_theme.colorbar_style ?
 		colorbar_style = grid_style.colorbar_style
-		if not colorbar_style.ticks:
+		if colorbar_style.ticks is None or len(colorbar_style.ticks) == 0:
 			colorbar_style.ticks = grid_style.contour_levels
 		if not colorbar_style.format:
 			colorbar_style.format = grid_style.label_format

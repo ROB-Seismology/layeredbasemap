@@ -648,6 +648,7 @@ class GridStyle:
 		self.line_style = line_style
 		self.contour_levels = contour_levels
 		self.label_format = label_format
+		# TODO: duplicate property (also part of color_map_theme)
 		self.colorbar_style = colorbar_style
 
 
