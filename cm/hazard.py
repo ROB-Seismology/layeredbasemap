@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib
 
+from norm import PiecewiseLinearNorm
+
 
 usgs_rgb = np.array([(255, 255, 255),
 			(230, 230, 230),
@@ -23,7 +25,8 @@ usgs_rgb = np.array([(255, 255, 255),
 usgs_rgb /= 255.
 
 usgs_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("USGS_hazard", usgs_rgb)
-#usgs_norm =
+usgs_norm = PiecewiseLinearNorm([0., 0.02, 0.06, 0.14, 0.30, 0.90])
+
 
 share_rgb = np.array([(255, 255, 255),
 			(219, 237, 222),

@@ -132,6 +132,8 @@ DefaultTitleTextStyle = TextStyle(font_size="large", horizontal_alignment="cente
 
 class PointStyle:
 	"""
+	Style defining how points are plotted in matplotlib.
+
 	:param shape:
 		Char, marker shape format string, or instance of :class:`ThematicStyle`
 		Available format strings:
@@ -205,7 +207,7 @@ class PointStyle:
 
 	def is_thematic(self):
 		"""
-		Determine whether style has thematic style features
+		Determine whether point style has thematic style features
 
 		:return:
 			Bool
@@ -219,7 +221,7 @@ class PointStyle:
 
 	def get_non_thematic_style(self):
 		"""
-		Copy style, replacing thematic style features with default values
+		Copy point style, replacing thematic style features with default values
 
 		:return:
 			instance of :class:`PointStyle`
@@ -263,16 +265,63 @@ class PointStyle:
 
 
 class LineStyle:
-	def __init__(self, line_pattern="solid", line_width=1, line_color='k', label_style=None, alpha=1., thematic_legend_style=None):
+	"""
+	Style defining how lines are plotted in matplotlib.
+
+	:param line_pattern:
+		String, line pattern format string, or instance of :class:`ThematicStyle`
+		"-" | "--" | "-." | ":"
+		or "solid" | "dashed" | "dashdot" | "dotted"
+	:param line_width:
+		Float, line width, or instance of :class:`ThematicStyle`
+		(default: 1)
+	:param line_color:
+		matplotlib color spec or instance of :class:`ThematicStyle`
+		(default: 'k')
+	:param solid_capstyle:
+		String, how the end of a solid line is drawn: "butt" | "round" |
+		"projecting"
+		(default: "butt")
+	:param solid_joinstyle, how two solid lines meeting in a node should be drawn:
+		"miter" | "round" | "bevel"
+		(default: "round")
+	:param dash_capstyle:
+		String, how the end of a dashed line is drawn: "butt" | "round" |
+		"projecting"
+		(default: "butt")
+	:param dash_joinstyle, how two dashed lines meeting in a node should be drawn:
+		"miter" | "round" | "bevel"
+		(default: "round")
+	:param label_style:
+		instance of :class:`TextStyle`. If None, no labels will be plotted
+		(default: None)
+	:param alpha:
+		Float in the range 0 - 1, opacity (default: 1.)
+	:param thematic_legend_style:
+		instance of :class:`LegendStyle`. If None, thematic legend labels
+		will be added to main legend
+		(default: None)
+	"""
+	def __init__(self, line_pattern="solid", line_width=1, line_color='k', solid_capstyle="butt", solid_joinstyle="round", dash_capstyle="butt", dash_joinstyle="round", label_style=None, alpha=1., thematic_legend_style=None):
 		self.line_pattern = line_pattern
 		self.line_width = line_width
 		self.line_color = line_color
+		self.solid_capstyle = solid_capstyle
+		self.solid_joinstyle = solid_joinstyle
+		self.dash_capstyle = dash_capstyle
+		self.dash_joinstyle = dash_joinstyle
 		self.label_style = label_style
 		self.alpha = alpha
 		self.thematic_legend_style = thematic_legend_style
-		# TODO: dash_capstyle, dash_joinstyle, dashes, drawstyle, solid_capstyle, solid_joinstyle
+		# TODO: dashes, drawstyle
 
 	def is_thematic(self):
+		"""
+		Determine whether line style has thematic style features
+
+		:return:
+			Bool
+		"""
 		if (isinstance(self.line_pattern, ThematicStyle) or isinstance(self.line_width, ThematicStyle)
 			or isinstance(self.line_color, ThematicStyle)):
 			return True
@@ -280,6 +329,12 @@ class LineStyle:
 			return False
 
 	def get_non_thematic_style(self):
+		"""
+		Copy line style, replacing thematic style features with default values
+
+		:return:
+			instance of :class:`LineStyle`
+		"""
 		if isinstance(self.line_pattern, ThematicStyle):
 			line_pattern = '-'
 		else:
@@ -292,18 +347,56 @@ class LineStyle:
 			line_color = 'k'
 		else:
 			line_color = self.line_color
-		return LineStyle(line_pattern, line_width, line_color, self.label_style, self.alpha, self.thematic_legend_style)
+		return LineStyle(line_pattern, line_width, line_color, self.solid_capstyle, self.solid_joinstyle, self.dash_capstyle, self.dash_joinstyle, self.label_style, self.alpha, self.thematic_legend_style)
 
 	def to_kwargs(self):
+		"""
+		Return a dictionary with keys corresponding to matplotlib parameter names,
+		and which can be passed to the text and annotate functions
+		"""
 		d = {}
 		d["ls"] = self.line_pattern
 		d["lw"] = self.line_width
 		d["color"] = self.line_color
+		d["solid_capstyle"] = self.solid_capstyle
+		d["solid_joinstyle"] = self.solid_joinstyle
+		d["dash_capstyle"] = self.dash_capstyle
+		d["dash_joinstyle"] = self.dash_joinstyle
 		d["alpha"] = self.alpha
 		return d
 
 
 class PolygonStyle:
+	"""
+	Style defining how polygons are plotted in matplotlib.
+
+	:param line_pattern:
+		String, line pattern format string, or instance of :class:`ThematicStyle`
+		"solid" | "dashed" | "dashdot" | "dotted"
+		Note: in contrast to :class:`LineStyle`, the character formats
+		"-" | "--" | "-." | ":" are NOT supported
+	:param line_width:
+		Float, line width, or instance of :class:`ThematicStyle`
+		(default: 1)
+	:param line_color:
+		matplotlib color spec or instance of :class:`ThematicStyle`
+		(default: 'k')
+	:param fill_color:
+		matplotlib color spec or instance of :class:`ThematicStyle`
+		(default: 'w')
+	:param fill_hatch:
+		char, hatch pattern format string:
+		"/" | "\" | "|" | "-" | "+" | "x" | "o" | "O" | "." | "*"
+	:param label_style:
+		instance of :class:`TextStyle`. If None, no labels will be plotted
+		(default: None)
+	:param alpha:
+		Float in the range 0 - 1, opacity (default: 1.)
+	:param thematic_legend_style:
+		instance of :class:`LegendStyle`. If None, thematic legend labels
+		will be added to main legend
+		(default: None)
+	"""
 	def __init__(self, line_pattern="solid", line_width=1, line_color='k', fill_color='w', fill_hatch=None, label_style=None, alpha=1., thematic_legend_style=None):
 		self.line_pattern = line_pattern
 		self.line_width = line_width
@@ -313,9 +406,14 @@ class PolygonStyle:
 		self.label_style = label_style
 		self.alpha = alpha
 		self.thematic_legend_style = thematic_legend_style
-		# TODO: check line_patterns ('solid' versus '-' etc)
 
 	def is_thematic(self):
+		"""
+		Determine whether line style has thematic style features
+
+		:return:
+			Bool
+		"""
 		if (isinstance(self.line_pattern, ThematicStyle) or isinstance(self.line_width, ThematicStyle)
 			or isinstance(self.line_color, ThematicStyle) or isinstance(self.fill_color, ThematicStyle)
 			or isinstance(self.fill_hatch, ThematicStyle)):
@@ -324,6 +422,12 @@ class PolygonStyle:
 			return False
 
 	def get_non_thematic_style(self):
+		"""
+		Copy polygon style, replacing thematic style features with default values
+
+		:return:
+			instance of :class:`PolygonStyle`
+		"""
 		if isinstance(self.line_pattern, ThematicStyle):
 			line_pattern = 'solid'
 		else:
@@ -347,9 +451,19 @@ class PolygonStyle:
 		return PolygonStyle(line_pattern, line_width, line_color, fill_color, fill_hatch, self.label_style, self.alpha, self.thematic_legend_style)
 
 	def to_line_style(self):
-		return LineStyle(self.line_pattern, self.line_width, self.line_color, self.label_style, self.alpha, self.thematic_legend_style)
+		"""
+		Convert to line style.
+
+		:return:
+			instance of :class:`LineStyle`
+		"""
+		return LineStyle(self.line_pattern, self.line_width, self.line_color, label_style=self.label_style, alpha=self.alpha, thematic_legend_style=self.thematic_legend_style)
 
 	def to_kwargs(self):
+		"""
+		Return a dictionary with keys corresponding to matplotlib parameter names,
+		and which can be passed to the text and annotate functions
+		"""
 		d = {}
 		d["ls"] = self.line_pattern
 		d["lw"] = self.line_width
@@ -371,6 +485,12 @@ class FocmecStyle:
 		self.thematic_legend_style = thematic_legend_style
 
 	def is_thematic(self):
+		"""
+		Determine whether line style has thematic style features
+
+		:return:
+			Bool
+		"""
 		if (isinstance(self.size, ThematicStyle) or isinstance(self.line_width, ThematicStyle) or
 			isinstance(self.line_color, ThematicStyle) or isinstance(self.fill_color, ThematicStyle)):
 			return True
@@ -399,12 +519,29 @@ class FocmecStyle:
 
 
 class CompositeStyle:
+	"""
+	Class representing composite style, defining how an ensemble of
+	points, lines and polygons are plotted in matplotlib.
+
+	:param point_style:
+		instance of :class:`PointStyle`
+	:param line_style:
+		instance of :class:`LineStyle`
+	:param polygon_style:
+		instance of :class:`PolygonStyle`
+	"""
 	def __init__(self, point_style=None, line_style=None, polygon_style=None):
 		self.point_style = point_style
 		self.line_style = line_style
 		self.polygon_style = polygon_style
 
 	def is_thematic(self):
+		"""
+		Determine whether line style has thematic style features
+
+		:return:
+			Bool
+		"""
 		if self.point_style.is_thematic() or self.line_style.is_thematic() or self.polygon_style.is_thematic():
 			return True
 		else:
@@ -640,16 +777,63 @@ class ColorbarStyle:
 		self.drawedges = drawedges
 		self.alpha = alpha
 
+	def to_kwargs(self):
+		"""
+		Return a dictionary with keys corresponding to matplotlib parameter names,
+		and which can be passed to the text and annotate functions
+		"""
+		d = {}
+		d["location"] = self.location
+		d["size"] = self.size
+		d["pad"] = self.pad
+		d["extend"] = self.extend
+		d["spacing"] = self.spacing
+		d["ticks"] = self.ticks
+		d["format"] = self.format
+		d["drawedges"] = self.drawedges
+		d["alpha"] = self.alpha
+		return d
+
 
 class GridStyle:
-	def __init__(self, color_map_theme=ThematicStyleColormap("jet"), continuous=True, line_style=None, contour_levels=[], label_format="%.2f", colorbar_style=ColorbarStyle()):
+	"""
+	Class defining how a regular grid is plotted in matplotlib
+
+	:param color_map_theme:
+		instance of :class:`ThematicStyleColormap`
+	:param continuous:
+		bool, whether or not color gradient should be continuous or discontinuous
+	:param line_style:
+		instance of :class:`LineStyle`, defining how contour lines will
+		be plotted
+	:param contour_levels:
+		list or array, defining contour-line values
+	:param colorbar_style:
+		instance of :class:`ColorbarStyle`, will override colorbar_style
+		property of color_map_theme
+
+	Note: format of contour labels is determined by format property
+	of colorbar_style.
+	"""
+	def __init__(self, color_map_theme=ThematicStyleColormap("jet"), continuous=True, line_style=None, contour_levels=[], colorbar_style=None):
 		self.color_map_theme = color_map_theme
 		self.continuous = continuous
 		self.line_style = line_style
 		self.contour_levels = contour_levels
-		self.label_format = label_format
-		# TODO: duplicate property (also part of color_map_theme)
-		self.colorbar_style = colorbar_style
+		if colorbar_style:
+			self.color_map_theme.colorbar_style = colorbar_style
+		#self.label_format = label_format
+
+	@property
+	def colorbar_style(self):
+		return self.color_map_theme.colorbar_style
+
+	@property
+	def label_format(self):
+		if self.color_map_theme.colorbar_style:
+			return self.color_map_theme.colorbar_style.format
+		else:
+			return "%.2f"
 
 
 class LegendStyle:

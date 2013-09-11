@@ -637,7 +637,6 @@ class LayeredBasemap:
 			label_style = line_style.label_style
 			# TODO: other font properties?
 			self.ax.clabel(cl, colors='k', inline=True, fontsize=label_style.font_size, fmt=grid_style.label_format, alpha=label_style.alpha, zorder=self.zorder+1)
-		# TODO: use grid_style.color_map_theme.colorbar_style ?
 		colorbar_style = grid_style.colorbar_style
 		if colorbar_style.ticks is None or len(colorbar_style.ticks) == 0:
 			colorbar_style.ticks = grid_style.contour_levels
@@ -646,8 +645,6 @@ class LayeredBasemap:
 		if not colorbar_style.title:
 			colorbar_style.title = legend_label
 		colorbar_style.alpha = alpha
-		#cbar = self.map.colorbar(cs, location='bottom', pad="10%", format='%.2f', spacing="uniform", ticks=grid_style.contour_levels)
-		#cbar.set_label(legend_label)
 		self.draw_colorbar(cs, colorbar_style)
 		self.zorder += 2
 
@@ -655,7 +652,7 @@ class LayeredBasemap:
 		"""
 		sm: scalarmappable
 		"""
-		cbar = self.map.colorbar(sm, location=style.location, size=style.size, pad=style.pad, extend=style.extend, spacing=style.spacing, ticks=style.ticks, format=style.format, drawedges=style.drawedges, alpha=style.alpha)
+		cbar = self.map.colorbar(sm, **style.to_kwargs())
 		cbar.set_label(style.title)
 		return cbar
 
