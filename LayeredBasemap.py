@@ -639,7 +639,8 @@ class LayeredBasemap:
 			self.ax.clabel(cl, colors='k', inline=True, fontsize=label_style.font_size, fmt=grid_style.label_format, alpha=label_style.alpha, zorder=self.zorder+1)
 		colorbar_style = grid_style.colorbar_style
 		if colorbar_style.ticks is None or len(colorbar_style.ticks) == 0:
-			colorbar_style.ticks = grid_style.contour_levels
+			if grid_style.contour_levels != []:
+				colorbar_style.ticks = grid_style.contour_levels
 		if not colorbar_style.format:
 			colorbar_style.format = grid_style.label_format
 		if not colorbar_style.title:
