@@ -735,42 +735,9 @@ class ColorbarStyle:
 	def __init__(self, title="", location="bottom", size='5%', pad='10%', extend="neither", spacing="uniform", ticks=None, format=None, drawedges=False, alpha=1.):
 		self.title = title
 		self.location = location
-		if location in ("top", "bottom"):
-			self.orientation = "horizontal"
-		else:
-			self.orientation = "vertical"
-		#self.orientation = orientation
-		#self.fraction = fraction
 		self.size = size
 		self.pad = pad
-		#if pad:
-		#	self.pad = pad
-		#else:
-		#	if orientation == "horizontal":
-		#		self.pad = 0.15
-		#	else:
-		#		self.pad = 0.05
-		#self.shrink = shrink
-		#self.aspect = aspect
-		#self.anchor = anchor
-		#if anchor:
-		#	self.anchor = anchor
-		#else:
-		#	if orientation == "horizontal":
-		#		self.anchor = (0.5, 1.0)
-		#	if orientation == "vertical":
-		#		self.anchor = (0.0, 0.5)
-		#self.panchor = panchor
-		#if panchor:
-		#	self.panchor = panchor
-		#else:
-		#	if orientation == "horizontal":
-		#		self.panchor = (0.5, 0.0)
-		#	else:
-		#		self.panchor = (1.0, 0.5)
 		self.extend = extend
-		#self.extendfrac = extendfrac
-		#self.extendrect = extendrect
 		self.spacing = spacing
 		self.ticks = ticks
 		self.format = format
@@ -801,8 +768,11 @@ class GridStyle:
 
 	:param color_map_theme:
 		instance of :class:`ThematicStyleColormap`
-	:param continuous:
-		bool, whether or not color gradient should be continuous or discontinuous
+	:param color_gradient:
+		string, "continuous", "discontinuous" or None.
+		Defines if color_gradient should be continuous or discontinuous.
+		If None, only contour lines will be plotted.
+		(default: "continuous")
 	:param line_style:
 		instance of :class:`LineStyle`, defining how contour lines will
 		be plotted
@@ -815,9 +785,9 @@ class GridStyle:
 	Note: format of contour labels is determined by format property
 	of colorbar_style.
 	"""
-	def __init__(self, color_map_theme=ThematicStyleColormap("jet"), continuous=True, line_style=None, contour_levels=[], colorbar_style=None):
+	def __init__(self, color_map_theme=ThematicStyleColormap("jet"), color_gradient="continuous", line_style=None, contour_levels=[], colorbar_style=None):
 		self.color_map_theme = color_map_theme
-		self.continuous = continuous
+		self.color_gradient = color_gradient
 		self.line_style = line_style
 		self.contour_levels = contour_levels
 		if colorbar_style:

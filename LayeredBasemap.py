@@ -614,29 +614,39 @@ class LayeredBasemap:
 		self.draw_composite_layer(point_data=point_data, point_style=point_style, line_data=line_data, line_style=line_style, polygon_data=polygon_data, polygon_style=polygon_style, legend_label=legend_label)
 
 	def draw_grid_layer(self, grid_data, grid_style, legend_label=""):
-		# TODO: coloured contour lines
 		x, y = self.map(grid_data.lons, grid_data.lats)
-		cmap = grid_style.color_map_theme.color_map
-		norm = grid_style.color_map_theme.norm
-		vmin = grid_style.color_map_theme.vmin
-		vmax = grid_style.color_map_theme.vmax
-		alpha = grid_style.color_map_theme.alpha
-		# TODO: automatic contour levels?
-		if grid_style.continuous == False:
-			if isinstance(cmap, str):
-				#cmap_obj = getattr(matplotlib.cm, cmap)
-				cmap_obj = matplotlib.cm.get_cmap(cmap)
-			else:
-				cmap_obj = cmap
-			cs = self.map.contourf(x, y, grid_data.values, levels=grid_style.contour_levels, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, extend="both", alpha=alpha, zorder=self.zorder)
+
+		if grid_style.color_map_theme:
+			cmap = grid_style.color_map_theme.color_map
+			norm = grid_style.color_map_theme.norm
+			vmin = grid_style.color_map_theme.vmin
+			vmax = grid_style.color_map_theme.vmax
+			alpha = grid_style.color_map_theme.alpha
 		else:
-			cs = self.map.pcolor(x, y, grid_data.values, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, alpha=alpha, zorder=self.zorder)
+			cmap = None
+
+		if cmap:
+			if grid_style.color_gradient == "discontinuous":
+				if isinstance(cmap, str):
+					#cmap_obj = getattr(matplotlib.cm, cmap)
+					cmap_obj = matplotlib.cm.get_cmap(cmap)
+				else:
+					cmap_obj = cmap
+				cs = self.map.contourf(x, y, grid_data.values, levels=grid_style.contour_levels, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, extend="both", alpha=alpha, zorder=self.zorder)
+			elif grid_style.color_gradient == "continuous":
+				cs = self.map.pcolor(x, y, grid_data.values, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, alpha=alpha, zorder=self.zorder)
+
 		if grid_style.line_style:
 			line_style = grid_style.line_style
-			cl = self.map.contour(x, y, grid_data.values, levels=grid_style.contour_levels, colors=line_style.line_color, linewidths=line_style.line_width, alpha=line_style.alpha, zorder=self.zorder)
+			if not grid_style.color_gradient and cmap:
+				## Draw colored contour lines
+				cl = self.map.contour(x, y, grid_data.values, levels=grid_style.contour_levels, colors=None, cmap=cmap, norm=norm, linewidths=line_style.line_width, alpha=line_style.alpha, zorder=self.zorder)
+			else:
+				cl = self.map.contour(x, y, grid_data.values, levels=grid_style.contour_levels, colors=line_style.line_color, linewidths=line_style.line_width, alpha=line_style.alpha, zorder=self.zorder)
 			label_style = line_style.label_style
-			# TODO: other font properties?
+			## other font properties do not seem to be supported
 			self.ax.clabel(cl, colors='k', inline=True, fontsize=label_style.font_size, fmt=grid_style.label_format, alpha=label_style.alpha, zorder=self.zorder+1)
+
 		colorbar_style = grid_style.colorbar_style
 		if colorbar_style.ticks is None or len(colorbar_style.ticks) == 0:
 			if grid_style.contour_levels != []:
@@ -646,7 +656,8 @@ class LayeredBasemap:
 		if not colorbar_style.title:
 			colorbar_style.title = legend_label
 		colorbar_style.alpha = alpha
-		self.draw_colorbar(cs, colorbar_style)
+		if grid_style.color_gradient:
+			self.draw_colorbar(cs, colorbar_style)
 		self.zorder += 2
 
 	def draw_colorbar(self, sm, style):
@@ -883,7 +894,7 @@ class LayeredBasemap:
 				handle_text_pad = thematic_legend.style.handle_text_pad
 				border_axes_pad = thematic_legend.style.border_axes_pad
 				column_spacing = thematic_legend.style.column_spacing
-				numpoints = thematic_legend_style.num_points
+				numpoints = thematic_legend.style.num_points
 				alpha = thematic_legend.style.alpha
 
 				# TODO: in current version of matplotlib, legend does not support framealpha parameter
