@@ -578,7 +578,8 @@ class LayeredBasemap:
 		for rec in read_GIS_file(gis_data.filespec):
 			selected = np.zeros(len(gis_data.selection_dict.keys()))
 			for i, (selection_colname, selection_value) in enumerate(gis_data.selection_dict.items()):
-				if rec[selection_colname] == selection_value or rec[selection_colname] in selection_value:
+				#if rec[selection_colname] == selection_value or rec[selection_colname] in selection_value:
+				if rec[selection_colname] == selection_value:
 					selected[i] = 1
 				else:
 					selected[i] = 0
