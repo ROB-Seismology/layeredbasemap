@@ -229,9 +229,15 @@ class LayeredBasemap:
 		self.map.plot(x, y, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
 
 	def _draw_polygon(self, polygon, style, legend_label="_nolegend_"):
+		if isinstance(style, LineStyle):
+			self._draw_line(polygon, style, legend_label)
+		if style.fill_color in ("None", "none"):
+			fill = 0
+		else:
+			fill = 1
 		if len(polygon.interior_lons) == 0:
 			x, y = self.map(polygon.lons, polygon.lats)
-			self.ax.fill(x, y, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
+			self.ax.fill(x, y, fill=fill, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
 		else:
 			## Complex polygon with holes
 			proj_polygon = self.get_projected_polygon(polygon)
@@ -246,7 +252,7 @@ class LayeredBasemap:
 				proj_polygon = proj_polygon.to_shapely()
 				## Make sure exterior and interior rings of polygon are properly oriented
 				proj_polygon = shapely.geometry.polygon.orient(proj_polygon)
-				patch = PolygonPatch(proj_polygon, fill=1, label=legend_label, **style.to_kwargs())
+				patch = PolygonPatch(proj_polygon, fill=fill, label=legend_label, **style.to_kwargs())
 				patch.set_zorder(self.zorder)
 				self.ax.add_patch(patch)
 
@@ -509,11 +515,11 @@ class LayeredBasemap:
 
 	def draw_composite_layer(self, point_data=[], point_style=None, line_data=[], line_style=None, polygon_data=[], polygon_style=None, text_data=[], text_style=None, legend_label={"points": "_nolegend_", "lines": "_nolegend_", "polygons": "_nolegend_"}):
 		if polygon_data and len(polygon_data) > 0 and polygon_style:
-			self.draw_polygon_layer(polygon_data, polygon_style, legend_label["polygons"])
+			self.draw_polygon_layer(polygon_data, polygon_style, legend_label.get("polygons", ""))
 		if line_data and len(line_data) > 0 and line_style:
-			self.draw_line_layer(line_data, line_style, legend_label["lines"])
+			self.draw_line_layer(line_data, line_style, legend_label.get("lines", ""))
 		if point_data and len(point_data) > 0 and point_style:
-			self.draw_point_layer(point_data, point_style, legend_label["points"])
+			self.draw_point_layer(point_data, point_style, legend_label.get("points", ""))
 		if text_data and len(text_data) > 0 and text_style:
 			self._draw_texts(text_data, text_style)
 
@@ -554,15 +560,18 @@ class LayeredBasemap:
 			if isinstance(polygon_style.fill_hatch, ThematicStyle):
 				polygon_value_colnames.add(polygon_style.fill_hatch.value_key)
 
-		point_data = MultiPointData([], [], labels=[])
+		## Note: it is absolutely necessary to initialize all empty lists
+		## explicitly, otherwise unexpected things may happen in subsequent
+		## calls of this method!
+		point_data = MultiPointData([], [], values=[], labels=[])
 		point_data.values = {}
 		for colname in point_value_colnames:
 			point_data.values[colname] = []
-		line_data = MultiLineData([], [])
+		line_data = MultiLineData([], [], values=[], labels=[])
 		line_data.values = {}
 		for colname in line_value_colnames:
 			line_data.values[colname] = []
-		polygon_data = MultiPolygonData([], [])
+		polygon_data = MultiPolygonData([], [], interior_lons=[], interior_lats=[], values=[], labels=[])
 		polygon_data.values = {}
 		for colname in polygon_value_colnames:
 			polygon_data.values[colname] = []
@@ -1061,7 +1070,8 @@ if __name__ == "__main__":
 	contour_levels = np.arange(vmin, vmax+contour_interval, contour_interval)
 	norm = matplotlib.colors.Normalize(vmin, vmax)
 	color_map_theme = ThematicStyleColormap(color_map="jet", norm=norm, vmin=vmin, vmax=vmax, alpha=1)
-	grid_style = GridStyle(color_map_theme, continuous=True, line_style=LineStyle(label_style=TextStyle()), contour_levels=contour_levels, label_format='%.2f')
+	colorbar_style = ColorbarStyle(format='%.2f')
+	grid_style = GridStyle(color_map_theme, color_gradient="continuous", line_style=LineStyle(label_style=TextStyle()), contour_levels=contour_levels, colorbar_style=colorbar_style)
 	grid_data = GridData(grid_lons, grid_lats, grid_intensities)
 	layer = MapLayer(grid_data, grid_style, legend_label="PGA (g)")
 	#layers.append(layer)

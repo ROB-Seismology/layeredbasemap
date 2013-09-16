@@ -3,6 +3,7 @@
 Data types used in LayeredBasemap
 """
 
+import numpy as np
 import shapely
 import shapely.geometry
 
@@ -191,6 +192,10 @@ class LineData(object):
 		centroid = self.to_shapely().centroid
 		return PointData(centroid.x, centroid.y)
 
+	def to_polygon(self):
+		# TODO: should we check if first point == last point?
+		return PolygonData(self.lons, self.lats, value=self.value, label=self.label)
+
 
 class MultiLineData(object):
 	def __init__(self, lons, lats, values=[], labels=[]):
@@ -233,13 +238,20 @@ class MultiLineData(object):
 		return LineData(lons, lats, value, label)
 
 	def append(self, line):
-		assert isinstance(line, LineData)
-		self.lons.append(line.lons)
-		self.lats.append(line.lats)
-		if line.value:
-			self.values.append(line.value)
-		if line.label:
-			self.labels.append(line.label)
+		if isinstance(line, LineData):
+			self.lons.append(line.lons)
+			self.lats.append(line.lats)
+			if line.value:
+				self.values.append(line.value)
+			if line.label:
+				self.labels.append(line.label)
+		elif isinstance(line, MultiLineData):
+			self.lons.extend(line.lons)
+			self.lats.extend(line.lats)
+			if line.values:
+				self.values.extend(line.values)
+			if line.labels:
+				self.labels.extend(line.labels)
 
 	def to_shapely(self):
 		coords = [zip(self.lons[i], self.lats[i]) for i in range(len(lons))]
@@ -308,6 +320,10 @@ class PolygonData(object):
 	def get_centroid(self):
 		centroid = self.to_shapely().centroid
 		return PointData(centroid.x, centroid.y)
+
+	def to_line(self):
+		## Interior rings are ignored
+		return LineData(self.lons, self.lats, value=self.value, label=self.label)
 
 
 class MultiPolygonData(object):
