@@ -681,12 +681,16 @@ class ThematicStyleGradient(ThematicStyle):
 			#return cmap(norm(self.apply_value_key(values)))
 
 	def to_colormap(self):
-		x = self.values.max()
-		return matplotlib.colors.LinearSegmentedColormap.from_list(self.value_key, zip(x, self.styles))
+		#x = self.values / self.values.max()
+		x = np.linspace(0., 1., len(self.values))
+		cmap = matplotlib.colors.LinearSegmentedColormap.from_list(self.value_key, zip(x, self.styles))
+		cmap._init()
+		return cmap
 
 	def get_norm(self):
-		# TODO: use LevelNorm !
-		return matplotlib.colors.Normalize(vmin=self.values.min(), vmax=self.values.max())
+		from cm.norm import PiecewiseLinearNorm
+		return PiecewiseLinearNorm(self.values)
+		#return matplotlib.colors.Normalize(vmin=self.values.min(), vmax=self.values.max())
 
 	def to_scalar_mappable(self):
 		norm = self.get_norm()
@@ -778,6 +782,7 @@ class GridStyle:
 		be plotted
 	:param contour_levels:
 		list or array, defining contour-line values
+		(default: None, will be determined automatically by matplotlib)
 	:param colorbar_style:
 		instance of :class:`ColorbarStyle`, will override colorbar_style
 		property of color_map_theme
@@ -785,7 +790,7 @@ class GridStyle:
 	Note: format of contour labels is determined by format property
 	of colorbar_style.
 	"""
-	def __init__(self, color_map_theme=ThematicStyleColormap("jet"), color_gradient="continuous", line_style=None, contour_levels=[], colorbar_style=None):
+	def __init__(self, color_map_theme=ThematicStyleColormap("jet"), color_gradient="continuous", line_style=None, contour_levels=None, colorbar_style=None):
 		self.color_map_theme = color_map_theme
 		self.color_gradient = color_gradient
 		self.line_style = line_style

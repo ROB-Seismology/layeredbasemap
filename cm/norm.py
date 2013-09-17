@@ -1,3 +1,5 @@
+import numpy as np
+import numpy.ma as ma
 import matplotlib
 
 
@@ -17,6 +19,8 @@ def interpolate(xin, yin, xout):
 	## Numpy
 	yout = np.interp(xout, xin, yin, left=yin[0], right=yin[-1])
 
+	return yout
+
 
 class PiecewiseLinearNorm(matplotlib.colors.Normalize):
 	"""
@@ -31,16 +35,18 @@ class PiecewiseLinearNorm(matplotlib.colors.Normalize):
 	"""
 	def __init__(self, breakpoints):
 		vmin = breakpoints[0]
-		vmax = breakpoints[1]
+		vmax = breakpoints[-1]
 		self.breakpoints = np.array(breakpoints)
 		matplotlib.colors.Normalize.__init__(self, vmin, vmax)
 
 	def __call__(self, value, clip=None):
 		breakpoint_values = np.linspace(0, 1, len(self.breakpoints))
 		out_values = interpolate(self.breakpoints, breakpoint_values, value)
+		print out_values
 		try:
 			mask = value.mask
 		except:
 			mask = None
+		#else:
 		out_values = ma.masked_array(out_values, mask)
 		return out_values
