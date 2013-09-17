@@ -251,7 +251,7 @@ class PointStyle:
 	def to_kwargs(self):
 		"""
 		Return a dictionary with keys corresponding to matplotlib parameter names,
-		and which can be passed to the text and annotate functions
+		and which can be passed to the plot function
 		"""
 		d = {}
 		d["marker"] = self.shape
@@ -352,7 +352,7 @@ class LineStyle:
 	def to_kwargs(self):
 		"""
 		Return a dictionary with keys corresponding to matplotlib parameter names,
-		and which can be passed to the text and annotate functions
+		and which can be passed to the fill function or PolygonPatch object
 		"""
 		d = {}
 		d["ls"] = self.line_pattern
@@ -462,7 +462,7 @@ class PolygonStyle:
 	def to_kwargs(self):
 		"""
 		Return a dictionary with keys corresponding to matplotlib parameter names,
-		and which can be passed to the text and annotate functions
+		and which can be passed to the plot function
 		"""
 		d = {}
 		d["ls"] = self.line_pattern
@@ -549,12 +549,42 @@ class CompositeStyle:
 
 
 class ThematicStyle(object):
+	"""
+	Base class for a thematic style feature.
+	Themtatic style features may be:
+	- point sizes
+	- point shapes
+	- line widths
+	- line patterns
+	- line colors
+	- fill colors
+	- fill hatches
+
+	:param value_key:
+		key of data value (value property of data object) that will be
+		used to map data values to colors or other style features
+		(default: None, supposes that data value is a single value
+		rather than a dictionary)
+	:param add_legend:
+		bool, whether or not a legend should be added for this thematic
+		style feature (default: True)
+	:param colorbar_style:
+		instance of :class:`ColorbarStyle`, determining the aspect of
+		the colorbar, in case the thematic style feature is a color
+		(default: None)
+	"""
 	def __init__(self, value_key=None, add_legend=True, colorbar_style=None):
 		self.value_key = value_key
 		self.add_legend = add_legend
 		self.colorbar_style = colorbar_style
 
 	def apply_value_key(self, values):
+		"""
+		Apply value key to a given set of values
+
+		:param values:
+			list or dictionary
+		"""
 		if self.value_key == None:
 			return values
 		else:
@@ -657,11 +687,29 @@ class ThematicStyleRanges(ThematicStyle):
 
 
 class ThematicStyleGradient(ThematicStyle):
+	"""
+	Thematic style feature corresponding to a gradually changing property.
+	Only applicable to point sizes, line widths, line colors, and fill
+	colors. Not applicable to point shapes, line patterns, and fill
+	hatches, as these cannot be interpolated.
+
+	:param values:
+		list or array of floats, data values for which style values are
+		defined (breakpoints).
+		Must be monotonically increasing or decreasing. Styles for inter-
+		vening values will be interpolated
+	:param styles:
+		list of style values (numbers or matplotlib colors) corresponding
+		to given data values
+	:param labels:
+		labels corresponding to breakpoints
+		(default: [], will use :param:`values`)
+	:param value_key:
+	:param add_legend:
+	:param colorbar_style:
+		see :class:`ThematicStyle`
+	"""
 	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True, colorbar_style=None):
-		"""
-		values must be monotonically increasing or decreasing
-		styles must be numbers or colors
-		"""
 		super(ThematicStyleGradient, self).__init__(value_key, add_legend, colorbar_style)
 		self.values = np.array(values, dtype='f')
 		self.styles = styles
@@ -671,6 +719,15 @@ class ThematicStyleGradient(ThematicStyle):
 			self.labels = map(str, self.values)
 
 	def __call__(self, values):
+		"""
+		Convert data values to style values
+
+		:param values:
+			list or array of floats, data values
+
+		:return:
+			float or rgba array
+		"""
 		try:
 			return np.interp(self.apply_value_key(values), self.values, self.styles)
 		except:
@@ -681,6 +738,10 @@ class ThematicStyleGradient(ThematicStyle):
 			#return cmap(norm(self.apply_value_key(values)))
 
 	def to_colormap(self):
+		"""
+		Get corresponding Colormap object. Only applicable if :param:`styles`
+		contains matplotlib colors
+		"""
 		#x = self.values / self.values.max()
 		x = np.linspace(0., 1., len(self.values))
 		cmap = matplotlib.colors.LinearSegmentedColormap.from_list(self.value_key, zip(x, self.styles))
@@ -688,25 +749,56 @@ class ThematicStyleGradient(ThematicStyle):
 		return cmap
 
 	def get_norm(self):
+		"""
+		Get corresponding Normalize object
+		"""
 		from cm.norm import PiecewiseLinearNorm
 		return PiecewiseLinearNorm(self.values)
 		#return matplotlib.colors.Normalize(vmin=self.values.min(), vmax=self.values.max())
 
 	def to_scalar_mappable(self):
+		"""
+		Get corresponding Scalarmappable object. Only applicable if
+		:param:`styles` contains matplotlib colors
+		"""
 		norm = self.get_norm()
 		cmap = self.to_colormap()
 		return matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
 
 
 class ThematicStyleColormap(ThematicStyle):
+	"""
+	Thematic style feature corresponding to a matplotlib colormap.
+
+	:param color_map:
+		string or matplotlib colormap
+	:param norm:
+		matplotlib Normalize object for scaling data values to the 0-1 range
+		(default: None, will apply linear scaling between vmin and vmax)
+	:param vmin:
+		float, minimum value that will correspond to 0 (default: None)
+	:param vmax:
+		float, maximum value that will correspond to 1 (default: None)
+	:param alpha:
+		Float in the range 0 - 1, opacity (default: 1.)
+	:param value_key:
+	:param add_legend:
+	:param colorbar_style:
+		see :class:`ThematicStyle`
+	"""
 	def __init__(self, color_map="jet", norm=None, vmin=None, vmax=None, alpha=1.0, value_key=None, add_legend=True, colorbar_style=None):
 		super(ThematicStyleColormap, self).__init__(value_key, add_legend, colorbar_style)
-		self.color_map = color_map
+		if isinstance(color_map, matplotlib.colors.Colormap):
+			self.color_map = color_map
+		else:
+			self.color_map = matplotlib.cm.get_cmap(color_map)
+		if not self.color_map._isinit:
+			self.color_map._init()
 		self.norm = norm
 		self.vmin = vmin
 		self.vmax = vmax
 		self.alpha = alpha
-		#TODO set alpha in self.color_map  ??
+		self._set_cmap_alpha()
 
 	@property
 	def values(self):
@@ -714,13 +806,29 @@ class ThematicStyleColormap(ThematicStyle):
 		return np.array([norm.vmin, norm.vmax])
 
 	def __call__(self, values):
-		#from matplotlib.cm import ScalarMappable
-		#sm = ScalarMappable(self.color_map, self.norm)
-		#sm.set_clim(self.vmin, self.vmax)
+		"""
+		Convert data values to colors
+
+		:param values:
+			list or array of floats, data values
+
+		:return:
+			rgba array
+		"""
 		sm = self.to_scalar_mappable()
 		return sm.to_rgba(self.apply_value_key(values), alpha=self.alpha)
 
+	def _set_cmap_alpha(self):
+		"""
+		Private method to set alpha value in the color map
+		"""
+		self.color_map._lut[:-3,-1] = self.alpha
+
 	def get_norm(self):
+		"""
+		Get the Normalize object. If not supplied, it will be
+		constructed from vmin and vmax
+		"""
 		if not self.norm:
 			norm = matplotlib.colors.Normalize(self.vmin, self.vmax)
 		else:
@@ -728,14 +836,55 @@ class ThematicStyleColormap(ThematicStyle):
 		return norm
 
 	def to_colormap(self):
+		"""
+		Get the Colormap object
+		"""
 		return self.color_map
 
 	def to_scalar_mappable(self):
+		"""
+		Convert colormap and norm to a Scalarmappable object
+		"""
 		norm = self.get_norm()
 		return matplotlib.cm.ScalarMappable(norm=norm, cmap=self.color_map)
 
 
 class ColorbarStyle:
+	"""
+	Class defining aspect of a color bar.
+
+	:param title:
+		str, title plotted alongside color bar (default: "")
+	:param location:
+		str, where to put colorbar: "left", "right", "bottom", "top"
+		(default: "bottom")
+	:param size:
+		str, width (or height?) of colorbar, in percent (default: '5%')
+	:param pad:
+		str, padding between map and colorbar, in same units as :param:`size`
+		(default: '10%')
+	:param extend:
+		str, how to extend colorbar with pointed ends for out-of-range values:
+		"neither" | "both" | "min" | "max"
+		(default: "neither")
+	:param spacing:
+		str, "uniform" | "proportional"
+		Uniform spacing gives each discrete color the same space;
+		proportional makes the space proportional to the data interval
+		(default: "uniform")
+	:param ticks:
+		list of ticks or matplotlib Locator object
+		If None, ticks are determined automatically by matplotlib
+		(default: None)
+	:param format:
+		str or matplotlib Formatter object
+		(default: "%.2f")
+	:param drawedges:
+		bool, whether or not to draw lines at color boundaries
+		(default: False)
+	:param alpha:
+		Float in the range 0 - 1, opacity (default: 1.)
+	"""
 	def __init__(self, title="", location="bottom", size='5%', pad='10%', extend="neither", spacing="uniform", ticks=None, format=None, drawedges=False, alpha=1.):
 		self.title = title
 		self.location = location
@@ -751,7 +900,7 @@ class ColorbarStyle:
 	def to_kwargs(self):
 		"""
 		Return a dictionary with keys corresponding to matplotlib parameter names,
-		and which can be passed to the text and annotate functions
+		and which can be passed to the colorbar function
 		"""
 		d = {}
 		d["location"] = self.location
@@ -797,7 +946,6 @@ class GridStyle:
 		self.contour_levels = contour_levels
 		if colorbar_style:
 			self.color_map_theme.colorbar_style = colorbar_style
-		#self.label_format = label_format
 
 	@property
 	def colorbar_style(self):

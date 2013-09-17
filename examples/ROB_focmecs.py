@@ -32,7 +32,8 @@ sm_name= "Seismotectonic_Hybrid"
 gis_filespec = rob_source_models_dict[sm_name].gis_filespec
 src_label_name = rob_source_models_dict[sm_name].column_map['id']
 data = GisData(gis_filespec, src_label_name)
-label_style = TextStyle(color='darkred', font_weight="bold", horizontal_alignment="center", vertical_alignment="center")
+#label_style = TextStyle(color='darkred', font_weight="bold", horizontal_alignment="center", vertical_alignment="center")
+label_style = None
 polygon_style = PolygonStyle(line_width=2, line_color="darkred", fill_color="None", label_style=label_style)
 line_style = LineStyle(line_width=2, line_color="red", label_style=None)
 style = CompositeStyle(polygon_style=polygon_style, line_style=line_style)
@@ -58,7 +59,13 @@ for rec in focmec_records:
 	else:
 		sof = "Strike slip"
 	values["sof"].append(sof)
-
+## Sort from large to small magnitude
+sorted_indexes = np.argsort(values["ML"])[::-1]
+lons = np.array(lons)[sorted_indexes]
+lats = np.array(lats)[sorted_indexes]
+sdr = np.array(sdr)[sorted_indexes]
+values["ML"] = np.array(values["ML"])[sorted_indexes]
+values["sof"] = np.array(values["sof"])[sorted_indexes]
 focmec_data = FocmecData(lons, lats, sdr, values)
 thematic_size = ThematicStyleGradient([1,3,5], [4,12,24], value_key="ML")
 thematic_color = ThematicStyleIndividual(["Normal", "Reverse", "Strike slip"], ['green', "red", "yellow"], value_key="sof")
