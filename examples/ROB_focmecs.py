@@ -1,5 +1,7 @@
 """
 Plot focal mechanisms in ROB catalog
+This script demonstrates how to plot focal mechanisms (aka beach balls)
+using thematic styles for their size and color
 """
 import eqcatalog.seismodb as seismodb
 from eqcatalog.source_models import rob_source_models_dict
@@ -7,11 +9,16 @@ from mapping.geo.readGIS import read_GIS_file
 from mapping.Basemap.LayeredBasemap import *
 
 
-region = (2,7,49.25,51.75)
+#fig_filespec = None
+#fig_filespec = r"E:\Home\_kris\Projects\2012 - Electrabel\Progress Report 2\Figures\FocalMechanisms.png"
+fig_filespec = None
+
+region = (3,7,50,51.5)
 projection = "merc"
-title = "ROB focal mechanisms"
+#title = "ROB focal mechanisms"
+title = ""
 resolution = "h"
-grid_interval = (2, 1)
+grid_interval = (1, 0.5)
 
 layers = []
 
@@ -42,39 +49,31 @@ layers.append(layer)
 
 ## Focal mechanisms
 catalog = seismodb.query_ROB_LocalEQCatalog(region=region)
-gis_filespec = r"D:\GIS-data\KSB-ORB\FocalMechanisms.TAB"
-focmec_records = read_GIS_file(gis_filespec)
 lons, lats, values, sdr = [],[], {"ML": [], "sof": []}, []
+focmec_records = seismodb.query_ROB_FocalMechanisms(region=region)
 for rec in focmec_records:
-	eq = catalog.get_record(rec["ID_Earth"])
-	lons.append(eq.lon)
-	lats.append(eq.lat)
-	values["ML"].append(eq.ML)
-	strike, dip, rake = rec["Strike1"], rec["Dip1"], rec["Rake1"]
-	sdr.append((strike, dip, rake))
-	if -135 <= rake <= -45:
+	lons.append(rec.lon)
+	lats.append(rec.lat)
+	values["ML"].append(rec.ML)
+	sdr.append((rec.strike, rec.dip, rec.rake))
+	if -135 <= rec.rake <= -45:
 		sof = "Normal"
-	elif 45 <= rake < 135:
+	elif 45 <= rec.rake < 135:
 		sof = "Reverse"
 	else:
 		sof = "Strike slip"
 	values["sof"].append(sof)
-## Sort from large to small magnitude
-sorted_indexes = np.argsort(values["ML"])[::-1]
-lons = np.array(lons)[sorted_indexes]
-lats = np.array(lats)[sorted_indexes]
-sdr = np.array(sdr)[sorted_indexes]
-values["ML"] = np.array(values["ML"])[sorted_indexes]
-values["sof"] = np.array(values["sof"])[sorted_indexes]
 focmec_data = FocmecData(lons, lats, sdr, values)
-thematic_size = ThematicStyleGradient([1,3,5], [4,12,24], value_key="ML")
+focmec_data.sort(value_key="ML", ascending=False)
+thematic_size = ThematicStyleGradient([1,3,5], [5,15,30], value_key="ML")
 thematic_color = ThematicStyleIndividual(["Normal", "Reverse", "Strike slip"], ['green', "red", "yellow"], value_key="sof")
 focmec_style = FocmecStyle(size=thematic_size, fill_color=thematic_color)
 layer = MapLayer(focmec_data, focmec_style)
 layers.append(layer)
 
-legend_style = LegendStyle(location=2)
+
+legend_style = LegendStyle(location=1)
 title_style = DefaultTitleTextStyle
 title_style.weight = "bold"
 map = LayeredBasemap(layers, title, projection, region=region, title_style=title_style, grid_interval=grid_interval, resolution=resolution, legend_style=legend_style)
-map.plot()
+map.plot(fig_filespec=fig_filespec)

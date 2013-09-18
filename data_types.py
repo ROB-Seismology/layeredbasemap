@@ -152,6 +152,38 @@ class MultiPointData(object):
 		centroid = self.to_shapely().centroid
 		return PointData(centroid.x, centroid.y)
 
+	def sort(self, value_key=None, ascending=True):
+		"""
+		Sort data in-place based on a value column
+
+		:param value_key:
+			str, name of value column to be used for sorting
+			(default: None, assumes values is a single list or array)
+		:param ascending:
+			bool, whether sort order should be ascending (True)
+			or descending (False)
+			(default: True)
+
+		:return:
+			array with indexes representing sort order
+		"""
+		sorted_indexes = None
+		if value_key is None and not isinstance(self.values, dict):
+			sorted_indexes = np.argsort(self.values)
+			if not ascending:
+				sorted_indexes = sorted_indexes[::-1]
+			self.values = np.array(self.values)[sorted_indexes]
+		elif isinstance(self.values, dict):
+			sorted_indexes = np.argsort(self.values[value_key])
+			if not ascending:
+				sorted_indexes = sorted_indexes[::-1]
+			for key in self.values:
+				self.values[key] = np.array(self.values[key])[sorted_indexes]
+		if sorted_indexes != None:
+			self.lons = np.array(self.lons)[sorted_indexes]
+			self.lats = np.array(self.lats)[sorted_indexes]
+		return sorted_indexes
+
 
 class LineData(object):
 	def __init__(self, lons, lats, value=None, label=""):
@@ -422,6 +454,24 @@ class FocmecData(MultiPointData):
 	def __init__(self, lons, lats, sdr, values=[], labels=[]):
 		super(FocmecData, self).__init__(lons, lats, values, labels)
 		self.sdr = sdr
+
+	def sort(self, value_key=None, ascending=True):
+		"""
+		:param value_key:
+			str, name of value column to be used for sorting
+			(default: None, assumes values is a single list or array)
+		:param ascending:
+			bool, whether sort order should be ascending (True)
+			or descending (False)
+			(default: True)
+
+		:return:
+			array with indexes representing sort order
+		"""
+		sorted_indexes = MultiPointData.sort(self, value_key=value_key, ascending=ascending)
+		self.sdr = np.array(self.sdr)[sorted_indexes]
+		return sorted_indexes
+
 
 
 class MaskData:
