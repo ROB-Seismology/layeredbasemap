@@ -1,3 +1,8 @@
+"""
+Plot map of ROB earthquake catalog.
+This script demonstrates the simultaneous use of thematic size (earthquake
+magnitude) and thematic color (focal depth) for point data.
+"""
 from mapping.Basemap.LayeredBasemap import *
 import eqcatalog.seismodb as seismodb
 
@@ -37,7 +42,7 @@ values['year'] = [eq.datetime.year for eq in catalog]
 point_data = MultiPointData(catalog.get_longitudes(), catalog.get_latitudes(), values=values)
 #point_data = MultiPointData([2.0, 3.0, 4.0, 5.0, 6.0], [50, 50, 50, 50, 50], values=[2,3,4,5,6])
 thematic_legend_style = LegendStyle(title="Magnitude", location=3, shadow=True, fancy_box=True, label_spacing=0.7)
-colorbar_style = ColorbarStyle(title="Depth", location="bottom", format="%d")
+colorbar_style = ColorbarStyle(title="Depth (km)", location="bottom", format="%d")
 thematic_size = ThematicStyleGradient([1,3,5], [4,12,24], value_key="magnitude")
 #thematic_color = ThematicStyleColormap(value_key="depth")
 thematic_color = ThematicStyleRanges([0,1,10,25,50], ['red', 'orange', 'yellow', 'green'], value_key="depth", colorbar_style=colorbar_style)

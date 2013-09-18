@@ -590,8 +590,50 @@ class ThematicStyle(object):
 		else:
 			return values[self.value_key]
 
+	def is_color_style(self):
+		"""
+		Determine if thematic style feature is a matplotlib color
+
+		:return:
+			bool
+		"""
+		try:
+			style = self.styles[0]
+		except:
+			## ThematicStyleColormap
+			return True
+		else:
+			if isinstance(style, (int, float)):
+				return False
+			else:
+				cc = matplotlib.colors.ColorConverter()
+				try:
+					cc.to_rgb(style)
+				except:
+					return False
+				else:
+					return True
+
 
 class ThematicStyleIndividual(ThematicStyle):
+	"""
+	Thematic style feature corresponding to a property that is divided
+	in different classes.
+
+	:param values:
+		list or array of floats or strings, data values for which style
+		values are defined.
+	:param styles:
+		list of style values (numbers or matplotlib colors) corresponding
+		to intervals between given data values
+	:param labels:
+		labels corresponding to data classes
+		(default: [], will use :param:`values`)
+	:param value_key:
+	:param add_legend:
+	:param colorbar_style:
+		see :class:`ThematicStyle`
+	"""
 	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True, colorbar_style=None):
 		super(ThematicStyleIndividual, self).__init__(value_key, add_legend, colorbar_style)
 		self.values = values
@@ -613,21 +655,31 @@ class ThematicStyleIndividual(ThematicStyle):
 
 	def __call__(self, values):
 		"""
-		values can be numbers or strings
+		Convert data values to style values
+
+		:param values:
+			list or array of data values (numbers or strings)
+
+		:return:
+			float or rgba array
 		"""
 		return [self.style_dict[val] for val in self.apply_value_key(values)]
 
 	def to_colormap(self):
-		try:
+		"""
+		Get corresponding Colormap object. Only applicable if :param:`styles`
+		contains matplotlib colors
+		"""
+		if self.is_color_style():
 			cmap = matplotlib.colors.ListedColormap(self.styles, name=self.value_key)
-		except:
-			pass
-		else:
 			return cmap
 
 	def get_norm(self):
-		# TODO: can probably be replaced with matplotlib.colors.from_levels_and_colors
-		# in newer versions of matplotlib
+		"""
+		Get corresponding Normalize object
+		"""
+		## The norm is constructed in such a way that, if classes are numbers,
+		## they will be placed below the corresponding color in the colorbar
 		if isinstance(self.values[0], (int, float)):
 			values = np.array(self.values)
 		else:
@@ -638,18 +690,39 @@ class ThematicStyleIndividual(ThematicStyle):
 		return matplotlib.colors.BoundaryNorm(boundaries, len(self.values))
 
 	def to_scalar_mappable(self):
-		norm = self.get_norm()
-		cmap = self.to_colormap()
-		return matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
+		"""
+		Get corresponding Scalarmappable object. Only applicable if
+		:param:`styles` contains matplotlib colors
+		"""
+		if self.is_color_style():
+			norm = self.get_norm()
+			cmap = self.to_colormap()
+			return matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
 
 
 class ThematicStyleRanges(ThematicStyle):
+	"""
+	Thematic style feature corresponding to a property that changes
+	in discrete steps.
+
+	:param values:
+		list or array of floats, data values for which style values are
+		defined (breakpoints).
+		Must be monotonically increasing or decreasing. Styles for inter-
+		vening values will be interpolated
+	:param styles:
+		list of style values (numbers or matplotlib colors) corresponding
+		to intervals between given data values.
+		Note that number of styles must be one less than number of values
+	:param labels:
+		labels corresponding to breakpoints
+		(default: [], will use :param:`values`)
+	:param value_key:
+	:param add_legend:
+	:param colorbar_style:
+		see :class:`ThematicStyle`
+	"""
 	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True, colorbar_style=None):
-		"""
-		values must be monotonically increasing or decreasing
-		styles may be colors
-		values contains one element less than styles
-		"""
 		super(ThematicStyleRanges, self).__init__(value_key, add_legend, colorbar_style)
 		self.values = np.array(values, dtype='f')
 		self.styles = styles
@@ -662,28 +735,42 @@ class ThematicStyleRanges(ThematicStyle):
 
 	def __call__(self, values):
 		"""
-		values must be numbers
+		Convert data values to style values
+
+		:param values:
+			list or array of floats, data values
+
+		:return:
+			float or rgba array
 		"""
 		bin_indexes = np.digitize(self.apply_value_key(values), self.values) - 1
 		return [self.styles[bi] for bi in bin_indexes]
 
 	def to_colormap(self):
-		# TODO: possible to check if a style spec is a matplotlib color spec?
-		try:
+		"""
+		Get corresponding Colormap object. Only applicable if :param:`styles`
+		contains matplotlib colors
+		"""
+		if self.is_color_style():
 			cmap = matplotlib.colors.ListedColormap(self.styles, name=self.value_key)
-		except:
-			pass
-		else:
 			return cmap
 
 	def get_norm(self):
+		"""
+		Get corresponding Normalize object
+		"""
 		return matplotlib.colors.BoundaryNorm(self.values, len(self.styles))
 
 	def to_scalar_mappable(self):
-		#cmap, norm = matplotlib.colors.from_levels_and_colors(self.values, self.styles)
-		cmap = self.to_colormap()
-		norm = self.get_norm()
-		return matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
+		"""
+		Get corresponding Scalarmappable object. Only applicable if
+		:param:`styles` contains matplotlib colors
+		"""
+		if self.is_color_style():
+			#cmap, norm = matplotlib.colors.from_levels_and_colors(self.values, self.styles)
+			cmap = self.to_colormap()
+			norm = self.get_norm()
+			return matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
 
 
 class ThematicStyleGradient(ThematicStyle):
@@ -733,20 +820,18 @@ class ThematicStyleGradient(ThematicStyle):
 		except:
 			sm = self.to_scalar_mappable()
 			return sm.to_rgba(self.apply_value_key(values), alpha=self.alpha)
-			#cmap = self.to_colormap()
-			#norm = self.get_norm()
-			#return cmap(norm(self.apply_value_key(values)))
 
 	def to_colormap(self):
 		"""
 		Get corresponding Colormap object. Only applicable if :param:`styles`
 		contains matplotlib colors
 		"""
-		#x = self.values / self.values.max()
-		x = np.linspace(0., 1., len(self.values))
-		cmap = matplotlib.colors.LinearSegmentedColormap.from_list(self.value_key, zip(x, self.styles))
-		cmap._init()
-		return cmap
+		if self.is_color_style():
+			#x = self.values / self.values.max()
+			x = np.linspace(0., 1., len(self.values))
+			cmap = matplotlib.colors.LinearSegmentedColormap.from_list(self.value_key, zip(x, self.styles))
+			cmap._init()
+			return cmap
 
 	def get_norm(self):
 		"""
@@ -761,9 +846,10 @@ class ThematicStyleGradient(ThematicStyle):
 		Get corresponding Scalarmappable object. Only applicable if
 		:param:`styles` contains matplotlib colors
 		"""
-		norm = self.get_norm()
-		cmap = self.to_colormap()
-		return matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
+		if self.is_color_style():
+			norm = self.get_norm()
+			cmap = self.to_colormap()
+			return matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
 
 
 class ThematicStyleColormap(ThematicStyle):
@@ -978,5 +1064,4 @@ class LegendStyle:
 		self.column_spacing = column_spacing
 		self.num_points = num_points
 		self.alpha = alpha
-
 

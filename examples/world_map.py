@@ -16,7 +16,7 @@ layers = []
 bm_style = None
 data = BuiltinData("bluemarble")
 layer = MapLayer(data, bm_style)
-#layers.append(layer)
+layers.append(layer)
 
 ## Continents
 continent_style = PolygonStyle(fill_color="lightgray", line_pattern="None", line_width=0)
