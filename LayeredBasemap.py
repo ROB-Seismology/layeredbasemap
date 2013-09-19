@@ -403,15 +403,15 @@ class LayeredBasemap:
 		"""
 		num_lines = len(line_data)
 		if isinstance(line_style.line_pattern, ThematicStyle):
-			line_patterns = line_style.line_pattern(polygon_data.values)
+			line_patterns = line_style.line_pattern(line_data.values)
 		else:
 			line_patterns = [line_style.line_pattern] * num_lines
 		if isinstance(line_style.line_width, ThematicStyle):
-			line_widths = line_style.line_width(polygon_data.values)
+			line_widths = line_style.line_width(line_data.values)
 		else:
 			line_widths = [line_style.line_width] * num_lines
 		if isinstance(line_style.line_color, ThematicStyle):
-			line_colors = line_style.line_color(polygon_data.values)
+			line_colors = line_style.line_color(line_data.values)
 		else:
 			line_colors = [line_style.line_color] * num_lines
 
@@ -425,7 +425,7 @@ class LayeredBasemap:
 			line_width = line_widths[i]
 			line_color = line_colors[i]
 			style = LineStyle(line_pattern=line_pattern, line_width=line_width, line_color=line_color, label_style=None, alpha=line_style.alpha)
-			self._draw_line(line, line_style, legend_label)
+			self._draw_line(line, style, legend_label)
 		self.zorder += 1
 		if line_data.labels and line_style.label_style:
 			midpoints = MultiPointData([], [], labels=[])
@@ -621,6 +621,27 @@ class LayeredBasemap:
 							polygon_data.values[colname].append(rec[colname])
 
 		self.draw_composite_layer(point_data=point_data, point_style=point_style, line_data=line_data, line_style=line_style, polygon_data=polygon_data, polygon_style=polygon_style, legend_label=legend_label)
+
+	def draw_circles(self, circle_data, circle_style, legend_label=""):
+		## Note: we could also use the tissot method, but then we would have
+		## to code the thematic styling again
+		import mapping.geo.geodetic as geodetic
+		circles = MultiPolygonData([], [], interior_lons=[], interior_lats=[], values=[], labels=[])
+		for i in range(len(circle_data)):
+			center = (circle_data.lons[i], circle_data.lats[i])
+			radius = circle_data.radii[i]
+			lons, lats = [], []
+			for azimuth in np.arange(0., 360., circle_data.azimuthal_resolution):
+				lon, lat = geodetic.get_point_at(center, radius, azimuth)
+				lons.append(lon)
+				lats.append(lat)
+			circles.append(PolygonData(lons, lats))
+		circles.values = circle_data.values
+		circles.labels = circle_data.values
+		if isinstance(circle_style, PolygonStyle):
+			self.draw_polygon_layer(circles, circle_style, legend_label)
+		elif isinstance(circle_style, LineStyle):
+			self.draw_line_layer(circles, circle_style, legend_label)
 
 	def draw_grid_layer(self, grid_data, grid_style, legend_label=""):
 		x, y = self.map(grid_data.lons, grid_data.lats)
@@ -854,6 +875,8 @@ class LayeredBasemap:
 					self.draw_etopo(layer.style)
 			elif isinstance(layer.data, FocmecData):
 				self.draw_focmecs(layer.data, layer.style)
+			elif isinstance(layer.data, CircleData):
+				self.draw_circles(layer.data, layer.style, layer.legend_label)
 			elif isinstance(layer.data, MaskData):
 				self.draw_mask(layer.data.polygon, layer.style, layer.data.outside)
 			elif isinstance(layer.data, MultiPointData):

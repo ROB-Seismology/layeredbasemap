@@ -473,6 +473,15 @@ class FocmecData(MultiPointData):
 		return sorted_indexes
 
 
+class CircleData(MultiPointData):
+	"""
+	radii: in km
+	"""
+	def __init__(self, lons, lats, radii, values=[], labels=[], azimuthal_resolution=1):
+		super(CircleData, self).__init__(lons, lats, values, labels)
+		self.radii = radii
+		self.azimuthal_resolution = 1
+
 
 class MaskData:
 	def __init__(self, polygon, outside=True):
