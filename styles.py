@@ -871,6 +871,9 @@ class ThematicStyleColormap(ThematicStyle):
 	:param add_legend:
 	:param colorbar_style:
 		see :class:`ThematicStyle`
+
+	Note: if norm is specified, vmin and vmax will only determine the
+	range shown in the colorbar; the norm itself will not be affected.
 	"""
 	def __init__(self, color_map="jet", norm=None, vmin=None, vmax=None, alpha=1.0, value_key=None, add_legend=True, colorbar_style=None):
 		super(ThematicStyleColormap, self).__init__(value_key, add_legend, colorbar_style)

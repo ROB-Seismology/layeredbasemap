@@ -7,7 +7,7 @@ region = (-180, 180, -90, 90)
 origin = (0, 0)
 projection = "robin"
 title = "Hello World from LayeredBasemap"
-resolution = "l"
+resolution = "c"
 grid_interval = (60, 30)
 
 layers = []
@@ -16,7 +16,7 @@ layers = []
 bm_style = None
 data = BuiltinData("bluemarble")
 layer = MapLayer(data, bm_style)
-layers.append(layer)
+#layers.append(layer)
 
 ## Continents
 continent_style = PolygonStyle(fill_color="lightgray", line_pattern="None", line_width=0)
@@ -28,7 +28,7 @@ layer = MapLayer(data, continent_style)
 coastline_style = LineStyle(line_color="r", line_width=2)
 data = BuiltinData("coastlines")
 layer = MapLayer(data, coastline_style)
-#layers.append(layer)
+layers.append(layer)
 
 ## Country borders
 data = BuiltinData("countries")
@@ -38,9 +38,9 @@ layers.append(layer)
 
 ## Rivers
 data = BuiltinData("rivers")
-river_style = LineStyle(line_color="b")
+river_style = LineStyle(line_color="b", line_width=0.5)
 layer = MapLayer(data, river_style)
-#layers.append(layer)
+layers.append(layer)
 
 ## Night shading
 data = BuiltinData("nightshade", date_time=datetime.datetime.now())

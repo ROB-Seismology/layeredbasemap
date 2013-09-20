@@ -13,6 +13,7 @@ import shapely.geometry
 
 from styles import *
 from data_types import *
+import cm
 
 
 class MapLayer:
@@ -655,6 +656,12 @@ class LayeredBasemap:
 		else:
 			cmap = None
 
+		## Note: vmin and vmax will control range shown in colorbar
+		## However, this doesn't work if color_gradient is continuous
+		## and norm is a matplotlib.colors.Normalize instance
+		## (norm is reset with vmin and vmax passed to pcolor method)
+		## I think this is a bug in pcolor, as it does not occur with contourf
+
 		if cmap:
 			if grid_style.color_gradient == "discontinuous":
 				if isinstance(cmap, str):
@@ -665,6 +672,7 @@ class LayeredBasemap:
 				cs = self.map.contourf(x, y, grid_data.values, levels=grid_style.contour_levels, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, extend="both", alpha=alpha, zorder=self.zorder)
 			elif grid_style.color_gradient == "continuous":
 				cs = self.map.pcolor(x, y, grid_data.values, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, alpha=alpha, zorder=self.zorder)
+			self.zorder += 1
 
 		if grid_style.line_style:
 			line_style = grid_style.line_style
@@ -675,7 +683,8 @@ class LayeredBasemap:
 				cl = self.map.contour(x, y, grid_data.values, levels=grid_style.contour_levels, colors=line_style.line_color, linewidths=line_style.line_width, alpha=line_style.alpha, zorder=self.zorder)
 			label_style = line_style.label_style
 			## other font properties do not seem to be supported
-			self.ax.clabel(cl, colors='k', inline=True, fontsize=label_style.font_size, fmt=grid_style.label_format, alpha=label_style.alpha, zorder=self.zorder+1)
+			self.ax.clabel(cl, colors='k', inline=True, fontsize=label_style.font_size, fmt=grid_style.label_format, alpha=label_style.alpha, zorder=self.zorder)
+			self.zorder += 1
 
 		if cmap:
 			colorbar_style = grid_style.colorbar_style
@@ -689,7 +698,6 @@ class LayeredBasemap:
 			colorbar_style.alpha = alpha
 			if grid_style.color_gradient:
 				self.draw_colorbar(cs, colorbar_style)
-		self.zorder += 2
 
 	def draw_colorbar(self, sm, style):
 		"""
@@ -821,6 +829,7 @@ class LayeredBasemap:
 		self.zorder += 1
 
 	def draw_mask_image(self, polygon, resolution=1000, outside=True):
+		## Not used for the moment
 		llcrnrx, llcrnry = self.map(self.llcrnrlon, self.llcrnrlat)
 		urcrnrx, urcrnry = self.map(self.urcrnrlon, self.urcrnrlat)
 		llcrnrx = np.floor((llcrnrx / resolution)) * resolution

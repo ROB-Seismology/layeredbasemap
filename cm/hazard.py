@@ -21,7 +21,7 @@ usgs_rgb = np.array([(255, 255, 255),
 			(255, 94, 0),
 			(254, 0, 2),
 			(200, 121, 20),
-			(151, 74, 20)])
+			(151, 74, 20)], dtype='f')
 usgs_rgb /= 255.
 
 usgs_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("USGS_hazard", usgs_rgb)
@@ -77,11 +77,12 @@ share_rgb = np.array([(255, 255, 255),
 			(70, 14, 48),
 			(64, 16, 50),
 			(60, 18, 52),
-			(56, 20, 55)])
+			(56, 20, 55)], dtype='f')
 share_rgb /= 255.
 
 share_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("SHARE_hazard", share_rgb)
-share_norm = matplotlib.colors.Normalize(vmin=0.0, vmax=0.5)
+#share_norm = matplotlib.colors.Normalize(vmin=0.0, vmax=0.5)
+share_norm = PiecewiseLinearNorm([0., 0.5])
 
 gshap_rgb = np.array([(255, 255, 255),
 			(131, 247, 47),
@@ -91,7 +92,7 @@ gshap_rgb = np.array([(255, 255, 255),
 			(245, 76, 116),
 			(231, 0, 88),
 			(243, 0, 0),
-			(165, 51, 0)])
+			(165, 51, 0)], dtype='f')
 gshap_rgb /= 255.
 
 gshap_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("GSHAP_hazard", gshap_rgb)
