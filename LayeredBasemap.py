@@ -14,6 +14,7 @@ import shapely.geometry
 from styles import *
 from data_types import *
 import cm
+reload(cm)
 
 
 class MapLayer:

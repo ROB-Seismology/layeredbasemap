@@ -2,7 +2,6 @@
 # Empty file necessary for python to recognise directory as package
 #
 
-import hazard
 
 
 def get_cmap(category, name):
@@ -18,8 +17,7 @@ def get_cmap(category, name):
 		matplotlib Colormap instance or None
 	"""
 	cmap_name = name.lower() + "_cmap"
-	#module = __import__(category, level=0)
-	module = globals()[category]
+	module = __import__(__name__, fromlist=[category])
 	try:
 		return getattr(module, cmap_name)
 	except:
@@ -38,8 +36,7 @@ def get_norm(category, name):
 		matplotlib Normalize instance or None
 	"""
 	norm_name = name.lower() + "_norm"
-	#module = __import__(category, level=0)
-	module = globals()[category]
+	module = __import__(__name__, fromlist=[category])
 	try:
 		return getattr(module, norm_name)
 	except:
