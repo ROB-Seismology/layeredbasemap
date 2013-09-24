@@ -475,6 +475,32 @@ class PolygonStyle:
 
 
 class FocmecStyle:
+	"""
+	Style defining how focal mechanisms are plotted in Basemap
+
+	:param size:
+		int, size of beach ball in points
+	:param line_width:
+		Float, line width, or instance of :class:`ThematicStyle`
+		(default: 1)
+	:param line_color:
+		matplotlib color spec or instance of :class:`ThematicStyle`
+		(default: 'k')
+	:param fill_color:
+		matplotlib color spec or instance of :class:`ThematicStyle`,
+		defining color of compressive quadrants
+		(default: 'k')
+	:param bg_color:
+		matplotlib color spec or instance of :class:`ThematicStyle`,
+		defining color of dilational quadrants
+		(default: 'w')
+	:param alpha:
+		Float in the range 0 - 1, opacity (default: 1.)
+	:param thematic_legend_style:
+		instance of :class:`LegendStyle`. If None, thematic legend labels
+		will be added to main legend
+		(default: None)
+	"""
 	def __init__(self, size=50, line_width=1, line_color='k', fill_color='k', bg_color='w', alpha=1., thematic_legend_style=None):
 		self.size = size
 		self.line_width = line_width
@@ -498,6 +524,12 @@ class FocmecStyle:
 			return False
 
 	def get_non_thematic_style(self):
+		"""
+		Copy focmec style, replacing thematic style features with default values
+
+		:return:
+			instance of :class:`FocmecStyle`
+		"""
 		if isinstance(self.size, ThematicStyle):
 			size = 50
 		else:
@@ -516,6 +548,20 @@ class FocmecStyle:
 			fill_color = self.fill_color
 		bg_color = self.bg_color
 		return FocmecStyle(size, line_width, line_color, fill_color, bg_color, self.alpha, self.thematic_legend_style)
+
+	def to_kwargs(self):
+		"""
+		Return a dictionary with keys corresponding to matplotlib parameter names,
+		and which can be passed to the plot function
+		"""
+		d = {}
+		d["width"] = self.size
+		d["linewidth"] = self.line_width
+		d["edgecolor"] = self.line_color
+		d["facecolor"] = self.fill_color
+		d["bgcolor"] = self.bg_color
+		d["alpha"] = self.alpha
+		return d
 
 
 class CompositeStyle:
@@ -697,7 +743,12 @@ class ThematicStyleIndividual(ThematicStyle):
 		if self.is_color_style():
 			norm = self.get_norm()
 			cmap = self.to_colormap()
-			return matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
+			sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
+			if isinstance(self.values[0], (int, float)):
+				sm.set_array(self.values)
+			else:
+				sm.set_array(np.arange(len(self.values)))
+			return sm
 
 
 class ThematicStyleRanges(ThematicStyle):
@@ -744,6 +795,7 @@ class ThematicStyleRanges(ThematicStyle):
 			float or rgba array
 		"""
 		bin_indexes = np.digitize(self.apply_value_key(values), self.values) - 1
+		bin_indexes = np.clip(bin_indexes, 0, len(self.styles) - 1)
 		return [self.styles[bi] for bi in bin_indexes]
 
 	def to_colormap(self):
@@ -770,7 +822,9 @@ class ThematicStyleRanges(ThematicStyle):
 			#cmap, norm = matplotlib.colors.from_levels_and_colors(self.values, self.styles)
 			cmap = self.to_colormap()
 			norm = self.get_norm()
-			return matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
+			sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
+			sm.set_array(self.values)
+			return sm
 
 
 class ThematicStyleGradient(ThematicStyle):
@@ -819,7 +873,8 @@ class ThematicStyleGradient(ThematicStyle):
 			return np.interp(self.apply_value_key(values), self.values, self.styles)
 		except:
 			sm = self.to_scalar_mappable()
-			return sm.to_rgba(self.apply_value_key(values), alpha=self.alpha)
+			#return sm.to_rgba(self.apply_value_key(values), alpha=self.alpha)
+			return sm.to_rgba(self.apply_value_key(values))
 
 	def to_colormap(self):
 		"""
@@ -849,7 +904,9 @@ class ThematicStyleGradient(ThematicStyle):
 		if self.is_color_style():
 			norm = self.get_norm()
 			cmap = self.to_colormap()
-			return matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
+			sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
+			sm.set_array(self.values)
+			return sm
 
 
 class ThematicStyleColormap(ThematicStyle):

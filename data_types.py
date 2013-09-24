@@ -13,7 +13,7 @@ class BasemapData(object):
 	pass
 
 
-class BuiltinData:
+class BuiltinData(BasemapData):
 	def __init__(self, feature="continents", **kwargs):
 		assert feature in ("bluemarble", "coastlines", "continents", "countries", "nightshade", "rivers", "shadedrelief"), "%s not recognized as builtin data" % feature
 		self.feature = feature
@@ -21,7 +21,7 @@ class BuiltinData:
 			setattr(self, key, val)
 
 
-class PointData(object):
+class PointData(BasemapData):
 	def __init__(self, lon, lat, value=None, label=""):
 		self.lon = lon
 		self.lat = lat
@@ -51,7 +51,7 @@ class PointData(object):
 		return cls.from_wkt(geom.ExportToWkt())
 
 
-class MultiPointData(object):
+class MultiPointData(BasemapData):
 	def __init__(self, lons, lats, values=[], labels=[]):
 		self.lons = lons
 		self.lats = lats
@@ -185,7 +185,7 @@ class MultiPointData(object):
 		return sorted_indexes
 
 
-class LineData(object):
+class LineData(BasemapData):
 	def __init__(self, lons, lats, value=None, label=""):
 		self.lons = lons
 		self.lats = lats
@@ -229,7 +229,7 @@ class LineData(object):
 		return PolygonData(self.lons, self.lats, value=self.value, label=self.label)
 
 
-class MultiLineData(object):
+class MultiLineData(BasemapData):
 	def __init__(self, lons, lats, values=[], labels=[]):
 		if lons:
 			assert isinstance(lons[0], (list, tuple, np.ndarray)), "lons items must be sequences"
@@ -307,7 +307,7 @@ class MultiLineData(object):
 		return cls.from_wkt(geom.ExportToWkt())
 
 
-class PolygonData(object):
+class PolygonData(BasemapData):
 	def __init__(self, lons, lats, interior_lons=[], interior_lats=[], value=None, label=""):
 		"""
 		lons, lats: lists
@@ -358,7 +358,7 @@ class PolygonData(object):
 		return LineData(self.lons, self.lats, value=self.value, label=self.label)
 
 
-class MultiPolygonData(object):
+class MultiPolygonData(BasemapData):
 	def __init__(self, lons, lats, interior_lons=[], interior_lats=[], values=[], labels=[]):
 		"""
 		lons, lats: 2-D lists
@@ -451,6 +451,10 @@ class MultiPolygonData(object):
 
 
 class FocmecData(MultiPointData):
+	"""
+	"""
+	# TODO: Add possibility to plot mechanism at different location
+	# (different coordinates or offset?)
 	def __init__(self, lons, lats, sdr, values=[], labels=[]):
 		super(FocmecData, self).__init__(lons, lats, values, labels)
 		self.sdr = sdr
@@ -483,13 +487,13 @@ class CircleData(MultiPointData):
 		self.azimuthal_resolution = 1
 
 
-class MaskData:
+class MaskData(BasemapData):
 	def __init__(self, polygon, outside=True):
 		self.polygon = polygon
 		self.outside = outside
 
 
-class CompositeData:
+class CompositeData(BasemapData):
 	def __init__(self, points=None, lines=[], polygons=[], texts=[]):
 		self.points = points
 		self.lines = lines
@@ -497,7 +501,7 @@ class CompositeData:
 		self.texts = texts
 
 
-class GridData:
+class GridData(BasemapData):
 	def __init__(self, lons, lats, values):
 		self.lons = lons
 		self.lats = lats
@@ -508,7 +512,7 @@ class GridData:
 		return maskoceans(self.lons, self.lats, self.values, inlands=mask_lakes, resolution=resolution, grid=grid_spacing)
 
 
-class GisData:
+class GisData(BasemapData):
 	def __init__(self, filespec, label_colname=None, selection_dict={}):
 		self.filespec = filespec
 		self.label_colname = label_colname

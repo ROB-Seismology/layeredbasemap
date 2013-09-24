@@ -11,13 +11,31 @@ import shapely
 import shapely.geometry
 
 
+import styles
+reload(styles)
 from styles import *
+
+import data_types
+reload(data_types)
 from data_types import *
+
 import cm
 reload(cm)
 
 
+
 class MapLayer:
+	"""
+	Class representing a map layer
+
+	:param data:
+		instance of :class:`BasemapData`: data to plot
+	:param style:
+		style that will be applied to plot data
+	:param legend_label:
+		string, label to be used for this data set in map legend
+		(default: "_nolegend_")
+	"""
 	def __init__(self, data, style, legend_label="_nolegend_"):
 		self.data = data
 		self.style = style
@@ -43,7 +61,6 @@ class ThematicLegend:
 
 class LayeredBasemap:
 	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), size=(None, None), grid_interval=(None, None), resolution="i", annot_axes="SE", title_style=DefaultTitleTextStyle, legend_style=LegendStyle()):
-		#TODO: width, height
 		self.layers = layers
 		self.title = title
 		self.region = region
@@ -339,7 +356,7 @@ class LayeredBasemap:
 						## interpret thematic_legend_style as colorbar_style
 						colorbar_style = polygon_style.thematic_legend_style
 					sm = polygon_style.fill_color.to_scalar_mappable()
-					sm.set_array(polygon_style.fill_color.values)
+					#sm.set_array(polygon_style.fill_color.values)
 					if not isinstance(polygon_style.fill_color, ThematicStyleColormap):
 						colorbar_style.ticks = polygon_style.fill_color.values
 					self.draw_colorbar(sm, colorbar_style)
@@ -359,7 +376,7 @@ class LayeredBasemap:
 						## interpret thematic_legend_style as colorbar_style
 						colorbar_style = polygon_style.thematic_legend_style
 					sm = polygon_style.line_color.to_scalar_mappable()
-					sm.set_array(polygon_style.line_color.values)
+					#sm.set_array(polygon_style.line_color.values)
 					if not isinstance(polygon_style.line_color, ThematicStyleColormap):
 						colorbar_style.ticks = polygon_style.line_color.values
 					self.draw_colorbar(sm, colorbar_style)
@@ -450,7 +467,7 @@ class LayeredBasemap:
 						## interpret thematic_legend_style as colorbar_style
 						colorbar_style = line_style.thematic_legend_style
 					sm = line_style.line_color.to_scalar_mappable()
-					sm.set_array(line_style.line_color.values)
+					#sm.set_array(line_style.line_color.values)
 					if not isinstance(line_style.line_color, ThematicStyleColormap):
 						colorbar_style.ticks = line_style.line_color.values
 					self.draw_colorbar(sm, colorbar_style)
@@ -700,12 +717,15 @@ class LayeredBasemap:
 			if grid_style.color_gradient:
 				self.draw_colorbar(cs, colorbar_style)
 
-	def draw_colorbar(self, sm, style):
+	def draw_colorbar(self, sm, style, tick_labels=None):
 		"""
 		sm: scalarmappable
 		"""
 		cbar = self.map.colorbar(sm, **style.to_kwargs())
+		# TODO: do set_label and set_ticklabels accept font kwargs?
 		cbar.set_label(style.title)
+		if tick_labels:
+			cbar.set_ticklabels(tick_labels)
 		return cbar
 
 
@@ -791,12 +811,43 @@ class LayeredBasemap:
 		x, y = self.map(focmec_data.lons, focmec_data.lats)
 		for i in range(len(focmec_data)):
 			width = sizes[i] * conv_factor
-			b = Beach(focmec_data.sdr[i], xy=(x[i], y[i]), width=width, linewidth=line_widths[i], edgecolor=line_colors[i], facecolor=fill_colors[i], bgcolor=focmec_style.bg_color, alpha=focmec_style.alpha)
+			style = FocmecStyle(size=width, line_width=line_widths[i], line_color=line_colors[i], fill_color=fill_colors[i], bg_color=focmec_style.bg_color, alpha=focmec_style.alpha)
+			b = Beach(focmec_data.sdr[i], xy=(x[i], y[i]), **style.to_kwargs())
 			b.set_zorder(self.zorder)
 			self.ax.add_collection(b)
 		self.zorder += 1
 
 		# TODO: add thematic legend
+		if focmec_style.is_thematic:
+			legend_artists, legend_labels = [], []
+			## Fill color
+			if isinstance(focmec_style.fill_color, ThematicStyle) and focmec_style.fill_color.add_legend:
+				colorbar_style = focmec_style.fill_color.colorbar_style
+				if isinstance(focmec_style.fill_color, ThematicStyleColormap) or colorbar_style:
+					if colorbar_style is None:
+						## interpret thematic_legend_style as colorbar_style
+						colorbar_style = focmec_style.thematic_legend_style
+					sm = focmec_style.fill_color.to_scalar_mappable()
+					#sm.set_array(focmec_style.fill_color.values)
+					# TODO: we can move the following to ThematicStyleXXX
+					tick_labels = None
+					if not isinstance(focmec_style.fill_color, ThematicStyleColormap):
+						colorbar_style.ticks = sm.get_array()
+						if not isinstance(focmec_style.fill_color, ThematicStyleRanges):
+							tick_labels = focmec_style.fill_color.labels
+					self.draw_colorbar(sm, colorbar_style, tick_labels)
+				if isinstance(focmec_style.fill_color, (ThematicStyleIndividual,  ThematicStyleRanges)):
+					legend_labels.extend(focmec_style.fill_color.labels)
+					for color in focmec_style.fill_color.styles:
+						ntl = focmec_style.get_non_thematic_style()
+						ntl.fill_color = color
+						## Legend does not support <matplotlib.collections.PatchCollection object
+						b = Beach(focmec_data.sdr[0], xy=(0, 0), **ntl.to_kwargs())
+						legend_artists.append(b)
+
+			if focmec_style.thematic_legend_style and len(legend_artists) > 0:
+				thematic_legend = ThematicLegend(legend_artists, legend_labels, focmec_style.thematic_legend_style)
+				self.thematic_legends.append(thematic_legend)
 
 	def draw_geotiff(self, tif_filespec):
 		# TODO

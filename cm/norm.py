@@ -42,7 +42,6 @@ class PiecewiseLinearNorm(matplotlib.colors.Normalize):
 	def __call__(self, value, clip=None):
 		breakpoint_values = np.linspace(0, 1, len(self.breakpoints))
 		out_values = interpolate(self.breakpoints, breakpoint_values, value)
-		print out_values
 		try:
 			mask = value.mask
 		except:

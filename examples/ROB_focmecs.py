@@ -49,7 +49,7 @@ layers.append(layer)
 
 ## Focal mechanisms
 catalog = seismodb.query_ROB_LocalEQCatalog(region=region)
-lons, lats, values, sdr = [],[], {"ML": [], "sof": []}, []
+lons, lats, values, sdr = [],[], {"ML": [], "sof": [], "rake": []}, []
 focmec_records = seismodb.query_ROB_FocalMechanisms(region=region)
 for rec in focmec_records:
 	lons.append(rec.lon)
@@ -63,11 +63,22 @@ for rec in focmec_records:
 	else:
 		sof = "Strike slip"
 	values["sof"].append(sof)
+	values["rake"].append(rec.rake)
 focmec_data = FocmecData(lons, lats, sdr, values)
 focmec_data.sort(value_key="ML", ascending=False)
 thematic_size = ThematicStyleGradient([1,3,5], [5,15,30], value_key="ML")
-thematic_color = ThematicStyleIndividual(["Normal", "Reverse", "Strike slip"], ['green', "red", "yellow"], value_key="sof")
-focmec_style = FocmecStyle(size=thematic_size, fill_color=thematic_color)
+
+#colorbar_style = ColorbarStyle(title="Style of faulting", format="%s", spacing="uniform")
+#colorbar_style = None
+#thematic_color = ThematicStyleIndividual(["Normal", "Strike slip", "Reverse"], ['green', "yellow", "red"], value_key="sof", labels=["Normal", "Strike slip", "Reverse"], colorbar_style=colorbar_style)
+#thematic_legend_style = LegendStyle(title="Style of faulting", location=1)
+
+colorbar_style = ColorbarStyle(title="Rake", format="%s", ticks=None, spacing="proportional")
+thematic_color = ThematicStyleRanges([-180, -135, -45, 45, 135, 180], ['yellow', "green", "yellow", "red", "yellow"], value_key="rake", colorbar_style=colorbar_style)
+#thematic_color = ThematicStyleGradient([-180, -90, 0, 90, 180], ['yellow', "green", "yellow", "red", "yellow"], value_key="rake", colorbar_style=colorbar_style)
+thematic_legend_style = None
+
+focmec_style = FocmecStyle(size=thematic_size, fill_color=thematic_color, thematic_legend_style=thematic_legend_style)
 layer = MapLayer(focmec_data, focmec_style)
 layers.append(layer)
 
