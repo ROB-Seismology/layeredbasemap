@@ -201,7 +201,6 @@ class LayeredBasemap:
 						## interpret thematic_legend_style as colorbar_style
 						colorbar_style = style.thematic_legend_style
 					#sm = style.fill_color.to_scalar_mappable()
-					#sm.set_array(style.fill_color.values)
 					#self.draw_colorbar(sm, colorbar_style)
 					self.draw_colorbar(cs, colorbar_style)
 				else:
@@ -356,7 +355,6 @@ class LayeredBasemap:
 						## interpret thematic_legend_style as colorbar_style
 						colorbar_style = polygon_style.thematic_legend_style
 					sm = polygon_style.fill_color.to_scalar_mappable()
-					#sm.set_array(polygon_style.fill_color.values)
 					if not isinstance(polygon_style.fill_color, ThematicStyleColormap):
 						colorbar_style.ticks = polygon_style.fill_color.values
 					self.draw_colorbar(sm, colorbar_style)
@@ -366,7 +364,6 @@ class LayeredBasemap:
 						ntl = polygon_style.get_non_thematic_style()
 						ntl.fill_color = color
 						p = matplotlib.patches.Rectangle((0, 0), 1, 1, fill=1, **ntl.to_kwargs())
-						#p = matplotlib.patches.Circle((0,0), 1, fill=1, fc=color)
 						legend_artists.append(p)
 			## Line color
 			if isinstance(polygon_style.line_color, ThematicStyle) and polygon_style.line_color.add_legend:
@@ -376,7 +373,6 @@ class LayeredBasemap:
 						## interpret thematic_legend_style as colorbar_style
 						colorbar_style = polygon_style.thematic_legend_style
 					sm = polygon_style.line_color.to_scalar_mappable()
-					#sm.set_array(polygon_style.line_color.values)
 					if not isinstance(polygon_style.line_color, ThematicStyleColormap):
 						colorbar_style.ticks = polygon_style.line_color.values
 					self.draw_colorbar(sm, colorbar_style)
@@ -467,7 +463,6 @@ class LayeredBasemap:
 						## interpret thematic_legend_style as colorbar_style
 						colorbar_style = line_style.thematic_legend_style
 					sm = line_style.line_color.to_scalar_mappable()
-					#sm.set_array(line_style.line_color.values)
 					if not isinstance(line_style.line_color, ThematicStyleColormap):
 						colorbar_style.ticks = line_style.line_color.values
 					self.draw_colorbar(sm, colorbar_style)
@@ -717,17 +712,16 @@ class LayeredBasemap:
 			if grid_style.color_gradient:
 				self.draw_colorbar(cs, colorbar_style)
 
-	def draw_colorbar(self, sm, style, tick_labels=None):
+	def draw_colorbar(self, sm, style):
 		"""
 		sm: scalarmappable
 		"""
 		cbar = self.map.colorbar(sm, **style.to_kwargs())
 		# TODO: do set_label and set_ticklabels accept font kwargs?
 		cbar.set_label(style.title)
-		if tick_labels:
-			cbar.set_ticklabels(tick_labels)
+		if style.tick_labels:
+			cbar.set_ticklabels(style.tick_labels)
 		return cbar
-
 
 	def draw_continents(self, continent_style):
 		if continent_style.fill_color or continent_style.bg_color:
@@ -817,7 +811,7 @@ class LayeredBasemap:
 			self.ax.add_collection(b)
 		self.zorder += 1
 
-		# TODO: add thematic legend
+		# Add thematic legend
 		if focmec_style.is_thematic:
 			legend_artists, legend_labels = [], []
 			## Fill color
@@ -828,22 +822,53 @@ class LayeredBasemap:
 						## interpret thematic_legend_style as colorbar_style
 						colorbar_style = focmec_style.thematic_legend_style
 					sm = focmec_style.fill_color.to_scalar_mappable()
-					#sm.set_array(focmec_style.fill_color.values)
-					# TODO: we can move the following to ThematicStyleXXX
-					tick_labels = None
-					if not isinstance(focmec_style.fill_color, ThematicStyleColormap):
-						colorbar_style.ticks = sm.get_array()
-						if not isinstance(focmec_style.fill_color, ThematicStyleRanges):
-							tick_labels = focmec_style.fill_color.labels
-					self.draw_colorbar(sm, colorbar_style, tick_labels)
-				if isinstance(focmec_style.fill_color, (ThematicStyleIndividual,  ThematicStyleRanges)):
+					self.draw_colorbar(sm, colorbar_style)
+				elif isinstance(focmec_style.fill_color, (ThematicStyleIndividual,  ThematicStyleRanges)):
 					legend_labels.extend(focmec_style.fill_color.labels)
 					for color in focmec_style.fill_color.styles:
 						ntl = focmec_style.get_non_thematic_style()
 						ntl.fill_color = color
+						ntl.size = 10
 						## Legend does not support <matplotlib.collections.PatchCollection object
-						b = Beach(focmec_data.sdr[0], xy=(0, 0), **ntl.to_kwargs())
+						#b = Beach(focmec_data.sdr[0], xy=(0, 0), **ntl.to_kwargs())
+						## Circle patches show up as rectangles in legend...
+						#b = matplotlib.patches.Circle((0,0), radius=1, fill=1, fc=color, ec=ntl.line_color, lw=ntl.line_width, alpha=ntl.alpha)
+						b = matplotlib.lines.Line2D([0], [0], ls="None", lw=0, **ntl.to_point_style().to_kwargs())
 						legend_artists.append(b)
+			## Line color
+			if isinstance(focmec_style.line_color, ThematicStyle) and focmec_style.line_color.add_legend:
+				colorbar_style = focmec_style.line_color.colorbar_style
+				if isinstance(focmec_style.line_color, ThematicStyleColormap) or colorbar_style:
+					if colorbar_style is None:
+						## interpret thematic_legend_style as colorbar_style
+						colorbar_style = focmec_style.thematic_legend_style
+					sm = focmec_style.line_color.to_scalar_mappable()
+					self.draw_colorbar(sm, colorbar_style)
+				elif isinstance(focmec_style.line_color, (ThematicStyleIndividual,  ThematicStyleRanges)):
+					legend_labels.extend(focmec_style.line_color.labels)
+					for color in focmec_style.line_color.styles:
+						ntl = focmec_style.get_non_thematic_style()
+						ntl.line_color = color
+						ntl.size = 10
+						#ntl.fill_color = "none"
+						b = matplotlib.lines.Line2D([0], [0], ls="None", lw=0, **ntl.to_point_style().to_kwargs())
+						legend_artists.append(b)
+			## Marker size
+			if isinstance(focmec_style.size, (ThematicStyleIndividual, ThematicStyleRanges, ThematicStyleGradient)) and focmec_style.size.add_legend:
+				legend_labels.extend(focmec_style.size.labels)
+				for size in focmec_style.size.styles:
+					ntl = focmec_style.get_non_thematic_style()
+					ntl.size = size
+					b = matplotlib.lines.Line2D([0], [0], ls="None", lw=0, **ntl.to_point_style().to_kwargs())
+					legend_artists.append(b)
+			## Line width
+			if isinstance(focmec_style.line_width, (ThematicStyleIndividual, ThematicStyleRanges, ThematicStyleGradient)) and focmec_style.line_width.add_legend:
+				legend_labels.extend(focmec_style.line_width.labels)
+				for line_width in focmec_style.line_width.styles:
+					ntl = focmec_style.get_non_thematic_style()
+					ntl.line_width = line_width
+					b = matplotlib.lines.Line2D([0], [0], ls="None", lw=0, **ntl.to_point_style().to_kwargs())
+					legend_artists.append(b)
 
 			if focmec_style.thematic_legend_style and len(legend_artists) > 0:
 				thematic_legend = ThematicLegend(legend_artists, legend_labels, focmec_style.thematic_legend_style)

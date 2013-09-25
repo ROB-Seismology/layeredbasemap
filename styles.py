@@ -549,6 +549,15 @@ class FocmecStyle:
 		bg_color = self.bg_color
 		return FocmecStyle(size, line_width, line_color, fill_color, bg_color, self.alpha, self.thematic_legend_style)
 
+	def to_point_style(self):
+		"""
+		Convert to point style
+
+		:return:
+			instance of :class:`PointStyle`
+		"""
+		return PointStyle(shape='o', size=self.size, line_width=self.line_width, line_color=self.line_color, fill_color=self.fill_color, alpha=self.alpha, thematic_legend_style=self.thematic_legend_style)
+
 	def to_kwargs(self):
 		"""
 		Return a dictionary with keys corresponding to matplotlib parameter names,
@@ -699,6 +708,14 @@ class ThematicStyleIndividual(ThematicStyle):
 				else:
 					self.labels.append(str(val))
 
+		## Override colorbar default ticks and tick_labels
+		if self.colorbar_style and self.is_color_style():
+			if self.colorbar_style.ticks is None:
+				sm = self.to_scalar_mappable()
+				self.colorbar_style.ticks = sm.get_array()
+			if self.colorbar_style.tick_labels is None:
+				self.colorbar_style.tick_labels = self.labels
+
 	def __call__(self, values):
 		"""
 		Convert data values to style values
@@ -784,6 +801,14 @@ class ThematicStyleRanges(ThematicStyle):
 			for i in range(len(self.styles)):
 				self.labels.append("%s - %s" % (self.values[i], self.values[i+1]))
 
+		## Override colorbar default ticks and tick_labels
+		if self.colorbar_style and self.is_color_style():
+			if self.colorbar_style.ticks is None:
+				sm = self.to_scalar_mappable()
+				self.colorbar_style.ticks = sm.get_array()
+			if self.colorbar_style.tick_labels is None and labels:
+				self.colorbar_style.tick_labels = labels
+
 	def __call__(self, values):
 		"""
 		Convert data values to style values
@@ -858,6 +883,14 @@ class ThematicStyleGradient(ThematicStyle):
 			self.labels = labels
 		else:
 			self.labels = map(str, self.values)
+
+		## Override colorbar default ticks and tick_labels
+		if self.colorbar_style and self.is_color_style():
+			if self.colorbar_style.ticks is None:
+				sm = self.to_scalar_mappable()
+				self.colorbar_style.ticks = sm.get_array()
+			if self.colorbar_style.tick_labels is None and labels:
+				self.colorbar_style.tick_labels = labels
 
 	def __call__(self, values):
 		"""
@@ -1020,7 +1053,12 @@ class ColorbarStyle:
 		(default: "uniform")
 	:param ticks:
 		list of ticks or matplotlib Locator object
-		If None, ticks are determined automatically by matplotlib
+		If None, ticks are determined automatically (by matplotlib or by
+		parent thematic style)
+		(default: None)
+	:param tick_labels:
+		list of tick labels. If None, tick labels are determined
+		automatically (by matplotlib or by parent thematic style)
 		(default: None)
 	:param format:
 		str or matplotlib Formatter object
@@ -1031,7 +1069,7 @@ class ColorbarStyle:
 	:param alpha:
 		Float in the range 0 - 1, opacity (default: 1.)
 	"""
-	def __init__(self, title="", location="bottom", size='5%', pad='10%', extend="neither", spacing="uniform", ticks=None, format=None, drawedges=False, alpha=1.):
+	def __init__(self, title="", location="bottom", size='5%', pad='10%', extend="neither", spacing="uniform", ticks=None, tick_labels=None, format=None, drawedges=False, alpha=1.):
 		self.title = title
 		self.location = location
 		self.size = size
@@ -1039,6 +1077,7 @@ class ColorbarStyle:
 		self.extend = extend
 		self.spacing = spacing
 		self.ticks = ticks
+		self.tick_labels = tick_labels
 		self.format = format
 		self.drawedges = drawedges
 		self.alpha = alpha
