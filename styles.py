@@ -1168,3 +1168,95 @@ class LegendStyle:
 		self.num_points = num_points
 		self.alpha = alpha
 
+
+class ScalebarStyle:
+	"""
+	Style defining how to plot scale bar
+
+	:param center:
+		(lon, lat) tuple: position of scale bar in geographic coordinates
+	:param length:
+		float, distance represented by scale bar
+	:param units:
+		str, units of :param:`length` (default: 'km')
+	:param bar_style:
+		str, style of scale bar, either "simple" or "fancy"
+		(default: "simple")
+	:param yoffset:
+		float, controls how tall the scale bar is, and how far the
+		annotations are offset from the scale bar.
+		(default: None, corresponds to 0.02 times the height of the map)
+	:param label_style:
+		str, either "simple" or "default", or False. If False, label
+		will be empth (default: "simple")
+	:param font_size:
+		int, font size for map scale annotations (default: 9)
+	:param font_color:
+		matplotlib color spec, color for map scale annotations (default: 'k')
+	:param format:
+		str, string formatter to format numeric values
+	:param fill_color1:
+	:param fill_color2:
+		matplotlib color spec, colors of the alternating filled regions
+		for "fancy" barstyle (default: 'w' and 'k')
+	"""
+	def __init__(self, center, length, units='km', bar_style='simple', yoffset=None, label_style='simple', font_size=9, font_color='k', format='%d', fill_color1='w', fill_color2='k'):
+		self.center = center
+		self.length = length
+		self.units = units
+		self.bar_style = bar_style
+		self.yoffset = yoffset
+		self.label_style = label_style
+		self.font_size = font_size
+		self.font_color = font_color
+		self.format = format
+		self.fill_color1 = fill_color1
+		self.fill_color2 = fill_color2
+
+	@property
+	def lon(self):
+		return self.center[0]
+
+	@property
+	def lat(self):
+		return self.center[1]
+
+	def to_kwargs(self):
+		d = {}
+		d["lon"] = self.lon
+		d["lat"] = self.lat
+		d["length"] = self.length
+		d["units"] = self.units
+		d["barstyle"] = self.bar_style
+		d["yoffset"] = self.yoffset
+		d["labelstyle"] = self.label_style
+		d["fontsize"] = self.font_size
+		d["fontcolor"] = self.font_color
+		d["fillcolor1"] = self.fill_color1
+		d["fillcolor2"] = self.fill_color2
+		return d
+
+
+class MapBorderStyle:
+	"""
+	Style defining how to plot map border
+
+	:param line_width:
+		float, line width of map border (default: 1)
+	:param line_color:
+		matplotlib color spec, color of border line (default: 'k')
+	:param fill_color:
+		matplotlib color spec, color for map region background
+		(default: None)
+	"""
+	def __init__(self, line_width=1, line_color="k", fill_color=None):
+		self.line_width = line_width
+		self.line_color = line_color
+		self.fill_color = fill_color
+
+	def to_kwargs(self):
+		d = {}
+		d["linewidth"] = self.line_width
+		d["color"] = self.line_color
+		d["fill_color"] = self.fill_color
+		return d

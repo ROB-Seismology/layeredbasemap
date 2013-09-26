@@ -35,6 +35,8 @@ layers.append(layer)
 legend_style = LegendStyle(location=0)
 title_style = DefaultTitleTextStyle
 title_style.weight = "bold"
-map = LayeredBasemap(layers, title, projection, region=region, title_style=title_style, grid_interval=grid_interval, resolution=resolution, legend_style=legend_style)
+scalebar_style = ScalebarStyle((1.,49.25), 100, bar_style="fancy")
+border_style = MapBorderStyle(line_width=2)
+map = LayeredBasemap(layers, title, projection, region=region, title_style=title_style, grid_interval=grid_interval, resolution=resolution, legend_style=legend_style, scalebar_style=scalebar_style, border_style=border_style)
 map.plot()
 

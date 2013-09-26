@@ -60,7 +60,7 @@ class ThematicLegend:
 
 
 class LayeredBasemap:
-	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), size=(None, None), grid_interval=(None, None), resolution="i", annot_axes="SE", title_style=DefaultTitleTextStyle, legend_style=LegendStyle()):
+	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), size=(None, None), grid_interval=(None, None), resolution="i", annot_axes="SE", title_style=DefaultTitleTextStyle, legend_style=LegendStyle(), scalebar_style=None, border_style=MapBorderStyle()):
 		self.layers = layers
 		self.title = title
 		self.region = region
@@ -70,12 +70,14 @@ class LayeredBasemap:
 		self.grid_interval = grid_interval
 		self.resolution = resolution
 		self.annot_axes = annot_axes
-		self.legend_style = legend_style
 		self.title_style = title_style
+		self.legend_style = legend_style
+		self.scalebar_style = scalebar_style
+		self.border_style = border_style
+
 		self.map = self.init_basemap()
 		self.ax = pylab.gca()
 		self.thematic_legends = []
-		#self.draw()
 
 	#@property
 	#def ax(self):
@@ -991,8 +993,10 @@ class LayeredBasemap:
 
 	def draw_decoration(self):
 		self.draw_graticule()
+		self.draw_scalebar()
 		self.draw_legend()
 		self.draw_title()
+		self.draw_map_border()
 
 	def draw_legend(self):
 		## Thematic legends
@@ -1079,6 +1083,16 @@ class LayeredBasemap:
 			parallels = np.arange(first_parallel, last_parallel, self.dlat)
 			self.map.drawparallels(parallels, labels=ax_labels, zorder=self.zorder)
 		self.zorder += 1
+
+	def draw_scalebar(self):
+		if self.scalebar_style:
+			lon0, lat0 = self.lon_0, self.lat_0
+			self.map.drawmapscale(lon0=lon0, lat0=lat0, zorder=self.zorder, **self.scalebar_style.to_kwargs())
+			self.zorder += 1
+
+	def draw_map_border(self):
+		if self.border_style:
+			self.map.drawmapboundary(zorder=10000, ax=self.ax, **self.border_style.to_kwargs())
 
 	def draw(self):
 		self.draw_layers()
