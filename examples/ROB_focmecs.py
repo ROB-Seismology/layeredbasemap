@@ -68,15 +68,15 @@ focmec_data = FocmecData(lons, lats, sdr, values)
 focmec_data.sort(value_key="ML", ascending=False)
 thematic_size = ThematicStyleGradient([1,3,5], [5,15,30], value_key="ML")
 
-colorbar_style = ColorbarStyle(title="Style of faulting", format="%s", spacing="uniform")
+#colorbar_style = ColorbarStyle(title="Style of faulting", format="%s", spacing="uniform")
 #colorbar_style = None
-thematic_color = ThematicStyleIndividual(["Normal", "Strike slip", "Reverse"], ['green', "yellow", "red"], value_key="sof", labels=["Normal", "Strike slip", "Reverse"], colorbar_style=colorbar_style)
-thematic_legend_style = LegendStyle(title="Focal mechanisms", location=1)
+#thematic_color = ThematicStyleIndividual(["Normal", "Strike slip", "Reverse"], ['green', "yellow", "red"], value_key="sof", colorbar_style=colorbar_style)
+#thematic_legend_style = LegendStyle(title="Focal mechanisms", location=1, label_spacing=1)
 
-#colorbar_style = ColorbarStyle(title="Rake", format="%s", ticks=None, spacing="proportional")
-#thematic_color = ThematicStyleRanges([-180, -135, -45, 45, 135, 180], ['yellow', "green", "yellow", "red", "yellow"], value_key="rake", colorbar_style=colorbar_style)
-#thematic_color = ThematicStyleGradient([-180, -90, 0, 90, 180], ['yellow', "green", "yellow", "red", "yellow"], value_key="rake", colorbar_style=colorbar_style)
-#thematic_legend_style = None
+colorbar_style = ColorbarStyle(title="Rake", format="%s", ticks=None, spacing="proportional")
+thematic_color = ThematicStyleRanges([-180, -135, -45, 45, 135, 180], ['yellow', "green", "yellow", "red", "yellow"], value_key="rake", colorbar_style=colorbar_style)
+#thematic_color = ThematicStyleGradient([-180, -90, 0, 90, 180], ['yellow', "green", "yellow", "red", "yellow"], labels=["RL", "Nf", "LL", "Tf", "RL"], value_key="rake", colorbar_style=colorbar_style)
+thematic_legend_style = None
 
 focmec_style = FocmecStyle(size=thematic_size, fill_color=thematic_color, thematic_legend_style=thematic_legend_style)
 layer = MapLayer(focmec_data, focmec_style)

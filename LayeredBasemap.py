@@ -443,6 +443,8 @@ class LayeredBasemap:
 			self._draw_line(line, style, legend_label)
 		self.zorder += 1
 		if line_data.labels and line_style.label_style:
+			# TODO: rotate labels
+			# See http://stackoverflow.com/questions/18780198/how-to-rotate-matplotlib-annotation-to-match-a-line
 			midpoints = MultiPointData([], [], labels=[])
 			for line in line_data:
 				midpoint = line.get_midpoint()

@@ -17,7 +17,7 @@ def get_cmap(category, name):
 		matplotlib Colormap instance or None
 	"""
 	cmap_name = name.lower() + "_cmap"
-	module = __import__(__name__, fromlist=[category])
+	module = __import__(__name__ + ".%s" % category, fromlist=[category])
 	try:
 		return getattr(module, cmap_name)
 	except:
@@ -36,7 +36,7 @@ def get_norm(category, name):
 		matplotlib Normalize instance or None
 	"""
 	norm_name = name.lower() + "_norm"
-	module = __import__(__name__, fromlist=[category])
+	module = __import__(__name__ + ".%s" % category, fromlist=[category])
 	try:
 		return getattr(module, norm_name)
 	except:

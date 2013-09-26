@@ -543,7 +543,8 @@ class FocmecStyle:
 		else:
 			line_color = self.line_color
 		if isinstance(self.fill_color, ThematicStyle):
-			fill_color = 'k'
+			#fill_color = 'k'
+			fill_color = self.bg_color
 		else:
 			fill_color = self.fill_color
 		bg_color = self.bg_color
@@ -682,7 +683,8 @@ class ThematicStyleIndividual(ThematicStyle):
 		list of style values (numbers or matplotlib colors) corresponding
 		to intervals between given data values
 	:param labels:
-		labels corresponding to data classes
+		labels corresponding to data classes, and which will be used in
+		the thematic legend or color bar
 		(default: [], will use :param:`values`)
 	:param value_key:
 	:param add_legend:
@@ -783,7 +785,8 @@ class ThematicStyleRanges(ThematicStyle):
 		to intervals between given data values.
 		Note that number of styles must be one less than number of values
 	:param labels:
-		labels corresponding to breakpoints
+		labels corresponding to breakpoints, and which will be used in
+		the thematic legend or color bar
 		(default: [], will use :param:`values`)
 	:param value_key:
 	:param add_legend:
@@ -868,7 +871,8 @@ class ThematicStyleGradient(ThematicStyle):
 		list of style values (numbers or matplotlib colors) corresponding
 		to given data values
 	:param labels:
-		labels corresponding to breakpoints
+		labels corresponding to breakpoints, and which will be used in
+		the thematic legend or color bar
 		(default: [], will use :param:`values`)
 	:param value_key:
 	:param add_legend:
