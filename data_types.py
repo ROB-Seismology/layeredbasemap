@@ -41,6 +41,15 @@ class PointData(BasemapData):
 	def to_wkt(self):
 		return self.to_shapely().wkt
 
+	def to_multi_point(self):
+		if isinstance(self.value, dict):
+			values = {}
+			for key in self.value:
+				values[key] = [self.value[key]]
+		else:
+			values = [self.value]
+		return MultiPointData([self.lon], [self.lat], values=values, labels=[self.label])
+
 	@classmethod
 	def from_wkt(cls, wkt):
 		pt = shapely.geometry.Point(shapely.wkt.loads(wkt))

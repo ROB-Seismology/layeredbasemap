@@ -649,7 +649,7 @@ class LayeredBasemap:
 			center = (circle_data.lons[i], circle_data.lats[i])
 			radius = circle_data.radii[i]
 			lons, lats = [], []
-			for azimuth in np.arange(0., 360., circle_data.azimuthal_resolution):
+			for azimuth in np.arange(0., 361., circle_data.azimuthal_resolution):
 				lon, lat = geodetic.get_point_at(center, radius, azimuth)
 				lons.append(lon)
 				lats.append(lat)

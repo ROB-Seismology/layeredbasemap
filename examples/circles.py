@@ -26,10 +26,18 @@ layer = MapLayer(data, country_style)
 layers.append(layer)
 
 ## Circles
-circle_data = CircleData([4.5, 4.5, 4.5], [50.5, 50.5, 50.5], [25, 50, 75], values=[25, 50, 75], azimuthal_resolution=5)
-thematic_color = ThematicStyleIndividual([25, 50, 75], ["yellow", "orange", "red"], colorbar_style=None)
+uccle = (4.367785, 50.795003)
+distances = [25, 50, 75, 100]
+circle_data = CircleData([uccle[0]]*4, [uccle[1]]*4, distances, values=distances, azimuthal_resolution=5)
+thematic_color = ThematicStyleIndividual(distances, ["yellow", "orange", "red", "purple"], colorbar_style=None)
 circle_style = LineStyle(line_color=thematic_color, line_width=2)
 layer = MapLayer(circle_data, circle_style)
+layers.append(layer)
+
+## Point
+point_data = PointData(*uccle).to_multi_point()
+point_style = PointStyle(shape='*')
+layer = MapLayer(point_data, point_style)
 layers.append(layer)
 
 legend_style = LegendStyle(location=0)
