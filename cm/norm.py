@@ -12,12 +12,13 @@ def interpolate(xin, yin, xout):
 	if np.all(np.diff(xin) <= 0):
 		xin, yin = xin[::-1], yin[::-1]
 	## SciPy
-	#from scipy.interpolate import interp1d
-	#interpolator = interp1d(xin, yin, bounds_error=False)
-	#yout = interpolator(xout)
+	from scipy.interpolate import interp1d
+	interpolator = interp1d(xin, yin, bounds_error=False)
+	yout = interpolator(xout)
 
 	## Numpy
-	yout = np.interp(xout, xin, yin, left=yin[0], right=yin[-1])
+	## does not handle NaN correctly
+	#yout = np.interp(xout, xin, yin, left=yin[0], right=yin[-1])
 
 	return yout
 
