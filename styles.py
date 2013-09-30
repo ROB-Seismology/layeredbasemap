@@ -1115,6 +1115,11 @@ class GridStyle:
 		Defines if color_gradient should be continuous or discontinuous.
 		If None, only contour lines will be plotted.
 		(default: "continuous")
+	:param pixelated:
+		bool, whether grid cells should have a flat color (True) or
+		shaded (False). Only applies when :param:`color_gradient` is
+		set to "continuous"
+		(default: False)
 	:param line_style:
 		instance of :class:`LineStyle`, defining how contour lines will
 		be plotted
@@ -1128,9 +1133,10 @@ class GridStyle:
 	Note: format of contour labels is determined by format property
 	of colorbar_style.
 	"""
-	def __init__(self, color_map_theme=ThematicStyleColormap("jet"), color_gradient="continuous", line_style=None, contour_levels=None, colorbar_style=None):
+	def __init__(self, color_map_theme=ThematicStyleColormap("jet"), color_gradient="continuous", pixelated=False, line_style=None, contour_levels=None, colorbar_style=None):
 		self.color_map_theme = color_map_theme
 		self.color_gradient = color_gradient
+		self.pixelated = pixelated
 		self.line_style = line_style
 		self.contour_levels = contour_levels
 		if colorbar_style:

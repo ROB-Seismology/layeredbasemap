@@ -688,7 +688,21 @@ class LayeredBasemap:
 					cmap_obj = cmap
 				cs = self.map.contourf(x, y, grid_data.values, levels=grid_style.contour_levels, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, extend="both", alpha=alpha, zorder=self.zorder)
 			elif grid_style.color_gradient == "continuous":
-				cs = self.map.pcolor(x, y, grid_data.values, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, alpha=alpha, zorder=self.zorder)
+				## Necessary for pcolor, but not for pcolormesh??
+				#dlon = grid_data.lons[0,1] - grid_data.lons[0,0]
+				#dlat = grid_data.lats[1,0] - grid_data.lats[0,0]
+				#nlons, nlats = grid_data.values.shape
+				#corner_lons = np.zeros((nlons+1, nlats+1))
+				#corner_lats = np.zeros((nlons+1, nlats+1))
+				#corner_lons[:-1,:-1] = grid_data.lons - dlon
+				#corner_lons[:-1,-1] = grid_data.lons[:,-1] + dlon
+				#corner_lons[-1,:] = corner_lons[-2,:]
+				#corner_lats[:-1,:-1] = grid_data.lats - dlat
+				#corner_lats[-1,:-1] = grid_data.lats[-1,:] + dlat
+				#corner_lats[:,-1] = corner_lats[:,-2]
+				#corner_x, corner_y = self.map(corner_lons, corner_lats)
+				shading = {True: 'flat', False: 'gouraud'}[grid_style.pixelated]
+				cs = self.map.pcolormesh(x, y, grid_data.values, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, shading=shading, alpha=alpha, zorder=self.zorder)
 			self.zorder += 1
 
 		if grid_style.line_style:
