@@ -54,10 +54,26 @@ class PiecewiseLinearNorm(matplotlib.colors.Normalize):
 		return out_values
 
 	def to_piecewise_constant_norm(self):
+		"""
+		Convert to piecewise constant norm
+
+		:return:
+			instance of :class:`PiecewiseConstantNorm`
+		"""
 		return PiecewiseConstantNorm(self.breakpoints)
 
 
 class PiecewiseConstantNorm(matplotlib.colors.Normalize):
+	"""
+	Normalize a given value to the 0-1 range as constant "plateaus"
+	between a number of breakpoints,
+	for use in matplotlib plotting functions involving color maps.
+
+	:param breakpoints:
+		list or array, containing a number of breakpoints in ascending order,
+		including the minimum and maximum value. These will be uniformly spaced
+		in the color domain.
+	"""
 	def __init__(self, breakpoints):
 		vmin = breakpoints[0]
 		vmax = breakpoints[-1]

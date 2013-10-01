@@ -1117,8 +1117,7 @@ class GridStyle:
 		(default: "continuous")
 	:param pixelated:
 		bool, whether grid cells should have a flat color (True) or
-		shaded (False). Only applies when :param:`color_gradient` is
-		set to "continuous"
+		shaded (False).
 		(default: False)
 	:param line_style:
 		instance of :class:`LineStyle`, defining how contour lines will

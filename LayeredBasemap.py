@@ -689,10 +689,10 @@ class LayeredBasemap:
 			if grid_style.color_gradient == "discontinuous":
 				if isinstance(norm, PiecewiseLinearNorm):
 					norm = norm.to_piecewise_constant_norm()
+
+			if grid_style.color_gradient == "discontinuous" and grid_style.pixelated == False:
 				cs = self.map.contourf(x, y, grid_data.values, levels=grid_style.contour_levels, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, extend="both", alpha=alpha, zorder=self.zorder)
-				#cs = grid_style.color_map_theme.to_scalar_mappable()
-				#cs.set_array(grid_style.contour_levels)
-			elif grid_style.color_gradient == "continuous":
+			else:
 				## Necessary for pcolor, but not for pcolormesh??
 				#dlon = grid_data.lons[0,1] - grid_data.lons[0,0]
 				#dlat = grid_data.lats[1,0] - grid_data.lats[0,0]

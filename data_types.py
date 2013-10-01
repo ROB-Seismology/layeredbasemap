@@ -512,13 +512,119 @@ class CompositeData(BasemapData):
 
 class GridData(BasemapData):
 	def __init__(self, lons, lats, values):
-		self.lons = lons
-		self.lats = lats
-		self.values = values
+		self.lons = np.asarray(lons)
+		self.lats = np.asarray(lats)
+		self.values = np.asarray(values)
+
+
+class MeshGridData(GridData):
+	"""
+	Meshed grid data, representing a grid with regular longitudinal and
+	latitudinal spacing
+
+	:param lons:
+		2-D array
+	:param lats:
+		2-D array
+	:param values:
+		2-D array
+	"""
+	def __init__(self, lons, lats, values):
+		if lons.ndim != 2 or lats.ndim != 2 or values.ndim != 2:
+			raise ValueError("lons, lats, and values should be 2-dimensional")
+		dlon = np.diff(lons)
+		dlat = np.diff(lats)
+		if not np.allclose(dlon, dlon[0]) or not np.allclose(dlat, dlat[0]):
+			raise ValueError("Grid spacing must be uniform")
+		super(MeshGridData, self).__init__(lons, lats, values)
+
+	@property
+	def dlon(self):
+		return self.lons[0,1] - self.lons[0,0]
+
+	@property
+	def dlat(self):
+		return self.lats[1,0] - self.lats[0,0]
 
 	def mask_oceans(self, resolution, mask_lakes=False, grid_spacing=1.25):
 		from mpl_toolkits.basemap import maskoceans
-		return maskoceans(self.lons, self.lats, self.values, inlands=mask_lakes, resolution=resolution, grid=grid_spacing)
+		masked_values = maskoceans(self.lons, self.lats, self.values, inlands=mask_lakes, resolution=resolution, grid=grid_spacing)
+		return MeshGridData(self.lons, self.lats, masked_values)
+
+
+class UnstructuredGridData(GridData):
+	"""
+	Unstructured 2-dimensional data
+
+	:param lons:
+		1-D array of longitudes
+	:param lats:
+		1-D array of latitudes
+	:param values:
+		1-D array of values
+	"""
+	def __int__(self, lons, lats, values):
+		if lons.ndim != 1 or lats.ndim != 1 or values.ndim != 1:
+			raise ValueError("lons, lats, and values should be 1-dimensional")
+		super(UnstructuredGridData, self).__init__(lons, lats, values)
+
+	def lonmin(self):
+		"""
+		Return minimum longitude
+		"""
+		return self.lons.min()
+
+	def lonmax(self):
+		"""
+		Return maximum longitude
+		"""
+		return self.lons.max()
+
+	def latmin(self):
+		"""
+		Return minimum latitude
+		"""
+		return self.lats.min()
+
+	def latmax(self):
+		"""
+		Return maximum latitude
+		"""
+		return self.lats.max()
+
+	def to_mesh_grid_data(self, num_cells, extent=(None, None, None, None), interpolation_method='cubic'):
+		"""
+		Convert to meshed grid data
+
+		:param num_cells:
+			Integer or tuple, number of grid cells in lon and lat direction
+		:param extent:
+			(lonmin, lonmax, latmin, latmax) tuple of floats
+			(default: (None, None, None, None)
+		:param interpolation_method:
+			Str, interpolation method supported by griddata (either
+			"linear", "nearest" or "cubic") (default: "cubic")
+
+		:return:
+			instance of :class:`MeshGridData`
+		"""
+		from scipy.interpolate import griddata
+		if isinstance(num_cells, int):
+			num_lons = num_lats = num_cels
+		lonmin, lonmax, latmin, latmax = extent
+		if lonmin is None:
+			lonmin = self.lonmin()
+		if lonmax is None:
+			lonmax = self.lonmax()
+		if latmin is None:
+			latmin = self.latmin()
+		if latmax is None:
+			latmax = self.latmax()
+		lons = np.linspace(lonmin, lonmax, num_lons)
+		lats = np.linspace(latmin, latmax, num_lats)
+		mesh_lons, mesh_lats = np.meshgrid(lons, lats)
+		mesh_values = griddata((self.lons, self.lats), self.values, (mesh_lons, mesh_lats), method=interpolation_method)
+		return MeshGridData(mesh_lons, mesh_lats, mesh_values)
 
 
 class GisData(BasemapData):
