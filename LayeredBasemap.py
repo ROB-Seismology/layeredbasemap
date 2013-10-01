@@ -662,6 +662,7 @@ class LayeredBasemap:
 			self.draw_line_layer(circles, circle_style, legend_label)
 
 	def draw_grid_layer(self, grid_data, grid_style, legend_label=""):
+		from cm.norm import PiecewiseLinearNorm
 		x, y = self.map(grid_data.lons, grid_data.lats)
 
 		if grid_style.color_map_theme:
@@ -680,13 +681,17 @@ class LayeredBasemap:
 		## I think this is a bug in pcolor, as it does not occur with contourf
 
 		if cmap:
+			if isinstance(cmap, str):
+				#cmap_obj = getattr(matplotlib.cm, cmap)
+				cmap_obj = matplotlib.cm.get_cmap(cmap)
+			else:
+				cmap_obj = cmap
 			if grid_style.color_gradient == "discontinuous":
-				if isinstance(cmap, str):
-					#cmap_obj = getattr(matplotlib.cm, cmap)
-					cmap_obj = matplotlib.cm.get_cmap(cmap)
-				else:
-					cmap_obj = cmap
+				if isinstance(norm, PiecewiseLinearNorm):
+					norm = norm.to_piecewise_constant_norm()
 				cs = self.map.contourf(x, y, grid_data.values, levels=grid_style.contour_levels, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, extend="both", alpha=alpha, zorder=self.zorder)
+				#cs = grid_style.color_map_theme.to_scalar_mappable()
+				#cs.set_array(grid_style.contour_levels)
 			elif grid_style.color_gradient == "continuous":
 				## Necessary for pcolor, but not for pcolormesh??
 				#dlon = grid_data.lons[0,1] - grid_data.lons[0,0]
@@ -702,7 +707,7 @@ class LayeredBasemap:
 				#corner_lats[:,-1] = corner_lats[:,-2]
 				#corner_x, corner_y = self.map(corner_lons, corner_lats)
 				shading = {True: 'flat', False: 'gouraud'}[grid_style.pixelated]
-				cs = self.map.pcolormesh(x, y, grid_data.values, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, shading=shading, alpha=alpha, zorder=self.zorder)
+				cs = self.map.pcolormesh(x, y, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, alpha=alpha, zorder=self.zorder)
 			self.zorder += 1
 
 		if grid_style.line_style:
@@ -734,7 +739,7 @@ class LayeredBasemap:
 		"""
 		sm: scalarmappable
 		"""
-		cbar = self.map.colorbar(sm, **style.to_kwargs())
+		cbar = self.map.colorbar(sm, ax=self.ax, **style.to_kwargs())
 		# TODO: do set_label and set_ticklabels accept font kwargs?
 		cbar.set_label(style.title)
 		if style.tick_labels:
