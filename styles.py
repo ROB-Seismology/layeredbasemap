@@ -969,6 +969,7 @@ class ThematicStyleColormap(ThematicStyle):
 	Note: if norm is specified, vmin and vmax will only determine the
 	range shown in the colorbar; the norm itself will not be affected.
 	"""
+	# TODO: add param labels too?
 	def __init__(self, color_map="jet", norm=None, vmin=None, vmax=None, alpha=1.0, value_key=None, add_legend=True, colorbar_style=None):
 		super(ThematicStyleColormap, self).__init__(value_key, add_legend, colorbar_style)
 		if isinstance(color_map, matplotlib.colors.Colormap):

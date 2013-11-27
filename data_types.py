@@ -6,6 +6,7 @@ Data types used in LayeredBasemap
 import numpy as np
 import shapely
 import shapely.geometry
+import shapely.wkt
 
 
 
