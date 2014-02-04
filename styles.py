@@ -71,7 +71,7 @@ class TextStyle(FontStyle):
 		matplotlib color specification (default: "None")
 	:param line_spacing:
 		Float, line spacing (multiple of font size)
-		(default: 12)
+		(default: 1.25)
 	:param rotation:
 		Float, angle in degrees, or string ("vertical" | "horizontal")
 		(default: 0.)
@@ -92,7 +92,7 @@ class TextStyle(FontStyle):
 	:param alpha:
 		Float in the range 0 - 1, opacity (default: 1.)
 	"""
-	def __init__(self, font_family="sans-serif", font_style="normal", font_variant="normal", font_stretch="normal", font_weight="normal", font_size=12, color='k', background_color="None", line_spacing=12, rotation=0, horizontal_alignment="center", vertical_alignment="center", multi_alignment="center", offset=(0,0), alpha=1.):
+	def __init__(self, font_family="sans-serif", font_style="normal", font_variant="normal", font_stretch="normal", font_weight="normal", font_size=12, color='k', background_color="None", line_spacing=1.25, rotation=0, horizontal_alignment="center", vertical_alignment="center", multi_alignment="center", offset=(0,0), alpha=1.):
 		super(TextStyle, self).__init__(font_family, font_style, font_variant, font_stretch, font_weight, font_size)
 		self.color = color
 		self.background_color = background_color
