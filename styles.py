@@ -263,6 +263,23 @@ class PointStyle:
 		d["alpha"] = self.alpha
 		return d
 
+	@classmethod
+	def from_dict(self, style_dict):
+		"""
+		Construct point style from dictionary.
+
+		:param style_dict:
+			dictionary containing point-style properties as keys
+
+		:return:
+			instance of :class:`PointStyle`
+		"""
+		point_style = PointStyle()
+		for key in style_dict.keys():
+			if hasattr(point_style, key):
+				setattr(point_style, key, style_dict[key])
+		return point_style
+
 
 class LineStyle:
 	"""
@@ -364,6 +381,23 @@ class LineStyle:
 		d["dash_joinstyle"] = self.dash_joinstyle
 		d["alpha"] = self.alpha
 		return d
+
+	@classmethod
+	def from_dict(self, style_dict):
+		"""
+		Construct line style from dictionary.
+
+		:param style_dict:
+			dictionary containing line-style properties as keys
+
+		:return:
+			instance of :class:`LineStyle`
+		"""
+		line_style = LineStyle()
+		for key in style_dict.keys():
+			if hasattr(line_style, key):
+				setattr(line_style, key, style_dict[key])
+		return line_style
 
 
 class PolygonStyle:
@@ -472,6 +506,23 @@ class PolygonStyle:
 		d["hatch"] = self.fill_hatch
 		d["alpha"] = self.alpha
 		return d
+
+	@classmethod
+	def from_dict(self, style_dict):
+		"""
+		Construct polygon style from dictionary.
+
+		:param style_dict:
+			dictionary containing polygon-style properties as keys
+
+		:return:
+			instance of :class:`PolygonStyle`
+		"""
+		polygon_style = PolygonStyle()
+		for key in style_dict.keys():
+			if hasattr(polygon_style, key):
+				setattr(polygon_style, key, style_dict[key])
+		return polygon_style
 
 
 class FocmecStyle:

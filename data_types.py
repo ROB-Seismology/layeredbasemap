@@ -533,6 +533,7 @@ class MeshGridData(GridData):
 	def __init__(self, lons, lats, values):
 		if lons.ndim != 2 or lats.ndim != 2 or values.ndim != 2:
 			raise ValueError("lons, lats, and values should be 2-dimensional")
+		## Not sure the following is really necessary
 		dlon = np.diff(lons)
 		dlat = np.diff(lats)
 		if not np.allclose(dlon, dlon[0]) or not np.allclose(dlat, dlat[0]):
