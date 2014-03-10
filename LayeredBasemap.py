@@ -11,16 +11,9 @@ import shapely
 import shapely.geometry
 
 
-import styles
-reload(styles)
 from styles import *
-
-import data_types
-reload(data_types)
 from data_types import *
-
 import cm
-reload(cm)
 
 
 
