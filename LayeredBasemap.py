@@ -143,7 +143,7 @@ class LayeredBasemap:
 		if not style.is_thematic():
 			self.map.plot(x, y, ls="None", lw=0, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
 		else:
-			legend_label = "_nolegend_"
+			#legend_label = "_nolegend_"
 			## Thematic style, use scatter method
 			if isinstance(style.size, ThematicStyle):
 				sizes = style.size(points.values)
@@ -503,7 +503,7 @@ class LayeredBasemap:
 				point_list = [point_data[index] for index in indexes]
 				marker_shape_points = MultiPointData.from_points(point_list)
 				marker_shape_style = PointStyle(shape=marker_shape, size=point_style.size, line_width=point_style.line_width, line_color=point_style.line_color, fill_color=point_style.fill_color, label_style=point_style.label_style, alpha=point_style.alpha, thematic_legend_style=point_style.thematic_legend_style)
-				legend_label = "_nolegend_"
+				#legend_label = "_nolegend_"
 				self._draw_points(marker_shape_points, marker_shape_style, legend_label, thematic_legend_artists=legend_artists, thematic_legend_labels=legend_labels)
 				## Thematic legend
 				ntl_style = point_style.get_non_thematic_style()
