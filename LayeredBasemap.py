@@ -748,6 +748,7 @@ class LayeredBasemap:
 		self.zorder += 1
 
 	def draw_coastlines(self, coastline_style):
+		# Note: linestyle doesn't work yet
 		self.map.drawcoastlines(linewidth=coastline_style.line_width, color=coastline_style.line_color, zorder=self.zorder)
 		self.zorder += 1
 

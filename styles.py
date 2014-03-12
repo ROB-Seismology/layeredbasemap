@@ -4,6 +4,7 @@ Styles used in LayeredBasemap
 
 import numpy as np
 import matplotlib
+import matplotlib.cm
 
 
 
