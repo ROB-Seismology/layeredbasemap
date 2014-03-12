@@ -493,6 +493,8 @@ class LayeredBasemap:
 
 	def draw_point_layer(self, point_data, point_style, legend_label="_nolegend_"):
 		legend_artists, legend_labels = [], []
+		if isinstance(point_data, PointData):
+			point_data = point_data.to_multi_point()
 		if not isinstance(point_style.shape, ThematicStyle):
 			self._draw_points(point_data, point_style, legend_label, thematic_legend_artists=legend_artists, thematic_legend_labels=legend_labels)
 		else:
@@ -982,7 +984,7 @@ class LayeredBasemap:
 				self.draw_circles(layer.data, layer.style, layer.legend_label)
 			elif isinstance(layer.data, MaskData):
 				self.draw_mask(layer.data.polygon, layer.style, layer.data.outside)
-			elif isinstance(layer.data, MultiPointData):
+			elif isinstance(layer.data, (PointData, MultiPointData)):
 				self.draw_point_layer(layer.data, layer.style, layer.legend_label)
 			elif isinstance(layer.data, (LineData, MultiLineData)):
 				self.draw_line_layer(layer.data, layer.style, layer.legend_label)

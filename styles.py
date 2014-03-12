@@ -1207,6 +1207,23 @@ class GridStyle:
 
 
 class LegendStyle:
+	# TODO: complete docstring
+	"""
+	:param location:
+		String or Int: location of legend (matplotlib location code):
+			"best" 	0
+			"upper right" 	1
+			"upper left" 	2
+			"lower left" 	3
+			"lower right" 	4
+			"right" 	5
+			"center left" 	6
+			"center right" 	7
+			"lower center" 	8
+			"upper center" 	9
+			"center" 	10
+		(default: 0)
+	"""
 	def __init__(self, title="", location=0, label_style=FontStyle(), title_style=FontStyle(font_weight='bold'), marker_scale=None, frame_on=True, fancy_box=False, shadow=False, ncol=1, border_pad=None, label_spacing=None, handle_length=None, handle_text_pad=None, border_axes_pad=None, column_spacing=None, num_points=1, alpha=1.):
 		self.title = title
 		self.location = location
