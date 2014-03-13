@@ -8,6 +8,7 @@ import matplotlib.cm
 
 
 
+
 class FontStyle(object):
 	"""
 	Class representing matplotlib font properties
@@ -127,11 +128,28 @@ class TextStyle(FontStyle):
 		d["alpha"] = self.alpha
 		return d
 
+	@classmethod
+	def from_dict(self, style_dict):
+		"""
+		Construct text style from dictionary.
+
+		:param style_dict:
+			dictionary containing textstyle properties as keys
+
+		:return:
+			instance of :class:`TextStyle`
+		"""
+		textstyle = TextStyle()
+		for key in style_dict.keys():
+			if hasattr(textstyle, key):
+				setattr(textstyle, key, style_dict[key])
+		return textstyle
+
 
 DefaultTitleTextStyle = TextStyle(font_size="large", horizontal_alignment="center", vertical_alignment="bottom")
 
 
-class PointStyle:
+class PointStyle():
 	"""
 	Style defining how points are plotted in matplotlib.
 
@@ -270,19 +288,19 @@ class PointStyle:
 		Construct point style from dictionary.
 
 		:param style_dict:
-			dictionary containing point-style properties as keys
+			dictionary containing pointstyle properties as keys
 
 		:return:
 			instance of :class:`PointStyle`
 		"""
-		point_style = PointStyle()
+		pointstyle = PointStyle()
 		for key in style_dict.keys():
-			if hasattr(point_style, key):
-				setattr(point_style, key, style_dict[key])
-		return point_style
+			if hasattr(pointstyle, key):
+				setattr(pointstyle, key, style_dict[key])
+		return pointstyle
 
 
-class LineStyle:
+class LineStyle():
 	"""
 	Style defining how lines are plotted in matplotlib.
 
@@ -389,19 +407,19 @@ class LineStyle:
 		Construct line style from dictionary.
 
 		:param style_dict:
-			dictionary containing line-style properties as keys
+			dictionary containing linestyle properties as keys
 
 		:return:
 			instance of :class:`LineStyle`
 		"""
-		line_style = LineStyle()
+		linestyle = LineStyle()
 		for key in style_dict.keys():
-			if hasattr(line_style, key):
-				setattr(line_style, key, style_dict[key])
-		return line_style
+			if hasattr(linestyle, key):
+				setattr(linestyle, key, style_dict[key])
+		return linestyle
 
 
-class PolygonStyle:
+class PolygonStyle():
 	"""
 	Style defining how polygons are plotted in matplotlib.
 
@@ -514,19 +532,19 @@ class PolygonStyle:
 		Construct polygon style from dictionary.
 
 		:param style_dict:
-			dictionary containing polygon-style properties as keys
+			dictionary containing polygonstyle properties as keys
 
 		:return:
 			instance of :class:`PolygonStyle`
 		"""
-		polygon_style = PolygonStyle()
+		polygonstyle = PolygonStyle()
 		for key in style_dict.keys():
-			if hasattr(polygon_style, key):
-				setattr(polygon_style, key, style_dict[key])
-		return polygon_style
+			if hasattr(polygonstyle, key):
+				setattr(polygonstyle, key, style_dict[key])
+		return polygonstyle
 
 
-class FocmecStyle:
+class FocmecStyle():
 	"""
 	Style defining how focal mechanisms are plotted in Basemap
 
@@ -624,6 +642,23 @@ class FocmecStyle:
 		d["bgcolor"] = self.bg_color
 		d["alpha"] = self.alpha
 		return d
+
+	@classmethod
+	def from_dict(self, style_dict):
+		"""
+		Construct focmec style from dictionary.
+
+		:param style_dict:
+			dictionary containing focmecstyle properties as keys
+
+		:return:
+			instance of :class:`FocmecStyle`
+		"""
+		focmecstyle = FocmecStyle()
+		for key in style_dict.keys():
+			if hasattr(focmecstyle, key):
+				setattr(focmecstyle, key, style_dict[key])
+		return focmecstyle
 
 
 class CompositeStyle:
@@ -1085,7 +1120,7 @@ class ThematicStyleColormap(ThematicStyle):
 		return matplotlib.cm.ScalarMappable(norm=norm, cmap=self.color_map)
 
 
-class ColorbarStyle:
+class ColorbarStyle():
 	"""
 	Class defining aspect of a color bar.
 
@@ -1156,6 +1191,23 @@ class ColorbarStyle:
 		d["alpha"] = self.alpha
 		return d
 
+	@classmethod
+	def from_dict(self, style_dict):
+		"""
+		Construct colorbar style from dictionary.
+
+		:param style_dict:
+			dictionary containing colorbarstyle properties as keys
+
+		:return:
+			instance of :class:`ColorbarStyle`
+		"""
+		colorbarstyle = ColorbarStyle()
+		for key in style_dict.keys():
+			if hasattr(colorbarstyle, key):
+				setattr(colorbarstyle, key, style_dict[key])
+		return colorbarstyle
+
 
 class GridStyle:
 	"""
@@ -1206,7 +1258,7 @@ class GridStyle:
 			return "%.2f"
 
 
-class LegendStyle:
+class LegendStyle():
 	# TODO: complete docstring
 	"""
 	:param location:
@@ -1243,8 +1295,25 @@ class LegendStyle:
 		self.num_points = num_points
 		self.alpha = alpha
 
+	@classmethod
+	def from_dict(self, style_dict):
+		"""
+		Construct legend style from dictionary.
 
-class ScalebarStyle:
+		:param style_dict:
+			dictionary containing legendstyle properties as keys
+
+		:return:
+			instance of :class:`LegendStyle`
+		"""
+		legendstyle = LegendStyle()
+		for key in style_dict.keys():
+			if hasattr(legendstyle, key):
+				setattr(legendstyle, key, style_dict[key])
+		return legendstyle
+
+
+class ScalebarStyle():
 	"""
 	Style defining how to plot scale bar
 
@@ -1311,8 +1380,25 @@ class ScalebarStyle:
 		d["fillcolor2"] = self.fill_color2
 		return d
 
+	@classmethod
+	def from_dict(self, style_dict):
+		"""
+		Construct scalebar style from dictionary.
 
-class MapBorderStyle:
+		:param style_dict:
+			dictionary containing scalebarstyle properties as keys
+
+		:return:
+			instance of :class:`ScalebarStyle`
+		"""
+		scalebarstyle = ScalebarStyle()
+		for key in style_dict.keys():
+			if hasattr(scalebarstyle, key):
+				setattr(scalebarstyle, key, style_dict[key])
+		return scalebarstyle
+
+
+class MapBorderStyle():
 	"""
 	Style defining how to plot map border
 
@@ -1335,3 +1421,20 @@ class MapBorderStyle:
 		d["color"] = self.line_color
 		d["fill_color"] = self.fill_color
 		return d
+
+	@classmethod
+	def from_dict(self, style_dict):
+		"""
+		Construct mapborder style from dictionary.
+
+		:param style_dict:
+			dictionary containing mapborderstyle properties as keys
+
+		:return:
+			instance of :class:`MapBorderStyle`
+		"""
+		mapborderstyle = MapBorderStyle()
+		for key in style_dict.keys():
+			if hasattr(mapborderstyle, key):
+				setattr(mapborderstyle, key, style_dict[key])
+		return mapborderstyle
