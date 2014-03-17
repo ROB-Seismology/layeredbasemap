@@ -8,8 +8,29 @@ import matplotlib.cm
 
 
 
+class BasemapStyle(object):
+	"""
+	Base class for most Basemap styles, containing common methods
+	"""
+	@classmethod
+	def from_dict(cls, style_dict):
+		"""
+		Construct style from dictionary.
 
-class FontStyle(object):
+		:param style_dict:
+			dictionary containing style properties as keys
+
+		:return:
+			instance of :class:`BasemapStyle` or subclass
+		"""
+		style = cls()
+		for key in style_dict.keys():
+			if hasattr(style, key):
+				setattr(style, key, style_dict[key])
+		return style
+
+
+class FontStyle(BasemapStyle):
 	"""
 	Class representing matplotlib font properties
 	Used in e.g., plot titles
@@ -91,10 +112,13 @@ class TextStyle(FontStyle):
 		(default: "center")
 	:param offset:
 		tuple, horizontal and vertical offset in points (default: (0, 0))
+	:param clip_on:
+		bool, whether or not text should be clipped to the axes bounding box
+		(default: True)
 	:param alpha:
 		Float in the range 0 - 1, opacity (default: 1.)
 	"""
-	def __init__(self, font_family="sans-serif", font_style="normal", font_variant="normal", font_stretch="normal", font_weight="normal", font_size=12, color='k', background_color="None", line_spacing=1.25, rotation=0, horizontal_alignment="center", vertical_alignment="center", multi_alignment="center", offset=(0,0), alpha=1.):
+	def __init__(self, font_family="sans-serif", font_style="normal", font_variant="normal", font_stretch="normal", font_weight="normal", font_size=12, color='k', background_color="None", line_spacing=1.25, rotation=0, horizontal_alignment="center", vertical_alignment="center", multi_alignment="center", offset=(0,0), clip_on=True, alpha=1.):
 		super(TextStyle, self).__init__(font_family, font_style, font_variant, font_stretch, font_weight, font_size)
 		self.color = color
 		self.background_color = background_color
@@ -104,6 +128,7 @@ class TextStyle(FontStyle):
 		self.vertical_alignment = vertical_alignment
 		self.multi_alignment = multi_alignment
 		self.offset = offset
+		self.clip_on = clip_on
 		self.alpha = alpha
 
 	def to_kwargs(self):
@@ -128,28 +153,11 @@ class TextStyle(FontStyle):
 		d["alpha"] = self.alpha
 		return d
 
-	@classmethod
-	def from_dict(self, style_dict):
-		"""
-		Construct text style from dictionary.
-
-		:param style_dict:
-			dictionary containing textstyle properties as keys
-
-		:return:
-			instance of :class:`TextStyle`
-		"""
-		textstyle = TextStyle()
-		for key in style_dict.keys():
-			if hasattr(textstyle, key):
-				setattr(textstyle, key, style_dict[key])
-		return textstyle
-
 
 DefaultTitleTextStyle = TextStyle(font_size="large", horizontal_alignment="center", vertical_alignment="bottom")
 
 
-class PointStyle():
+class PointStyle(BasemapStyle):
 	"""
 	Style defining how points are plotted in matplotlib.
 
@@ -282,25 +290,8 @@ class PointStyle():
 		d["alpha"] = self.alpha
 		return d
 
-	@classmethod
-	def from_dict(self, style_dict):
-		"""
-		Construct point style from dictionary.
 
-		:param style_dict:
-			dictionary containing pointstyle properties as keys
-
-		:return:
-			instance of :class:`PointStyle`
-		"""
-		pointstyle = PointStyle()
-		for key in style_dict.keys():
-			if hasattr(pointstyle, key):
-				setattr(pointstyle, key, style_dict[key])
-		return pointstyle
-
-
-class LineStyle():
+class LineStyle(BasemapStyle):
 	"""
 	Style defining how lines are plotted in matplotlib.
 
@@ -401,25 +392,8 @@ class LineStyle():
 		d["alpha"] = self.alpha
 		return d
 
-	@classmethod
-	def from_dict(self, style_dict):
-		"""
-		Construct line style from dictionary.
 
-		:param style_dict:
-			dictionary containing linestyle properties as keys
-
-		:return:
-			instance of :class:`LineStyle`
-		"""
-		linestyle = LineStyle()
-		for key in style_dict.keys():
-			if hasattr(linestyle, key):
-				setattr(linestyle, key, style_dict[key])
-		return linestyle
-
-
-class PolygonStyle():
+class PolygonStyle(BasemapStyle):
 	"""
 	Style defining how polygons are plotted in matplotlib.
 
@@ -526,25 +500,8 @@ class PolygonStyle():
 		d["alpha"] = self.alpha
 		return d
 
-	@classmethod
-	def from_dict(self, style_dict):
-		"""
-		Construct polygon style from dictionary.
 
-		:param style_dict:
-			dictionary containing polygonstyle properties as keys
-
-		:return:
-			instance of :class:`PolygonStyle`
-		"""
-		polygonstyle = PolygonStyle()
-		for key in style_dict.keys():
-			if hasattr(polygonstyle, key):
-				setattr(polygonstyle, key, style_dict[key])
-		return polygonstyle
-
-
-class FocmecStyle():
+class FocmecStyle(BasemapStyle):
 	"""
 	Style defining how focal mechanisms are plotted in Basemap
 
@@ -642,23 +599,6 @@ class FocmecStyle():
 		d["bgcolor"] = self.bg_color
 		d["alpha"] = self.alpha
 		return d
-
-	@classmethod
-	def from_dict(self, style_dict):
-		"""
-		Construct focmec style from dictionary.
-
-		:param style_dict:
-			dictionary containing focmecstyle properties as keys
-
-		:return:
-			instance of :class:`FocmecStyle`
-		"""
-		focmecstyle = FocmecStyle()
-		for key in style_dict.keys():
-			if hasattr(focmecstyle, key):
-				setattr(focmecstyle, key, style_dict[key])
-		return focmecstyle
 
 
 class CompositeStyle:
@@ -1120,7 +1060,7 @@ class ThematicStyleColormap(ThematicStyle):
 		return matplotlib.cm.ScalarMappable(norm=norm, cmap=self.color_map)
 
 
-class ColorbarStyle():
+class ColorbarStyle(BasemapStyle):
 	"""
 	Class defining aspect of a color bar.
 
@@ -1209,7 +1149,7 @@ class ColorbarStyle():
 		return colorbarstyle
 
 
-class GridStyle:
+class GridStyle(BasemapStyle):
 	"""
 	Class defining how a regular grid is plotted in matplotlib
 
@@ -1258,9 +1198,12 @@ class GridStyle:
 			return "%.2f"
 
 
-class LegendStyle():
-	# TODO: complete docstring
+class LegendStyle(BasemapStyle):
 	"""
+	Style defining how to plot basemap legend
+
+	:param title:
+		String, legend title (default: "")
 	:param location:
 		String or Int: location of legend (matplotlib location code):
 			"best" 	0
@@ -1275,8 +1218,50 @@ class LegendStyle():
 			"upper center" 	9
 			"center" 	10
 		(default: 0)
+	:param label_style:
+		instance of :class:`FontStyle`, font style of legend labels
+		(default: FontStyle())
+	:param title_style:
+		instance of :class:`FontStyle`, font style of legend title
+		(default: FontStyle(font_weight='bold'))
+	:param marker_scale:
+		Float, relative size of legend markers with respect to map
+		(default: None)
+	:param frame_on:
+		Bool, whether or not to draw a frame around the legend
+		(default: True)
+	:param fancy_box:
+		Bool, whether or not to draw a frame with a round fancybox
+		(default: False)
+	:param shadow:
+		Bool, whether or not to draw a shadow behind legend
+		(default: False)
+	:param ncol:
+		Int, number of legend columns (default: 1)
+	:param border_pad:
+		Float, fractional whitespace inside the legend border
+		(default: None)
+	:param label_spacing:
+		Int (or Float?), vertical space between the legend entries
+		(default: None)
+	:param handle_length:
+		Int (or Float?), length of the legend handles (default: None)
+	:param handle_height:
+		Int (or Float?), height of the legend handles (default: None)
+	:param handle_text_pad:
+		Float, pad between the legend handle and text (default: None)
+	:param border_axes_pad:
+		Float, pad between the axes and legend border (default: None)
+	:param column_spacing:
+		Float (or Int?), spacing between columns (default: None)
+	:param num_points:
+		Int, number of points in the legend for line (default: 1)
+	:param num_scatter_points:
+		Int, number of points in the legend for scatter plot (default: 3)
+	:param alpha:
+		Float, alpha value for the frame (default: 1.)
 	"""
-	def __init__(self, title="", location=0, label_style=FontStyle(), title_style=FontStyle(font_weight='bold'), marker_scale=None, frame_on=True, fancy_box=False, shadow=False, ncol=1, border_pad=None, label_spacing=None, handle_length=None, handle_text_pad=None, border_axes_pad=None, column_spacing=None, num_points=1, alpha=1.):
+	def __init__(self, title="", location=0, label_style=FontStyle(), title_style=FontStyle(font_weight='bold'), marker_scale=None, frame_on=True, fancy_box=False, shadow=False, ncol=1, border_pad=None, label_spacing=None, handle_length=None, handle_height=None, handle_text_pad=None, border_axes_pad=None, column_spacing=None, num_points=1, num_scatter_points=3, alpha=1.):
 		self.title = title
 		self.location = location
 		self.label_style = label_style
@@ -1289,31 +1274,42 @@ class LegendStyle():
 		self.border_pad = border_pad
 		self.label_spacing = label_spacing
 		self.handle_length = handle_length
+		self.handle_height = handle_height
 		self.handle_text_pad = handle_text_pad
 		self.border_axes_pad = border_axes_pad
 		self.column_spacing = column_spacing
 		self.num_points = num_points
+		self.num_scatter_points = num_scatter_points
 		self.alpha = alpha
 
-	@classmethod
-	def from_dict(self, style_dict):
+	def to_kwargs(self):
 		"""
-		Construct legend style from dictionary.
-
-		:param style_dict:
-			dictionary containing legendstyle properties as keys
-
-		:return:
-			instance of :class:`LegendStyle`
+		Return a dictionary with keys corresponding to matplotlib parameter names,
+		and which can be passed to the legend function
 		"""
-		legendstyle = LegendStyle()
-		for key in style_dict.keys():
-			if hasattr(legendstyle, key):
-				setattr(legendstyle, key, style_dict[key])
-		return legendstyle
+		d = {}
+		d["loc"] = self.location
+		d["prop"] = self.label_style.get_font_prop()
+		d["markerscale"] = self.marker_scale
+		d["frameon"] = self.frame_on
+		d["fancybox"] = self.fancy_box
+		d["shadow"] = self.shadow
+		d["ncol"] = self.ncol
+		d["borderpad"] = self.border_pad
+		d["labelspacing"] = self.label_spacing
+		d["handlelength"] = self.handle_length
+		d["handleheight"] = self.handle_height
+		d["handletextpad"] = self.handle_text_pad
+		d["borderaxespad"] = self.border_axes_pad
+		d["columnspacing"] = self.column_spacing
+		d["numpoints"] = self.num_points
+		d["scatterpoints"] = self.num_scatter_points
+		# TODO: current version of matplotlib does not support framealpha
+		#d["framealpha"] = self.alpha
+		return d
 
 
-class ScalebarStyle():
+class ScalebarStyle(BasemapStyle):
 	"""
 	Style defining how to plot scale bar
 
@@ -1380,25 +1376,8 @@ class ScalebarStyle():
 		d["fillcolor2"] = self.fill_color2
 		return d
 
-	@classmethod
-	def from_dict(self, style_dict):
-		"""
-		Construct scalebar style from dictionary.
 
-		:param style_dict:
-			dictionary containing scalebarstyle properties as keys
-
-		:return:
-			instance of :class:`ScalebarStyle`
-		"""
-		scalebarstyle = ScalebarStyle()
-		for key in style_dict.keys():
-			if hasattr(scalebarstyle, key):
-				setattr(scalebarstyle, key, style_dict[key])
-		return scalebarstyle
-
-
-class MapBorderStyle():
+class MapBorderStyle(BasemapStyle):
 	"""
 	Style defining how to plot map border
 
@@ -1421,20 +1400,3 @@ class MapBorderStyle():
 		d["color"] = self.line_color
 		d["fill_color"] = self.fill_color
 		return d
-
-	@classmethod
-	def from_dict(self, style_dict):
-		"""
-		Construct mapborder style from dictionary.
-
-		:param style_dict:
-			dictionary containing mapborderstyle properties as keys
-
-		:return:
-			instance of :class:`MapBorderStyle`
-		"""
-		mapborderstyle = MapBorderStyle()
-		for key in style_dict.keys():
-			if hasattr(mapborderstyle, key):
-				setattr(mapborderstyle, key, style_dict[key])
-		return mapborderstyle

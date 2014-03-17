@@ -1,4 +1,3 @@
-## Data types
 """
 Data types used in LayeredBasemap
 """
@@ -11,10 +10,23 @@ import shapely.wkt
 
 
 class BasemapData(object):
+	"""
+	Base class for Basemap data, containing common methods
+	"""
 	pass
 
 
 class BuiltinData(BasemapData):
+	"""
+	Class representing data built into Basemap
+
+	:param feature:
+		str, one of "bluemarble", "coastlines", "continents, "countries",
+		"nightshade", "rivers", "shadedrelief")
+	:param kwargs:
+		additional keyword arguments for specific data sets,
+		e.g. date_time for nightshade dataset
+	"""
 	def __init__(self, feature="continents", **kwargs):
 		assert feature in ("bluemarble", "coastlines", "continents", "countries", "nightshade", "rivers", "shadedrelief"), "%s not recognized as builtin data" % feature
 		self.feature = feature
@@ -72,7 +84,7 @@ class MultiPointData(BasemapData):
 		return len(self.lons)
 
 	def __iter__(self):
-		for i in range(len(self.lons)):
+		for i in range(len(self)):
 			yield self.__getitem__(i)
 
 	def __getitem__(self, index):
@@ -495,6 +507,40 @@ class CircleData(MultiPointData):
 		super(CircleData, self).__init__(lons, lats, values, labels)
 		self.radii = radii
 		self.azimuthal_resolution = 1
+
+
+class GreatCircleData(MultiPointData):
+	"""
+	Class representing data to plot great circles.
+	Note that Basemap cannot handle situations in which the great circle
+	intersects the edge of the map projection domain, and then re-enters
+	the domain.
+
+	:param lons:
+		array containing longitudes of start and end points of great circles,
+		as follows: [start_lon1, end_lon1, start_lon2, end_lon2, ...]
+	:param lats:
+		array containing latitudes of start and end points of great circles,
+		as follows: [start_lat1, end_lat1, start_lat2, end_lat2, ...]
+	:param resolution:
+		float, resolution in km for plotting points in between start and end
+		(default: 10)
+	"""
+	def __init__(self, lons, lats, resolution=10):
+		assert len(lons) % 2 == 0 and len(lons) == len(lats)
+		super(GreatCircleData, self).__init__(lons, lats)
+		self.resolution = resolution
+
+	def __len__(self):
+		return len(self.lons) / 2
+
+	def __getitem__(self, index):
+		"""
+		:return:
+			(start_lon, start_lat, end_lon, end_lat) tuple of each great circle
+		"""
+		i = index
+		return (self.lons[i*2], self.lats[i*2], self.lons[i*2+1], self.lats[i*2+1])
 
 
 class MaskData(BasemapData):

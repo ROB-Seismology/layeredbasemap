@@ -53,13 +53,14 @@ class ThematicLegend:
 
 
 class LayeredBasemap:
-	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), size=(None, None), grid_interval=(None, None), resolution="i", annot_axes="SE", title_style=DefaultTitleTextStyle, legend_style=LegendStyle(), scalebar_style=None, border_style=MapBorderStyle()):
+	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), extent=(None, None), proj_args={}, grid_interval=(None, None), resolution="i", annot_axes="SE", title_style=DefaultTitleTextStyle, legend_style=LegendStyle(), scalebar_style=None, border_style=MapBorderStyle(), graticule_style=LineStyle()):
 		self.layers = layers
 		self.title = title
 		self.region = region
 		self.projection = projection
 		self.origin = origin
-		self.size = size
+		self.extent = extent
+		self.proj_args = proj_args
 		self.grid_interval = grid_interval
 		self.resolution = resolution
 		self.annot_axes = annot_axes
@@ -67,14 +68,11 @@ class LayeredBasemap:
 		self.legend_style = legend_style
 		self.scalebar_style = scalebar_style
 		self.border_style = border_style
+		self.graticule_style = graticule_style
 
 		self.map = self.init_basemap()
 		self.ax = pylab.gca()
 		self.thematic_legends = []
-
-	#@property
-	#def ax(self):
-	#	return pylab.gca()
 
 	@property
 	def llcrnrlon(self):
@@ -102,11 +100,11 @@ class LayeredBasemap:
 
 	@property
 	def width(self):
-		return self.size[0]
+		return self.extent[0]
 
 	@property
 	def height(self):
-		return self.size[1]
+		return self.extent[1]
 
 	@property
 	def dlon(self):
@@ -127,11 +125,11 @@ class LayeredBasemap:
 				lat_0 = (llcrnrlat + urcrnrlat) / 2.
 			self.origin = (lon_0, lat_0)
 			width, height = None, None
-			self.size = (width, height)
+			self.extent = (width, height)
 		else:
-			width, height = self.size
+			width, height = self.extent
 
-		map = Basemap(projection=self.projection, resolution=self.resolution, llcrnrlon=llcrnrlon, llcrnrlat=llcrnrlat, urcrnrlon=urcrnrlon, urcrnrlat=urcrnrlat, lon_0=lon_0, lat_0=lat_0, width=width, height=height)
+		map = Basemap(projection=self.projection, resolution=self.resolution, llcrnrlon=llcrnrlon, llcrnrlat=llcrnrlat, urcrnrlon=urcrnrlon, urcrnrlat=urcrnrlat, lon_0=lon_0, lat_0=lat_0, width=width, height=height, **self.proj_args)
 		self.region = (map.llcrnrlon, map.urcrnrlon, map.llcrnrlat, map.urcrnrlat)
 		self.is_drawn = False
 		return map
@@ -244,11 +242,12 @@ class LayeredBasemap:
 	def _draw_polygon(self, polygon, style, legend_label="_nolegend_"):
 		if isinstance(style, LineStyle):
 			self._draw_line(polygon, style, legend_label)
-		if style.fill_color in ("None", "none"):
+		if style.fill_color in (None, "None", "none"):
 			fill = 0
 		else:
 			fill = 1
 		if len(polygon.interior_lons) == 0:
+			## Simple polygon
 			x, y = self.map(polygon.lons, polygon.lats)
 			self.ax.fill(x, y, fill=fill, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
 		else:
@@ -285,8 +284,8 @@ class LayeredBasemap:
 				textcoords = "offset points"
 			else:
 				xytext = None
-				textcoords = ""
-			self.ax.annotate(label, (x[i], y[i]), xytext=xytext, textcoords=textcoords, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
+				textcoords = "data"
+			self.ax.annotate(label, (x[i], y[i]), xytext=xytext, textcoords=textcoords, zorder=self.zorder, axes=self.ax, clip_on=style.clip_on, **style.to_kwargs())
 
 	def draw_polygon_layer(self, polygon_data, polygon_style, legend_label="_nolegend_"):
 		"""
@@ -635,7 +634,7 @@ class LayeredBasemap:
 
 		self.draw_composite_layer(point_data=point_data, point_style=point_style, line_data=line_data, line_style=line_style, polygon_data=polygon_data, polygon_style=polygon_style, legend_label=legend_label)
 
-	def draw_circles(self, circle_data, circle_style, legend_label=""):
+	def draw_circles(self, circle_data, circle_style, legend_label="_nolegend_"):
 		## Note: we could also use the tissot method, but then we would have
 		## to code the thematic styling again
 		import mapping.geo.geodetic as geodetic
@@ -655,6 +654,22 @@ class LayeredBasemap:
 			self.draw_polygon_layer(circles, circle_style, legend_label)
 		elif isinstance(circle_style, LineStyle):
 			self.draw_line_layer(circles, circle_style, legend_label)
+
+	def draw_great_circles(self, gc_data, gc_style, legend_label="_nolegend_"):
+		"""
+		Draw great circles
+
+		:param gc_data:
+			instance of :class:`GreatCircleData`
+		:param gc_style:
+			instance of :class:`LineStyle` or :class:`PointStyle`
+			Note that thematic styles are currently not supported!
+		:param legend_label:
+			str, label to put in legend for this data set
+			(default: "_nolegend_", will not add entry in legend)
+		"""
+		for (start_lon, start_lat, end_lon, end_lat) in gc_data:
+			self.map.drawgreatcircle(start_lon, start_lat, end_lon, end_lat, del_s=gc_data.resolution, **gc_style.to_kwargs())
 
 	def draw_grid_layer(self, grid_data, grid_style, legend_label=""):
 		from cm.norm import PiecewiseLinearNorm
@@ -742,9 +757,14 @@ class LayeredBasemap:
 		return cbar
 
 	def draw_continents(self, continent_style):
-		if continent_style.fill_color or continent_style.bg_color:
-			self.map.fillcontinents(color=continent_style.fill_color, lake_color=continent_style.fill_color, zorder=self.zorder)
-			#self.map.drawlsmask(land_color=continent_style.fill_color, ocean_color=continent_style.fill_color, resolution=self.resolution, zorder=self.zorder)
+		if hasattr(continent_style, "bg_color"):
+			## Draw oceans as map background
+			self.map.drawmapboundary(fill_color=continent_style.bg_color, color="None", linewidth=0, zorder=-1)
+			# Note: zorder not respected by drawlsmask
+			#self.map.drawlsmask(land_color=continent_style.fill_color, ocean_color=continent_style.bg_color, lakes=True, resolution=self.resolution, zorder=self.zorder)
+		if continent_style.fill_color:
+			lake_color = getattr(continent_style, "bg_color", "None")
+			self.map.fillcontinents(color=continent_style.fill_color, lake_color=lake_color, zorder=self.zorder)
 		if continent_style.line_color:
 			self.draw_coastlines(continent_style)
 		self.zorder += 1
@@ -982,6 +1002,8 @@ class LayeredBasemap:
 				self.draw_focmecs(layer.data, layer.style)
 			elif isinstance(layer.data, CircleData):
 				self.draw_circles(layer.data, layer.style, layer.legend_label)
+			elif isinstance(layer.data, GreatCircleData):
+				self.draw_great_circles(layer.data, layer.style, layer.legend_label)
 			elif isinstance(layer.data, MaskData):
 				self.draw_mask(layer.data.polygon, layer.style, layer.data.outside)
 			elif isinstance(layer.data, (PointData, MultiPointData)):
@@ -1020,25 +1042,10 @@ class LayeredBasemap:
 				title = thematic_legend.style.title
 				if isinstance(title, str):
 					title = title.decode('iso-8859-1')
-				loc = thematic_legend.style.location
-				label_style = thematic_legend.style.label_style
 				title_style = thematic_legend.style.title_style
-				marker_scale = thematic_legend.style.marker_scale
-				frame_on = thematic_legend.style.frame_on
-				fancy_box = thematic_legend.style.fancy_box
-				shadow = thematic_legend.style.shadow
-				ncol = thematic_legend.style.ncol
-				border_pad = thematic_legend.style.border_pad
-				label_spacing = thematic_legend.style.label_spacing
-				handle_length = thematic_legend.style.handle_length
-				handle_text_pad = thematic_legend.style.handle_text_pad
-				border_axes_pad = thematic_legend.style.border_axes_pad
-				column_spacing = thematic_legend.style.column_spacing
-				numpoints = thematic_legend.style.num_points
-				alpha = thematic_legend.style.alpha
 
 				# TODO: in current version of matplotlib, legend does not support framealpha parameter
-				tl = self.ax.legend(thematic_legend.artists, thematic_legend.labels, loc=loc, prop=label_style.get_font_prop(), markerscale=marker_scale, frameon=frame_on, fancybox=fancy_box, shadow=shadow, ncol=ncol, borderpad=border_pad, labelspacing=label_spacing, handlelength=handle_length, handletextpad=handle_text_pad, borderaxespad=border_axes_pad, columnspacing=column_spacing, numpoints=numpoints)
+				tl = self.ax.legend(thematic_legend.artists, thematic_legend.labels, **thematic_legend.style.to_kwargs())
 				# TODO: in current version of matplotlib set_title does not accept prop
 				#tl.set_title(title, prop=title_style.get_font_prop())
 				tl.set_title(title)
@@ -1050,24 +1057,10 @@ class LayeredBasemap:
 			title = self.legend_style.title
 			if isinstance(title, str):
 				title = title.decode('iso-8859-1')
-			loc = self.legend_style.location
-			label_style = self.legend_style.label_style
 			title_style = self.legend_style.title_style
-			marker_scale = self.legend_style.marker_scale
-			frame_on = self.legend_style.frame_on
-			fancy_box = self.legend_style.fancy_box
-			shadow = self.legend_style.shadow
-			ncol = self.legend_style.ncol
-			border_pad = self.legend_style.border_pad
-			label_spacing = self.legend_style.label_spacing
-			handle_length = self.legend_style.handle_length
-			handle_text_pad = self.legend_style.handle_text_pad
-			border_axes_pad = self.legend_style.border_axes_pad
-			column_spacing = self.legend_style.column_spacing
-			numpoints = self.legend_style.num_points
-			alpha = self.legend_style.alpha
 
-			ml = self.ax.legend(loc=loc+1, prop=label_style.get_font_prop(), markerscale=marker_scale, frameon=frame_on, fancybox=fancy_box, shadow=shadow, ncol=ncol, borderpad=border_pad, labelspacing=label_spacing, handlelength=handle_length, handletextpad=handle_text_pad, borderaxespad=border_axes_pad, columnspacing=column_spacing, numpoints=numpoints)
+			#ml = self.ax.legend(loc=loc+1, prop=label_style.get_font_prop(), markerscale=marker_scale, frameon=frame_on, fancybox=fancy_box, shadow=shadow, ncol=ncol, borderpad=border_pad, labelspacing=label_spacing, handlelength=handle_length, handleheight=handle_height, handletextpad=handle_text_pad, borderaxespad=border_axes_pad, columnspacing=column_spacing, numpoints=numpoints)
+			ml = self.ax.legend(**self.legend_style.to_kwargs())
 			if ml:
 				ml.set_title(title)
 				ml.set_zorder(self.zorder)
@@ -1087,16 +1080,17 @@ class LayeredBasemap:
 		if self.annot_axes is None:
 			self.annot_axes = "SE"
 		ax_labels = [c in self.annot_axes for c in "WENS"]
+		style = self.graticule_style
 		if self.dlon != None:
 			first_meridian = np.ceil(self.region[0] / self.dlon) * self.dlon
 			last_meridian = np.floor(self.region[1] / self.dlon) * self.dlon + self.dlon
 			meridians = np.arange(first_meridian, last_meridian, self.dlon)
-			self.map.drawmeridians(meridians, labels=ax_labels, zorder=self.zorder)
+			self.map.drawmeridians(meridians, color=style.line_color, linewidth=style.line_width, labels=ax_labels, latmax=90, zorder=self.zorder)
 		if self.dlat != None:
 			first_parallel = np.ceil(self.region[2] / self.dlat) * self.dlat
 			last_parallel = np.floor(self.region[3] / self.dlat) * self.dlat + self.dlat
 			parallels = np.arange(first_parallel, last_parallel, self.dlat)
-			self.map.drawparallels(parallels, labels=ax_labels, zorder=self.zorder)
+			self.map.drawparallels(parallels, color=style.line_color, linewidth=style.line_width, labels=ax_labels, latmax=90, zorder=self.zorder)
 		self.zorder += 1
 
 	def draw_scalebar(self):

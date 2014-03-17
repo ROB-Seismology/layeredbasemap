@@ -18,7 +18,7 @@ reload(data_types)
 from data_types import (BuiltinData, PointData, MultiPointData, LineData, MultiLineData,
 						PolygonData, MultiPolygonData, FocmecData, CircleData, MaskData,
 						CompositeData, GridData, MeshGridData, UnstructuredGridData,
-						GisData)
+						GisData, GreatCircleData)
 
 import cm
 reload(cm)
