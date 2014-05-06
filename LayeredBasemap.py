@@ -53,14 +53,13 @@ class ThematicLegend:
 
 
 class LayeredBasemap:
-	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), extent=(None, None), proj_args={}, grid_interval=(None, None), resolution="i", annot_axes="SE", title_style=DefaultTitleTextStyle, legend_style=LegendStyle(), scalebar_style=None, border_style=MapBorderStyle(), graticule_style=LineStyle()):
+	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), extent=(None, None), grid_interval=(None, None), resolution="i", annot_axes="SE", title_style=DefaultTitleTextStyle, legend_style=LegendStyle(), scalebar_style=None, border_style=MapBorderStyle(), graticule_style=LineStyle(), **proj_args):
 		self.layers = layers
 		self.title = title
 		self.region = region
 		self.projection = projection
 		self.origin = origin
 		self.extent = extent
-		self.proj_args = proj_args
 		self.grid_interval = grid_interval
 		self.resolution = resolution
 		self.annot_axes = annot_axes
@@ -69,6 +68,7 @@ class LayeredBasemap:
 		self.scalebar_style = scalebar_style
 		self.border_style = border_style
 		self.graticule_style = graticule_style
+		self.proj_args = proj_args
 
 		self.map = self.init_basemap()
 		self.ax = pylab.gca()
@@ -141,7 +141,6 @@ class LayeredBasemap:
 		if not style.is_thematic():
 			self.map.plot(x, y, ls="None", lw=0, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
 		else:
-			#legend_label = "_nolegend_"
 			## Thematic style, use scatter method
 			if isinstance(style.size, ThematicStyle):
 				sizes = style.size(points.values)
@@ -751,10 +750,13 @@ class LayeredBasemap:
 		"""
 		cbar = self.map.colorbar(sm, ax=self.ax, **style.to_kwargs())
 		# TODO: do set_label and set_ticklabels accept font kwargs?
-		cbar.set_label(style.title)
+		cbar.set_label(style.title, size=style.label_size)
 		if style.tick_labels:
 			cbar.set_ticklabels(style.tick_labels)
-		return cbar
+			## Neither of the following seems to work...
+			cbar.ax.tick_params(labelsize=style.tick_label_size)
+			#for t in cb.ax.get_xticklabels():
+			#	t.set_fontsize(style.tick_label_size)
 
 	def draw_continents(self, continent_style):
 		if hasattr(continent_style, "bg_color"):

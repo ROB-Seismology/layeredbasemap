@@ -708,7 +708,7 @@ class ThematicStyleIndividual(ThematicStyle):
 		values are defined.
 	:param styles:
 		list of style values (numbers or matplotlib colors) corresponding
-		to intervals between given data values
+		to given data values
 	:param labels:
 		labels corresponding to data classes, and which will be used in
 		the thematic legend or color bar
@@ -1098,10 +1098,14 @@ class ColorbarStyle(BasemapStyle):
 	:param drawedges:
 		bool, whether or not to draw lines at color boundaries
 		(default: False)
+	:param label_size:
+		int, font size of colorbar label (default: 14)
+	:param tick_label_size:
+		int, font size of colorbar tick labels (default: 12)
 	:param alpha:
 		Float in the range 0 - 1, opacity (default: 1.)
 	"""
-	def __init__(self, title="", location="bottom", size='5%', pad='10%', extend="neither", spacing="uniform", ticks=None, tick_labels=None, format=None, drawedges=False, alpha=1.):
+	def __init__(self, title="", location="bottom", size='5%', pad='10%', extend="neither", spacing="uniform", ticks=None, tick_labels=None, format=None, drawedges=False, label_size=14, tick_label_size=12, alpha=1.):
 		self.title = title
 		self.location = location
 		self.size = size
@@ -1112,7 +1116,11 @@ class ColorbarStyle(BasemapStyle):
 		self.tick_labels = tick_labels
 		self.format = format
 		self.drawedges = drawedges
+		self.label_size = label_size
+		self.tick_label_size = tick_label_size
 		self.alpha = alpha
+
+		# TODO: implement other font style parameters for label and tick labels
 
 	def to_kwargs(self):
 		"""

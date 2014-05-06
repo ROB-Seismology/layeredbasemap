@@ -27,4 +27,4 @@ reload(cm)
 import LayeredBasemap
 reload(LayeredBasemap)
 
-from LayeredBasemap import (MapLayer, LayeredBasemap, ThematicLegend)
+from LayeredBasemap import (MapLayer, LayeredBasemap)

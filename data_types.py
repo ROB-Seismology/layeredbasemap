@@ -35,6 +35,23 @@ class BuiltinData(BasemapData):
 
 
 class PointData(BasemapData):
+	"""
+	Basemap data corresponding to a single point
+
+	:param lon:
+		float, longitude
+	:param lat:
+		float, latitude
+	:param value:
+		str, int, float or dictionary mapping keywords to str, int or
+		float. Used for thematic mapping, in conjunction with a layer
+		style containing thematic elements
+		(default: None)
+	:param label:
+		str, label to be plotted alongside point (if label_style in
+		corresponding layer style is not None)
+		(default: "")
+	"""
 	def __init__(self, lon, lat, value=None, label=""):
 		self.lon = lon
 		self.lat = lat
@@ -49,12 +66,27 @@ class PointData(BasemapData):
 			yield self
 
 	def to_shapely(self):
+		"""
+		Convert to shapely Point object
+		"""
 		return shapely.geometry.Point(self.lon, self.lat)
 
 	def to_wkt(self):
+		"""
+		Convert to well-known text format
+
+		:return:
+			str
+		"""
 		return self.to_shapely().wkt
 
 	def to_multi_point(self):
+		"""
+		Convert to multi-point data
+
+		:return:
+			instance of :class:`MultiPoint`
+		"""
 		if isinstance(self.value, dict):
 			values = {}
 			for key in self.value:
@@ -65,15 +97,51 @@ class PointData(BasemapData):
 
 	@classmethod
 	def from_wkt(cls, wkt):
+		"""
+		Create from well-known text
+
+		:param wkt:
+			str, well-known text desciption of geometry
+
+		:return:
+			instance of :class:`PointData`
+		"""
 		pt = shapely.geometry.Point(shapely.wkt.loads(wkt))
 		return PointData(pt.x, pt.y)
 
 	@classmethod
 	def from_ogr(cls, geom):
+		"""
+		Create from OGRPoint object
+
+		:param geom:
+			OGRPoint object
+
+		:return:
+			instance of :class:`PointData`
+		"""
 		return cls.from_wkt(geom.ExportToWkt())
 
 
 class MultiPointData(BasemapData):
+	"""
+	Basemap data corresponding to a group of points
+
+	:param lons:
+		list or array of floats, longitudes
+	:param lat:
+		list or array of floats, latitudes
+	:param values:
+		list of strings, ints or floats, or dictionary mapping
+		keywords to lists of strings, ints or floats.
+		Used for thematic mapping, in conjunction with a layer style
+		containing thematic elements
+		(default: [])
+	:param label:
+		list of strings, labels to be plotted alongside points (if
+		label_style in corresponding layer style is not None)
+		(default: [])
+	"""
 	def __init__(self, lons, lats, values=[], labels=[]):
 		self.lons = lons
 		self.lats = lats
@@ -111,6 +179,15 @@ class MultiPointData(BasemapData):
 
 	@classmethod
 	def from_points(cls, point_list):
+		"""
+		Create from a list of points
+
+		:param point_list:
+			list with instances of :class:`PointData`
+
+		:return:
+			instance of :class:`MultiPointData`
+		"""
 		lons, lats, labels = [], [], []
 		pt0 = point_list[0]
 		if isinstance(pt0.value, dict):
@@ -131,15 +208,35 @@ class MultiPointData(BasemapData):
 		return MultiPointData(lons, lats, values, labels)
 
 	def append(self, pt):
-		assert isinstance(pt, PointData)
-		self.lons.append(pt.lon)
-		self.lats.append(pt.lat)
-		if pt.value:
-			self.values.append(pt.value)
-		if pt.label:
-			self.labels.append(pt.label)
+		"""
+		Append point(s)
+
+		:param pt:
+			instance of :class:`PointData` or :class:`MultiPointData`
+		"""
+		if isinstance(pt, PointData):
+			pt = pt.to_multi_point()
+		if isinstance(pt, MultiPointData):
+			self.lons = np.concatenate([self.lons, pt.lons])
+			self.lats = np.concatenate([self.lats, pt.lats])
+			if isinstance(self.values, dict):
+				for key in self.values.keys():
+					self.values[key].extend(pt.values[key])
+			else:
+				self.values.extend(pt.values)
+			self.labels.extend(pt.labels)
 
 	def get_masked_data(self, bbox):
+		"""
+		Apply rectangular mask to multipoint data.
+
+		:param bbox:
+			(lonmin,  lonmax, latmin, latmax) tuple
+
+		:return:
+			instance of :class:`MultiPointData`, where lons, lats,
+			values and labels are replaced with masked arrays
+		"""
 		import numpy.ma as ma
 		lonmin, lonmax, latmin, latmax = bbox
 		lon_mask = ma.mask_outside(self.lons, lonmin, lonmax)
@@ -156,21 +253,54 @@ class MultiPointData(BasemapData):
 		return MultiPointData(lons, lats, values, labels)
 
 	def to_shapely(self):
+		"""
+		Convert to shapely Point object
+		"""
 		return shapely.geometry.MultiPoint(zip(self.lons, self.lats))
 
 	def to_wkt(self):
+		"""
+		Convert to well-known text format
+
+		:return:
+			str
+		"""
 		return self.to_shapely().wkt
 
 	@classmethod
 	def from_wkt(cls, wkt):
+		"""
+		Create from well-known text
+
+		:param wkt:
+			str, well-known text desciption of geometry
+
+		:return:
+			instance of :class:`MultiPointData`
+		"""
 		mp = shapely.geometry.MultiPoint(shapely.wkt.loads(wkt))
 		return MultiPointData([pt.x for pt in mp], [pt.y for pt in mp])
 
 	@classmethod
 	def from_ogr(cls, geom):
+		"""
+		Create from OGRMultiPoint object
+
+		:param geom:
+			OGRMultiPoint object
+
+		:return:
+			instance of :class:`MultiPointData`
+		"""
 		return cls.from_wkt(geom.ExportToWkt())
 
 	def get_centroid(self):
+		"""
+		Determine centroid of point cloud
+
+		:return:
+			instance of :class:`PointData`
+		"""
 		centroid = self.to_shapely().centroid
 		return PointData(centroid.x, centroid.y)
 
