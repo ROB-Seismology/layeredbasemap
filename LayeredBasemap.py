@@ -753,10 +753,7 @@ class LayeredBasemap:
 		cbar.set_label(style.title, size=style.label_size)
 		if style.tick_labels:
 			cbar.set_ticklabels(style.tick_labels)
-			## Neither of the following seems to work...
-			cbar.ax.tick_params(labelsize=style.tick_label_size)
-			#for t in cb.ax.get_xticklabels():
-			#	t.set_fontsize(style.tick_label_size)
+		cbar.ax.tick_params(labelsize=style.tick_label_size)
 
 	def draw_continents(self, continent_style):
 		if hasattr(continent_style, "bg_color"):
