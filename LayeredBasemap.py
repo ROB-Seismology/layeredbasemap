@@ -156,9 +156,11 @@ class LayeredBasemap:
 			## Note: thematic line_color only works for markers like '+'
 			## thematic fill_color only works for markers like 'o'
 			assert not (isinstance(style.line_color, ThematicStyle) and isinstance(style.fill_color, ThematicStyle)), "Only one of line_color and fill_color may be ThematicStyle!"
+			extra_kwargs = {}
 			## Fill color
 			if isinstance(style.fill_color, ThematicStyle):
-				fill_colors = None
+				if not extra_kwargs.has_key("edgecolors"):
+					extra_kwargs["edgecolors"] = "None"
 				cmap = style.fill_color.to_colormap()
 				norm = style.fill_color.get_norm()
 				colors = style.fill_color.apply_value_key(points.values)
@@ -166,10 +168,14 @@ class LayeredBasemap:
 				#cmap, norm = None, None
 				#colors = style.fill_color(points.values)
 			else:
-				## Note: this is not used at the moment
-				fill_colors = style.fill_color
+				extra_kwargs["facecolors"] = style.fill_color
 			if isinstance(style.line_color, ThematicStyle):
-				line_colors = None
+				if not extra_kwargs.has_key("facecolors"):
+					extra_kwargs["facecolors"] = "None"
+				## Note: it does not seem possible to fill symbols with a
+				## fixed color while edge is colored using thematic style,
+				## so fill color is ignored in this case.
+				extra_kwargs["facecolors"] = "None"
 				cmap = style.line_color.to_colormap()
 				norm = style.line_color.get_norm()
 				colors = style.line_color.apply_value_key(points.values)
@@ -177,12 +183,13 @@ class LayeredBasemap:
 				#colors = style.line_color(points.values)
 				#cmap, norm = None, None
 			else:
-				line_colors = style.line_color
+				extra_kwargs["edgecolors"] = style.line_color
+			print extra_kwargs
 			if not (isinstance(style.line_color, ThematicStyle) or isinstance(style.fill_color, ThematicStyle)):
 				cmap, norm, vmin, vmax = None, None, None, None
 				colors = []
 
-			cs = self.map.scatter(x, y, marker=style.shape, s=np.power(sizes, 2), c=colors, edgecolors=line_colors, linewidths=line_widths, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, label=legend_label, alpha=style.alpha, zorder=self.zorder, axes=self.ax)
+			cs = self.map.scatter(x, y, marker=style.shape, s=np.power(sizes, 2), c=colors, linewidths=line_widths, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, label=legend_label, alpha=style.alpha, zorder=self.zorder, axes=self.ax, **extra_kwargs)
 
 			## Thematic legend
 			## Fill color

@@ -214,8 +214,10 @@ class PointStyle(BasemapStyle):
 		(default: None)
 
 	Note: only one of line_color / fill_color may be a thematic style.
-	Thematic line_color only works for markers like '+'
-	Thematic fill_color only works for markers like 'o'
+	Markers like '+' can only take thematic line_color
+	Markers like 'o' can take thematic fill_color or line_color;
+	if fill_color is thematic, a fixed line_color may be specified, but
+	if line_color is thematic, fill_color is currently ignored.
 	"""
 	def __init__(self, shape='o', size=10, line_width=1, line_color='k', fill_color='None', fill_style="full", label_style=None, alpha=1., thematic_legend_style=None):
 		self.shape = shape
