@@ -293,6 +293,108 @@ class PointStyle(BasemapStyle):
 		return d
 
 
+class FrontStyle(BasemapStyle):
+	"""
+	Style defining how "fronts" are plotted in matplotlib
+
+	:param shape:
+		str, shape of front marker,
+		one of ("polygon", "star", "asterisk", "circle", "arc",
+		"arrow", "ellipse", "rectangle").
+		Polygons, stars, asterisks and circles are implemented as
+		matplotlib markers; arcs, arrows, ellipses and rectangles as
+		matplotlib patches.
+		marker_style may also be a matplotlib patch instance, but
+		in that case, it will not be rotated following line curvature.
+	:param num_sides:
+		int, number of sides of front marker. Only applies to polygons, stars,
+		and asterisks.
+		(default: 3)
+	:param size:
+		int, size of front marker in points.
+		(default: 12)
+	:param interval:
+		int or array-like, interval of front marker along line
+		positive int: interval between markers in points
+		negative int (or zero): number of markers along line
+		array-like: distances along line, in range [0,1].
+		(default: 24)
+	:param offset:
+		int, offset of front marker with respect to line.
+		(default: 0)
+	:param angle:
+		float, angle in degrees of front marker with respect to line.
+		(default: 0)
+	:param alternate_sides:
+		bool, whether or not front markers should alternate between
+		two sides of line.
+		(default: False)
+	:param line_width:
+		int, line width of front marker in points.
+		If None, will take line width of parent line.
+		(default: 1)
+	:param line_color:
+		matplotlib color definition for line color of front marker.
+		If None, will take line color of parent line.
+		(default: 'k')
+	:param fill_color:
+		matplotlib color definition for fill color of front marker.
+		If None, will take line color of parent line.
+		(default: 'k')
+	:param aspect_ratio:
+		float, aspect ratio of width (direction perpendicular to line)
+		to length (direction along line) of front marker. Only applies
+		to arcs, arrows, ellipses and rectangles.
+		(default: 1.)
+	:param theta1:
+		float, starting angle in degrees. Only applies to arcs.
+		(default: 0)
+	:param theta2:
+		float, ending angle in degrees. Only applies to arcs.
+		(default: 180)
+	:param alpha:
+		float, alpha transparency for front marker.
+		(default: 1)
+	"""
+	def __init__(self, shape, size=10, interval=20, offset=0, angle=0, alternate_sides=False, line_width=1, line_color='k', fill_color='k', num_sides=3, aspect_ratio=1, theta1=0, theta2=180, alpha=1.):
+		self.shape = shape
+		self.size = size
+		self.interval = interval
+		self.offset = offset
+		self.angle = angle
+		self.alternate_sides = alternate_sides
+		self.line_width = line_width
+		self.line_color = line_color
+		self.fill_color = fill_color
+		self.num_sides = num_sides
+		self.aspect_ratio = aspect_ratio
+		self.theta1 = theta1
+		self.theta2 = theta2
+		self.alpha = alpha
+
+	def to_kwargs(self):
+		"""
+		Return a dictionary with keys corresponding to matplotlib parameter names,
+		and which can be passed to the plot function
+		"""
+		d = {}
+		d["marker_style"] = self.shape
+		d["marker_size"] = self.size
+		d["marker_interval"] = self.interval
+		d["marker_offset"] = self.offset
+		d["marker_angle"] = self.angle
+		d["marker_alternate_sides"] = self.alternate_sides
+		d["marker_edge_width"] = self.line_width
+		d["marker_edge_color"] = self.line_color
+		d["marker_face_color"] = self.fill_color
+		d["marker_num_sides"] = self.num_sides
+		d["marker_aspect_ratio"] = self.aspect_ratio
+		d["marker_theta1"] = self.theta1
+		d["marker_theta2"] = self.theta2
+		d["marker_alpha"] = self.alpha
+		return d
+
+
 class LineStyle(BasemapStyle):
 	"""
 	Style defining how lines are plotted in matplotlib.
@@ -324,6 +426,9 @@ class LineStyle(BasemapStyle):
 	:param label_style:
 		instance of :class:`TextStyle`. If None, no labels will be plotted
 		(default: None)
+	:param front_style:
+		instance of :class:`FrontStyle`. If None, no fronts will be plotted
+		(default: None)
 	:param alpha:
 		Float in the range 0 - 1, opacity (default: 1.)
 	:param thematic_legend_style:
@@ -331,7 +436,7 @@ class LineStyle(BasemapStyle):
 		will be added to main legend
 		(default: None)
 	"""
-	def __init__(self, line_pattern="solid", line_width=1, line_color='k', solid_capstyle="butt", solid_joinstyle="round", dash_capstyle="butt", dash_joinstyle="round", label_style=None, alpha=1., thematic_legend_style=None):
+	def __init__(self, line_pattern="solid", line_width=1, line_color='k', solid_capstyle="butt", solid_joinstyle="round", dash_capstyle="butt", dash_joinstyle="round", label_style=None, front_style=None, alpha=1., thematic_legend_style=None):
 		self.line_pattern = line_pattern
 		self.line_width = line_width
 		self.line_color = line_color
@@ -339,6 +444,7 @@ class LineStyle(BasemapStyle):
 		self.solid_joinstyle = solid_joinstyle
 		self.dash_capstyle = dash_capstyle
 		self.dash_joinstyle = dash_joinstyle
+		self.front_style = front_style
 		self.label_style = label_style
 		self.alpha = alpha
 		self.thematic_legend_style = thematic_legend_style

@@ -184,7 +184,7 @@ class LayeredBasemap:
 				#cmap, norm = None, None
 			else:
 				extra_kwargs["edgecolors"] = style.line_color
-			print extra_kwargs
+
 			if not (isinstance(style.line_color, ThematicStyle) or isinstance(style.fill_color, ThematicStyle)):
 				cmap, norm, vmin, vmax = None, None, None, None
 				colors = []
@@ -244,6 +244,13 @@ class LayeredBasemap:
 	def _draw_line(self, line, style, legend_label="_nolegend_"):
 		x, y = self.map(line.lons, line.lats)
 		self.map.plot(x, y, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
+
+	def _draw_fronts(self, line, style):
+		from frontline import draw_frontline
+		x, y = self.map(line.lons, line.lats)
+		style_dict = {"line_style": "None", "line_color": 'k', "line_width": 0, "line_alpha": 0}
+		style_dict.update(style.to_kwargs())
+		draw_frontline(x, y, self.ax, zorder=self.zorder, **style_dict)
 
 	def _draw_polygon(self, polygon, style, legend_label="_nolegend_"):
 		if isinstance(style, LineStyle):
@@ -441,6 +448,14 @@ class LayeredBasemap:
 			line_color = line_colors[i]
 			style = LineStyle(line_pattern=line_pattern, line_width=line_width, line_color=line_color, label_style=None, alpha=line_style.alpha)
 			self._draw_line(line, style, legend_label)
+			if line_style.front_style:
+				if line_style.front_style.line_width is None:
+					line_style.front_style.line_width = line_width
+				if line_style.front_style.line_color is None:
+					line_style.front_style.line_color = line_color
+				if line_style.front_style.fill_color is None:
+					line_style.front_style.fill_color = line_color
+				self._draw_fronts(line, line_style.front_style)
 		self.zorder += 1
 		if line_data.labels and line_style.label_style:
 			# TODO: rotate labels

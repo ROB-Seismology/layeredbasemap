@@ -28,8 +28,8 @@ multipoint_data = MultiPointData(lons, lats, values={'depths': depths})
 multipoint_style = PointStyle(
 #	shape='x',
 	shape='o',
-	fill_color=ThematicStyleRanges([0., 5., 15., 20.], ['r', 'g', 'b'], value_key='depths'),
-	line_color='r',
+	line_color=ThematicStyleRanges([0., 5., 15., 20.], ['r', 'g', 'b'], value_key='depths'),
+	fill_color='r',
 #	fill_color=None,
 	)
 layers.append(MapLayer(multipoint_data, multipoint_style))

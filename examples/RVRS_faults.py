@@ -7,7 +7,7 @@ import os
 from eqcatalog.source_models import rob_source_models_dict
 from mapping.Basemap.LayeredBasemap import LayeredBasemap, MapLayer
 from mapping.Basemap.data_types import BuiltinData, MultiPointData, GisData
-from mapping.Basemap.styles import PointStyle, LineStyle, PolygonStyle, TextStyle, CompositeStyle, LegendStyle
+from mapping.Basemap.styles import PointStyle, LineStyle, PolygonStyle, TextStyle, CompositeStyle, LegendStyle, FrontStyle
 
 
 
@@ -50,8 +50,9 @@ gis_filespec = rob_source_models_dict[sm_name].gis_filespec
 #src_label_name = rob_source_models_dict[sm_name].column_map['id']
 src_label_name = None
 data = GisData(gis_filespec, src_label_name)
-label_style = TextStyle(color='indigo', font_weight="bold", horizontal_alignment="center", vertical_alignment="center")
-line_style = LineStyle(line_width=3, line_color="red", label_style=None)
+#label_style = TextStyle(color='indigo', font_weight="bold", horizontal_alignment="center", vertical_alignment="center")
+front_style = FrontStyle('asterisk', interval=15, num_sides=1, line_color=None, line_width=None, angle=180)
+line_style = LineStyle(line_width=3, line_color="red", label_style=None, front_style=front_style)
 style = CompositeStyle(line_style=line_style)
 layer = MapLayer(data, style, legend_label={"lines": "Fault traces"})
 layers.append(layer)
