@@ -13,7 +13,9 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 					marker_size=12, marker_interval=24, marker_offset=0,
 					marker_face_color='k', marker_edge_color='k', marker_edge_width=1,
 					marker_aspect_ratio=1., marker_alternate_sides=False,
-					marker_theta1=0, marker_theta2=180,
+					marker_theta1=0, marker_theta2=180, marker_arrow_shape="full",
+					marker_arrow_overhang=0, marker_arrow_length_includes_head=False,
+					marker_arrow_head_starts_at_zero=False,
 					marker_alpha=1, zorder=None):
 	"""
 	Draw a "frontline" in matplotlib,
@@ -64,6 +66,7 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 		(default: 3)
 	:param marker_angle:
 		float, angle in degrees of front marker with respect to line.
+		Does not apply to circles.
 		(default: 0)
 	:param marker_size:
 		int, size of front marker in points.
@@ -101,6 +104,22 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 	:param marker_theta2:
 		float, ending angle in degrees. Only applies to arcs.
 		(default: 180)
+	:param marker_arrow_shape:
+		str, arrow shape, one of ["full", "left", "right"].
+		Only applies to arrows.
+		(default: "full")
+	:param marker_arrow_overhang:
+		float, fraction that the arrow is swept back (0 means triangular shape).
+		Can be negative or greater than one. Only applies to arrows.
+		(default: 0.)
+	:param marker_arrow_length_includes_head:
+		bool, True if head is to be counted in calculating arrow length.
+		Only applies to arrows.
+		(default: False)
+	:param marker_arrow_head_starts_at_zero:
+		bool, if True, arrow head starts being drawn at coordinate 0 instead of
+		ending at coordinate 0. Only applies to arrows.
+		(default: False)
 	:param marker_alpha:
 		float, alpha transparency for front marker.
 		(default: 1)
@@ -108,10 +127,10 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 		int, sets the zorder for both the line and the front markers.
 		(default: None)
 	"""
-	#TODO: add more (fancy) arrow properties
 
 	## Plot line first
-	ax.plot(x, y, lw=line_width, color=line_color, ls=line_style, alpha=line_alpha, zorder=zorder)
+	if not line_style in ("None", None):
+		ax.plot(x, y, lw=line_width, color=line_color, ls=line_style, alpha=line_alpha, zorder=zorder)
 
 	## Transforms between data domain and display domain
 	forward_transform = ax.transData
@@ -161,9 +180,9 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 			if marker_style == "arc":
 				patch = mpl.patches.Arc((0, 0), marker_size, marker_size * marker_aspect_ratio, theta1=marker_theta1, theta2=marker_theta2, angle=angle)
 			elif marker_style == "arrow":
-				dx = np.cos(display_marker_angles[i]) * marker_size / 2
-				dy = np.sin(display_marker_angles[i]) * marker_size / 2
-				patch = mpl.patches.FancyArrow(0, 0, dx, dy, width=marker_edge_width, length_includes_head=False, head_width=marker_size/2*marker_aspect_ratio, head_length=marker_size/2, shape=u'right', overhang=0, head_starts_at_zero=False)
+				dx = np.cos(np.radians(angle)) * marker_size / 2
+				dy = np.sin(np.radians(angle)) * marker_size / 2
+				patch = mpl.patches.FancyArrow(0, 0, dx, dy, width=marker_edge_width, head_width=marker_size/2*marker_aspect_ratio, head_length=marker_size/2, shape=marker_arrow_shape, overhang=marker_arrow_overhang, length_includes_head=marker_arrow_length_includes_head, head_starts_at_zero=marker_arrow_head_starts_at_zero)
 				#patch = mpl.patches.Arrow(0, 0, dx, dy)
 			elif marker_style == "ellipse":
 				patch = mpl.patches.Ellipse((0, 0), marker_size, marker_size * marker_aspect_ratio, angle=angle)
@@ -173,8 +192,8 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 				patch = marker_style
 			## Shift patch back half its width if needed
 			if marker_style in ("arrow", "rectangle"):
-				dmx += (-np.cos(display_marker_angles[i]) * marker_size / 2)
-				dmy += (-np.sin(display_marker_angles[i]) * marker_size / 2)
+				dmx += (-np.cos(np.radians(angle)) * marker_size / 2)
+				dmy += (-np.sin(np.radians(angle)) * marker_size / 2)
 			tf = mpl.transforms.Affine2D().translate(dmx, dmy)
 			#patch.set_transform(tf)
 			## Copy tranformed vertices to a new patch, otherwise patches
@@ -205,25 +224,29 @@ if __name__ == "__main__":
 	y = np.sin(x)
 
 	## Marker definition
-	marker_style = "asterisk"
+	marker_style = "arrow"
 	#marker_style = mpl.patches.Polygon([[0,0], [10,0], [10,10], [0,10]], closed=True)
 	marker_num_sides = 2
-	marker_angle = 0
-	marker_size = 5
+	marker_angle = 180
+	marker_size = 20
 	marker_edge_color = 'k'
 	marker_face_color = 'r'
 	marker_edge_width = 1
 	marker_alpha = 0.75
 	marker_offset = (marker_size / 2) - marker_edge_width / 2
 	#marker_offset = 0
-	#marker_interval = 40
+	marker_interval = 40
 	#marker_interval = -20
 	#marker_interval = [0., 0.5, 1.]
-	marker_interval = np.linspace(0,1,11)
+	#marker_interval = np.linspace(0,1,11)
 	marker_aspect_ratio = 0.75
 	marker_theta1 = 0
 	marker_theta2 = 180
-	marker_alternate_sides = False
+	marker_arrow_shape = "left"
+	marker_arrow_overhang = 0.33
+	marker_arrow_head_starts_at_zero = True
+	marker_arrow_length_includes_head = False
+	marker_alternate_sides = True
 
 	## Line style
 	line_style = "-"
@@ -249,6 +272,9 @@ if __name__ == "__main__":
 					marker_face_color=marker_face_color, marker_edge_width=marker_edge_width,
 					marker_aspect_ratio=marker_aspect_ratio, marker_alternate_sides=marker_alternate_sides,
 					marker_alpha=marker_alpha, marker_theta1=marker_theta1, marker_theta2=marker_theta2,
+					marker_arrow_shape=marker_arrow_shape, marker_arrow_overhang=marker_arrow_overhang,
+					marker_arrow_head_starts_at_zero=marker_arrow_head_starts_at_zero,
+					marker_arrow_length_includes_head=marker_arrow_length_includes_head,
 					zorder=zorder)
 
 

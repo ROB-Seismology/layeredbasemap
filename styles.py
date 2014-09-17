@@ -306,10 +306,6 @@ class FrontStyle(BasemapStyle):
 		matplotlib patches.
 		marker_style may also be a matplotlib patch instance, but
 		in that case, it will not be rotated following line curvature.
-	:param num_sides:
-		int, number of sides of front marker. Only applies to polygons, stars,
-		and asterisks.
-		(default: 3)
 	:param size:
 		int, size of front marker in points.
 		(default: 12)
@@ -324,6 +320,7 @@ class FrontStyle(BasemapStyle):
 		(default: 0)
 	:param angle:
 		float, angle in degrees of front marker with respect to line.
+		Does not apply to circles.
 		(default: 0)
 	:param alternate_sides:
 		bool, whether or not front markers should alternate between
@@ -341,6 +338,10 @@ class FrontStyle(BasemapStyle):
 		matplotlib color definition for fill color of front marker.
 		If None, will take line color of parent line.
 		(default: 'k')
+	:param num_sides:
+		int, number of sides of front marker. Only applies to polygons, stars,
+		and asterisks.
+		(default: 3)
 	:param aspect_ratio:
 		float, aspect ratio of width (direction perpendicular to line)
 		to length (direction along line) of front marker. Only applies
@@ -352,11 +353,31 @@ class FrontStyle(BasemapStyle):
 	:param theta2:
 		float, ending angle in degrees. Only applies to arcs.
 		(default: 180)
+	:param arrow_shape:
+		str, arrow shape, one of ["full", "left", "right"].
+		Only applies to arrows.
+		(default: "full")
+	:param arrow_overhang:
+		float, fraction that the arrow is swept back (0 means triangular shape).
+		Can be negative or greater than one. Only applies to arrows.
+		(default: 0.)
+	:param arrow_length_includes_head:
+		bool, True if head is to be counted in calculating arrow length.
+		Only applies to arrows.
+		(default: False)
+	:param arrow_head_starts_at_zero:
+		bool, if True, arrow head starts being drawn at coordinate 0 instead of
+		ending at coordinate 0. Only applies to arrows.
+		(default: False)
 	:param alpha:
 		float, alpha transparency for front marker.
 		(default: 1)
 	"""
-	def __init__(self, shape, size=10, interval=20, offset=0, angle=0, alternate_sides=False, line_width=1, line_color='k', fill_color='k', num_sides=3, aspect_ratio=1, theta1=0, theta2=180, alpha=1.):
+	def __init__(self, shape, size=10, interval=20, offset=0, angle=0,
+				alternate_sides=False, line_width=1, line_color='k', fill_color='k',
+				num_sides=3, aspect_ratio=1, theta1=0, theta2=180,
+				arrow_shape="full", arrow_overhang=0, arrow_length_includes_head=False,
+				arrow_head_starts_at_zero=False, alpha=1.):
 		self.shape = shape
 		self.size = size
 		self.interval = interval
@@ -370,6 +391,10 @@ class FrontStyle(BasemapStyle):
 		self.aspect_ratio = aspect_ratio
 		self.theta1 = theta1
 		self.theta2 = theta2
+		self.arrow_shape = arrow_shape
+		self.arrow_length_includes_head = arrow_length_includes_head
+		self.arrow_overhang = arrow_overhang
+		self.arrow_head_starts_at_zero = arrow_head_starts_at_zero
 		self.alpha = alpha
 
 	def to_kwargs(self):
@@ -391,6 +416,10 @@ class FrontStyle(BasemapStyle):
 		d["marker_aspect_ratio"] = self.aspect_ratio
 		d["marker_theta1"] = self.theta1
 		d["marker_theta2"] = self.theta2
+		d["marker_arrow_shape"] = self.arrow_shape
+		d["marker_arrow_overhang"] = self.arrow_overhang
+		d["marker_arrow_length_includes_head"] = self.arrow_length_includes_head
+		d["marker_arrow_head_starts_at_zero"] = self.arrow_head_starts_at_zero
 		d["marker_alpha"] = self.alpha
 		return d
 
