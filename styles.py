@@ -304,16 +304,18 @@ class FrontStyle(BasemapStyle):
 		Polygons, stars, asterisks and circles are implemented as
 		matplotlib markers; arcs, arrows, ellipses and rectangles as
 		matplotlib patches.
-		marker_style may also be a matplotlib patch instance, but
-		in that case, it will not be rotated following line curvature.
+		marker_style may also be a matplotlib patch instance, , in that
+		case, it is recommended to set lower left coordinate at (0, 0).
 	:param size:
 		int, size of front marker in points.
 		(default: 12)
 	:param interval:
-		int or array-like, interval of front marker along line
-		positive int: interval between markers in points
-		negative int (or zero): number of markers along line
-		array-like: distances along line, in range [0,1].
+		int, str or array-like, interval of front marker along line
+		- positive int: interval between markers in points
+		- negative int (or zero): number of markers along line
+		- str: marker interval will be rounded to closest value that
+			results in even spacing along the line
+		- array-like: distances along line, in range [0,1].
 		(default: 24)
 	:param offset:
 		int, offset of front marker with respect to line.
@@ -403,7 +405,7 @@ class FrontStyle(BasemapStyle):
 		and which can be passed to the plot function
 		"""
 		d = {}
-		d["marker_style"] = self.shape
+		d["marker_shape"] = self.shape
 		d["marker_size"] = self.size
 		d["marker_interval"] = self.interval
 		d["marker_offset"] = self.offset
