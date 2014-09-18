@@ -131,6 +131,12 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 	:param kwargs:
 		remaining keyword arguments for matplotlib plot command
 	"""
+	# TODO: points (1/72 inch) vs pixel coordinates (dpi)
+	dpi = ax.get_figure().dpi
+	print ax.get_figure().dpi_scale_trans
+
+	def pt2pixel(val):
+		return val * (dpi / 72.)
 
 	## Plot line first
 	if not line_style in ("None", None):
@@ -148,22 +154,25 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 	display_distance = mlab.distances_along_curve(display_data_coords)
 	display_cum_distance = np.concatenate([[0.], np.cumsum(display_distance)])
 	if marker_shape == "asterisk" and marker_num_sides <= 2:
-		marker_length = marker_edge_width
+		marker_length = 0
 	else:
-		marker_length = marker_size + marker_edge_width
+		marker_length = marker_size
 	if isinstance(marker_offset, (int, float)):
 		marker_offset = (0, marker_offset)
 	else:
 		marker_offset = marker_offset[:2]
-	start_distance = marker_length/2. + marker_offset[0]
-	end_distance = display_cum_distance[-1] - marker_length/2+1
+	start_distance = pt2pixel(marker_length/2. + marker_offset[0])
+	end_distance = display_cum_distance[-1] - pt2pixel(marker_length/2)
+	print start_distance, end_distance
 	if isinstance(marker_interval, (list, np.ndarray)):
+		marker_interval = pt2pixel(np.asarray(marker_interval))
 		display_marker_distances = np.interp(marker_interval, [0.,1.], [start_distance, end_distance])
 	elif isinstance(marker_interval, str):
-		marker_interval = float(marker_interval)
+		marker_interval = pt2pixel(float(marker_interval))
 		num_markers = np.abs(np.round((end_distance - start_distance) / marker_interval)) + 1
 		display_marker_distances = np.linspace(start_distance, end_distance, num_markers)
 	elif marker_interval > 0:
+		marker_interval = pt2pixel(marker_interval)
 		display_marker_distances = np.arange(start_distance, end_distance, marker_interval)
 	elif marker_interval <= 0:
 		display_marker_distances = np.linspace(start_distance, end_distance, np.abs(marker_interval))
@@ -172,8 +181,8 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 	display_marker_angles = np.interp(display_marker_distances, display_cum_distance[1:], display_data_angles)
 	if marker_alternate_sides:
 		display_marker_angles[1::2] += np.pi
-	display_marker_x += (marker_offset[1] * np.cos(display_marker_angles + np.pi/2))
-	display_marker_y += (marker_offset[1] * np.sin(display_marker_angles + np.pi/2))
+	display_marker_x += (pt2pixel(marker_offset[1]) * np.cos(display_marker_angles + np.pi/2))
+	display_marker_y += (pt2pixel(marker_offset[1]) * np.sin(display_marker_angles + np.pi/2))
 	marker_coords = inverse_transform.transform(zip(display_marker_x, display_marker_y))
 
 
@@ -182,6 +191,8 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 		marker_shape_code = {"polygon": 0, "star": 1, "asterisk": 2, "circle": 3}[marker_shape]
 		if marker_num_sides == 0:
 			marker_shape_code = 3
+		#elif marker_shape == "polygon":
+		#	marker_size *= 1.3
 		for i, (marker_x, marker_y) in enumerate(marker_coords):
 			angle = np.degrees(display_marker_angles[i]) + marker_angle
 			marker = (marker_num_sides, marker_shape_code, angle)
@@ -189,6 +200,7 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 
 
 	## Patches
+	# TODO: pt2pixel
 	elif marker_shape in ["arc", "arrow", "ellipse", "rectangle"] or isinstance(marker_shape, mpl.patches.Patch):
 		for i in range(len(display_marker_x)):
 			dmx, dmy = display_marker_x[i], display_marker_y[i]
@@ -244,7 +256,7 @@ if __name__ == "__main__":
 	y = np.sin(x)
 
 	## Marker definition
-	for example in ["polygon", "asterisk", "arrow1", "arrow2", "arc", "circle", "star", "patch"][-1:]:
+	for example in ["polygon", "rectangle", "asterisk", "arrow1", "arrow2", "arc", "circle", "star", "patch"][:2]:
 		## Defaults
 		marker_shape = "polygon"
 		marker_num_sides = 4
@@ -252,11 +264,11 @@ if __name__ == "__main__":
 		marker_offset = 0
 		marker_interval = 40
 		marker_angle = 0
-		marker_aspect_ratio = 0.75
+		marker_aspect_ratio = 1
 		marker_edge_color = 'k'
 		marker_face_color = 'r'
 		marker_edge_width = 1
-		marker_alpha = 1
+		marker_alpha = 0.5
 		marker_theta1 = 0
 		marker_theta2 = 180
 		marker_arrow_shape = "full"
@@ -275,9 +287,17 @@ if __name__ == "__main__":
 		if example == "polygon":
 			marker_shape = "polygon"
 			marker_num_sides = 3
+			marker_angle = 0
 			marker_size = 15
-			marker_offset = (marker_size / 2) - line_width / 2 - 2
+			marker_offset = (marker_size / 2)
+			kwargs["dashes"] = [marker_size, marker_interval-marker_size]
 			title = "Thrust fault"
+
+		elif example == "rectangle":
+			marker_shape = "rectangle"
+			marker_size = 15
+			marker_aspect_ratio = 1
+			title = "Rectangle"
 
 		elif example == "asterisk":
 			marker_shape = "asterisk"
