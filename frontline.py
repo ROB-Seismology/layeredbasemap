@@ -131,49 +131,58 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 	:param kwargs:
 		remaining keyword arguments for matplotlib plot command
 	"""
-	# TODO: points (1/72 inch) vs pixel coordinates (dpi)
 	dpi = ax.get_figure().dpi
-	print ax.get_figure().dpi_scale_trans
 
 	def pt2pixel(val):
-		return val * (dpi / 72.)
+		#return val * (dpi / 72.)
+		## Correct for a slight mismatch with dash lengths
+		return val * (dpi / 72.) * 1.004
 
 	## Plot line first
 	if not line_style in ("None", None):
 		ax.plot(x, y, lw=line_width, color=line_color, ls=line_style, alpha=line_alpha, zorder=zorder, **kwargs)
 
 	## Transforms between data domain and display domain
+	pt_to_pixel_transform = ax.get_figure().dpi_scale_trans.frozen().scale(1./72)
 	forward_transform = ax.transData
 	inverse_transform = ax.transData.inverted()
 
-	## Compute marker coordinates in data units
-	## based on cumulative distance along line in display units
+	## Compute cumulative distance along line and angles in pixel domain
 	display_data_coords = forward_transform.transform(zip(x,y))
 	display_data_x, display_data_y = zip(*display_data_coords)
 	display_data_angles = np.arctan2(np.diff(display_data_y), np.diff(display_data_x))
 	display_distance = mlab.distances_along_curve(display_data_coords)
 	display_cum_distance = np.concatenate([[0.], np.cumsum(display_distance)])
+
 	if marker_shape == "asterisk" and marker_num_sides <= 2:
 		marker_length = 0
 	else:
 		marker_length = marker_size
+	## Make sure marker_offset is 2D (along line / perpendicular to line)
 	if isinstance(marker_offset, (int, float)):
-		marker_offset = (0, marker_offset)
+		marker_offset = np.array([0, marker_offset])
 	else:
-		marker_offset = marker_offset[:2]
-	start_distance = pt2pixel(marker_length/2. + marker_offset[0])
-	end_distance = display_cum_distance[-1] - pt2pixel(marker_length/2)
-	print start_distance, end_distance
+		marker_offset = np.asarray(marker_offset[:2])
+
+	## Convert points to pixels (1 pt = 1/72 inch)
+	marker_length_px = pt2pixel(marker_length)
+	marker_size_px = pt2pixel(marker_size)
+	marker_offset_px = pt2pixel(marker_offset)
+
+	## Compute marker coordinates in data units based on
+	## interpolation of cumulative distance along line in display units
+	start_distance = marker_length_px/2. + marker_offset_px[0]
+	end_distance = display_cum_distance[-1] - marker_length_px/2
 	if isinstance(marker_interval, (list, np.ndarray)):
-		marker_interval = pt2pixel(np.asarray(marker_interval))
-		display_marker_distances = np.interp(marker_interval, [0.,1.], [start_distance, end_distance])
+		marker_interval_px = pt2pixel(np.asarray(marker_interval))
+		display_marker_distances = np.interp(marker_interval_px, [0.,1.], [start_distance, end_distance])
 	elif isinstance(marker_interval, str):
-		marker_interval = pt2pixel(float(marker_interval))
-		num_markers = np.abs(np.round((end_distance - start_distance) / marker_interval)) + 1
+		marker_interval_px = pt2pixel(float(marker_interval))
+		num_markers = np.abs(np.round((end_distance - start_distance) / marker_interval_px)) + 1
 		display_marker_distances = np.linspace(start_distance, end_distance, num_markers)
 	elif marker_interval > 0:
-		marker_interval = pt2pixel(marker_interval)
-		display_marker_distances = np.arange(start_distance, end_distance, marker_interval)
+		marker_interval_px = pt2pixel(marker_interval)
+		display_marker_distances = np.arange(start_distance, end_distance, marker_interval_px)
 	elif marker_interval <= 0:
 		display_marker_distances = np.linspace(start_distance, end_distance, np.abs(marker_interval))
 	display_marker_x = np.interp(display_marker_distances, display_cum_distance, display_data_x)
@@ -181,8 +190,8 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 	display_marker_angles = np.interp(display_marker_distances, display_cum_distance[1:], display_data_angles)
 	if marker_alternate_sides:
 		display_marker_angles[1::2] += np.pi
-	display_marker_x += (pt2pixel(marker_offset[1]) * np.cos(display_marker_angles + np.pi/2))
-	display_marker_y += (pt2pixel(marker_offset[1]) * np.sin(display_marker_angles + np.pi/2))
+	display_marker_x += (marker_offset_px[1] * np.cos(display_marker_angles + np.pi/2))
+	display_marker_y += (marker_offset_px[1] * np.sin(display_marker_angles + np.pi/2))
 	marker_coords = inverse_transform.transform(zip(display_marker_x, display_marker_y))
 
 
@@ -191,8 +200,11 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 		marker_shape_code = {"polygon": 0, "star": 1, "asterisk": 2, "circle": 3}[marker_shape]
 		if marker_num_sides == 0:
 			marker_shape_code = 3
-		#elif marker_shape == "polygon":
-		#	marker_size *= 1.3
+		if marker_shape_code in (0,1,3):
+			## Convert marker size in diamter to size in area
+			# TODO: find correct conversion for different shapes
+			radius = marker_size / 2
+			marker_size = radius * (radius ** 2) / (marker_size)
 		for i, (marker_x, marker_y) in enumerate(marker_coords):
 			angle = np.degrees(display_marker_angles[i]) + marker_angle
 			marker = (marker_num_sides, marker_shape_code, angle)
@@ -200,29 +212,28 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 
 
 	## Patches
-	# TODO: pt2pixel
 	elif marker_shape in ["arc", "arrow", "ellipse", "rectangle"] or isinstance(marker_shape, mpl.patches.Patch):
 		for i in range(len(display_marker_x)):
 			dmx, dmy = display_marker_x[i], display_marker_y[i]
 			angle = np.degrees(display_marker_angles[i]) + marker_angle
 			if marker_shape == "arc":
-				patch = mpl.patches.Arc((0, 0), marker_size, marker_size * marker_aspect_ratio, theta1=marker_theta1, theta2=marker_theta2, angle=angle)
+				patch = mpl.patches.Arc((0, 0), marker_size_px, marker_size_px * marker_aspect_ratio, theta1=marker_theta1, theta2=marker_theta2, angle=angle)
 			elif marker_shape == "arrow":
-				dx = np.cos(np.radians(angle)) * marker_length / 2
-				dy = np.sin(np.radians(angle)) * marker_length / 2
-				patch = mpl.patches.FancyArrow(0, 0, dx, dy, width=marker_edge_width, head_width=marker_size/2*marker_aspect_ratio, head_length=marker_size/2, shape=marker_arrow_shape, overhang=marker_arrow_overhang, length_includes_head=marker_arrow_length_includes_head, head_starts_at_zero=marker_arrow_head_starts_at_zero)
+				dx = np.cos(np.radians(angle)) * marker_length_px / 2
+				dy = np.sin(np.radians(angle)) * marker_length_px / 2
+				patch = mpl.patches.FancyArrow(0, 0, dx, dy, width=marker_edge_width, head_width=marker_size_px/2*marker_aspect_ratio, head_length=marker_size_px/2, shape=marker_arrow_shape, overhang=marker_arrow_overhang, length_includes_head=marker_arrow_length_includes_head, head_starts_at_zero=marker_arrow_head_starts_at_zero)
 			elif marker_shape == "ellipse":
-				patch = mpl.patches.Ellipse((0, 0), marker_size, marker_size * marker_aspect_ratio, angle=angle)
+				patch = mpl.patches.Ellipse((0, 0), marker_size_px, marker_size_px * marker_aspect_ratio, angle=angle)
 			elif marker_shape == "rectangle":
-				patch = mpl.patches.Rectangle((0, 0), marker_size, marker_size * marker_aspect_ratio, angle=angle)
+				patch = mpl.patches.Rectangle((0, 0), marker_size_px, marker_size_px * marker_aspect_ratio, angle=angle)
 			elif isinstance(marker_shape, mpl.patches.Patch):
 				patch = marker_shape
-				tf = mpl.transforms.Affine2D().rotate_deg(angle)
+				tf = pt_to_pixel_transform + mpl.transforms.Affine2D().rotate_deg(angle)
 				patch.set_transform(tf)
 			## Shift patch back half its width if needed
 			if marker_shape in ("arrow", "rectangle") or isinstance(marker_shape, mpl.patches.Patch):
-				dmx += (-np.cos(np.radians(angle)) * marker_length / 2)
-				dmy += (-np.sin(np.radians(angle)) * marker_length / 2)
+				dmx += (-np.cos(np.radians(angle)) * marker_length_px / 2)
+				dmy += (-np.sin(np.radians(angle)) * marker_length_px / 2)
 			tf = mpl.transforms.Affine2D().translate(dmx, dmy)
 
 			## Copy tranformed vertices to a new patch, otherwise patches
@@ -256,7 +267,7 @@ if __name__ == "__main__":
 	y = np.sin(x)
 
 	## Marker definition
-	for example in ["polygon", "rectangle", "asterisk", "arrow1", "arrow2", "arc", "circle", "star", "patch"][:2]:
+	for example in ["polygon", "rectangle", "asterisk", "arrow1", "arrow2", "arc", "circle", "star", "patch"]:
 		## Defaults
 		marker_shape = "polygon"
 		marker_num_sides = 4
@@ -332,7 +343,7 @@ if __name__ == "__main__":
 
 		elif example == "circle":
 			marker_shape = "circle"
-			marker_size = 10
+			marker_size = 15
 			marker_edge_color = line_color = 'g'
 			marker_edge_width = line_width
 			marker_face_color = 'w'
@@ -342,12 +353,13 @@ if __name__ == "__main__":
 		elif example == "star":
 			marker_shape = "star"
 			marker_num_sides = 6
+			marker_size = 10
 			title = "Star"
 
 		elif example == "patch":
-			marker_shape = mpl.patches.Polygon([[0,0], [0,10], [5,5], [10,10], [10,0]], closed=True)
+			marker_shape = mpl.patches.Polygon([[0,0], [0,marker_size], [marker_size/2,marker_size/2], [marker_size, marker_size], [marker_size,0]], closed=True)
 			marker_offset = [marker_size/4, 0]
-			kwargs["dashes"] = [18,18,18,18]
+			kwargs["dashes"] = [marker_size/2,marker_size/2]
 			title = "Arbitrary patch, aligned with dashes"
 
 
