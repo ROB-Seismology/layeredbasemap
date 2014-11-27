@@ -129,7 +129,7 @@ class MultiPointData(BasemapData):
 
 	:param lons:
 		list or array of floats, longitudes
-	:param lat:
+	:param lats:
 		list or array of floats, latitudes
 	:param values:
 		list of strings, ints or floats, or dictionary mapping
@@ -137,7 +137,7 @@ class MultiPointData(BasemapData):
 		Used for thematic mapping, in conjunction with a layer style
 		containing thematic elements
 		(default: [])
-	:param label:
+	:param labels:
 		list of strings, labels to be plotted alongside points (if
 		label_style in corresponding layer style is not None)
 		(default: [])

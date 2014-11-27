@@ -16,6 +16,8 @@ from data_types import *
 import cm
 
 
+# TODO: draw labels with lines/arrows
+
 
 class MapLayer:
 	"""

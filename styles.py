@@ -230,7 +230,7 @@ class PointStyle(BasemapStyle):
 		self.alpha = alpha
 		self.thematic_legend_style = thematic_legend_style
 		## Adjust label spacing of thematic legend to accommodate largest symbols
-		if isinstance(self.size, ThematicStyle):
+		if isinstance(self.size, ThematicStyle) and self.thematic_legend_style:
 			max_size = max(size.styles)
 			self.thematic_legend_style.label_spacing = max(max_size*0.5/10, self.thematic_legend_style.label_spacing)
 
@@ -539,8 +539,10 @@ class PolygonStyle(BasemapStyle):
 	:param line_pattern:
 		String, line pattern format string, or instance of :class:`ThematicStyle`
 		"solid" | "dashed" | "dashdot" | "dotted"
-		Note: in contrast to :class:`LineStyle`, the character formats
-		"-" | "--" | "-." | ":" are NOT supported
+		(default: "solid")
+		Note: the character formats "-" | "--" | "-." | ":" are supported
+		as well, but they are automatically converted to the corresponding
+		long names
 	:param line_width:
 		Float, line width, or instance of :class:`ThematicStyle`
 		(default: 1)
@@ -564,7 +566,7 @@ class PolygonStyle(BasemapStyle):
 		(default: None)
 	"""
 	def __init__(self, line_pattern="solid", line_width=1, line_color='k', fill_color='w', fill_hatch=None, label_style=None, alpha=1., thematic_legend_style=None):
-		self.line_pattern = line_pattern
+		self.line_pattern = {'-': 'solid', '--': 'dashed', ':': 'dotted', '-.': 'dashdot'}.get(line_pattern, line_pattern)
 		self.line_width = line_width
 		self.line_color = line_color
 		self.fill_color = fill_color
