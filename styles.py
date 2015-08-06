@@ -1051,6 +1051,7 @@ class ThematicStyleGradient(ThematicStyle):
 		super(ThematicStyleGradient, self).__init__(value_key, add_legend, colorbar_style)
 		self.values = np.array(values, dtype='f')
 		self.styles = styles
+		#TODO: assert len(values) = len(styles)
 		if labels:
 			self.labels = labels
 		else:

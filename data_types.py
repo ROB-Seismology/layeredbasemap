@@ -6,6 +6,7 @@ import numpy as np
 import shapely
 import shapely.geometry
 import shapely.wkt
+import ogr
 
 
 
@@ -499,6 +500,15 @@ class PolygonData(BasemapData):
 
 	@classmethod
 	def from_ogr(cls, geom):
+		## Correct invalid polygons with more than 1 linear ring
+		import ogr
+		num_rings = geom.GetGeometryCount()
+		if num_rings > 1:
+			ring_lengths = [geom.GetGeometryRef(i).GetPointCount() for i in range(num_rings)]
+			idx = int(np.argmax(ring_lengths))
+			poly = ogr.Geometry(ogr.wkbPolygon)
+			poly.AddGeometry(geom.GetGeometryRef(idx))
+			geom = poly
 		return cls.from_wkt(geom.ExportToWkt())
 
 	def get_centroid(self):
@@ -571,6 +581,31 @@ class MultiPolygonData(BasemapData):
 			self.values.append(polygon.value)
 		if polygon.label:
 			self.labels.append(polygon.label)
+
+	def to_polygon(self):
+		"""
+		Discard all but the first polygon
+		"""
+		lons = self.lons[0]
+		lats = self.lats[0]
+		try:
+			interior_lons = self.interior_lons[0]
+		except IndexError:
+			interior_lons = []
+		try:
+			interior_lats = self.interior_lats[0]
+		except IndexError:
+			interior_lats = []
+		try:
+			value = self.values[0]
+		except IndexError:
+			value = None
+		try:
+			label = self.labels[0]
+		except IndexError:
+			label = ""
+
+		return PolygonData(lons, lats, interior_lons, interior_lats, value, label)
 
 	def to_shapely(self):
 		shapely_polygons = [pg.to_shapely() for pg in self]
@@ -811,4 +846,101 @@ class GisData(BasemapData):
 		self.label_colname = label_colname
 		self.selection_dict = selection_dict
 
+	def get_data(self, point_value_colnames=None, line_value_colnames=None,
+					polygon_value_colnames=None):
+		"""
+		Read GIS records, transforming into LayeredBasemap data types
 
+		:param point_value_colnames:
+			list of strings, names of columns to read for point data
+			(default: None, will read all available columns)
+		:param line_value_colnames:
+			list of strings, names of columns to read for line data
+			(default: None, will read all available columns)
+		:param polygon_value_colnames:
+			list of strings, names of columns to read for polygon data
+			(default: None, will read all available columns)
+
+		:return:
+			(MultiPointData, MultiLineData, MultiPolygonData) tuple
+		"""
+		from mapping.geo.readGIS import read_GIS_file, read_GIS_file_attributes
+
+		if None in (point_value_colnames, line_value_colnames, polygon_value_colnames):
+			colnames = read_GIS_file_attributes(self.filespec)
+		if point_value_colnames is None:
+			point_value_colnames = colnames
+		if line_value_colnames is None:
+			line_value_colnames = colnames
+		if polygon_value_colnames is None:
+			polygon_value_colnames = colnames
+
+		## Note: it is absolutely necessary to initialize all empty lists
+		## explicitly, otherwise unexpected things may happen in subsequent
+		## calls of this method!
+		point_data = MultiPointData([], [], values=[], labels=[])
+		point_data.values = {}
+		for colname in point_value_colnames:
+			point_data.values[colname] = []
+		line_data = MultiLineData([], [], values=[], labels=[])
+		line_data.values = {}
+		for colname in line_value_colnames:
+			line_data.values[colname] = []
+		polygon_data = MultiPolygonData([], [], interior_lons=[], interior_lats=[], values=[], labels=[])
+		polygon_data.values = {}
+		for colname in polygon_value_colnames:
+			polygon_data.values[colname] = []
+
+		for rec in read_GIS_file(self.filespec):
+			selected = np.zeros(len(self.selection_dict.keys()))
+			for i, (selection_colname, selection_value) in enumerate(self.selection_dict.items()):
+				if rec[selection_colname] == selection_value or rec[selection_colname] in list(selection_value):
+					selected[i] = 1
+				else:
+					selected[i] = 0
+			if selected.all():
+				label = rec.get(self.label_colname)
+				geom = rec['obj']
+				geom_type = geom.GetGeometryName()
+				if geom_type == "POINT":
+					pt = PointData.from_ogr(geom)
+					pt.label = label
+					point_data.append(pt)
+					for colname in point_value_colnames:
+						point_data.values[colname].append(rec[colname])
+				elif geom_type == "MULTIPOINT":
+					# TODO: needs to be tested
+					multi_pt = MultiPointData.from_ogr(geom)
+					for pt in multi_pt:
+						pt.label = label
+						point_data.append(pt)
+						for colname in point_value_colnames:
+							point_data.values[colname].append(rec[colname])
+				elif geom_type == "LINESTRING":
+					line = LineData.from_ogr(geom)
+					line.label = label
+					line_data.append(line)
+					for colname in line_value_colnames:
+						line_data.values[colname].append(rec[colname])
+				elif geom_type == "MULTILINESTRING":
+					multi_line = MultiLineData.from_ogr(geom)
+					for line in multi_line:
+						line.label = label
+						line_data.append(line)
+						for colname in line_value_colnames:
+							line_data.values[colname].append(rec[colname])
+				elif geom_type == "POLYGON":
+					polygon = PolygonData.from_ogr(geom)
+					polygon.label = label
+					polygon_data.append(polygon)
+					for colname in polygon_value_colnames:
+						polygon_data.values[colname].append(rec[colname])
+				elif geom_type == "MULTIPOLYGON":
+					multi_polygon = MultiPolygonData.from_ogr(geom)
+					for polygon in multi_polygon:
+						polygon.label = label
+						polygon_data.append(polygon)
+						for colname in polygon_value_colnames:
+							polygon_data.values[colname].append(rec[colname])
+
+		return (point_data, line_data, polygon_data)

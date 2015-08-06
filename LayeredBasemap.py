@@ -559,8 +559,6 @@ class LayeredBasemap:
 			self._draw_texts(text_data, text_style)
 
 	def draw_gis_layer(self, gis_data, gis_style, legend_label={"points": "_nolegend_", "lines": "_nolegend_", "polygons": "_nolegend_"}):
-		from mapping.geo.readGIS import read_GIS_file
-
 		point_style = gis_style.point_style
 		line_style = gis_style.line_style
 		polygon_style = gis_style.polygon_style
@@ -595,65 +593,8 @@ class LayeredBasemap:
 			if isinstance(polygon_style.fill_hatch, ThematicStyle):
 				polygon_value_colnames.add(polygon_style.fill_hatch.value_key)
 
-		## Note: it is absolutely necessary to initialize all empty lists
-		## explicitly, otherwise unexpected things may happen in subsequent
-		## calls of this method!
-		point_data = MultiPointData([], [], values=[], labels=[])
-		point_data.values = {}
-		for colname in point_value_colnames:
-			point_data.values[colname] = []
-		line_data = MultiLineData([], [], values=[], labels=[])
-		line_data.values = {}
-		for colname in line_value_colnames:
-			line_data.values[colname] = []
-		polygon_data = MultiPolygonData([], [], interior_lons=[], interior_lats=[], values=[], labels=[])
-		polygon_data.values = {}
-		for colname in polygon_value_colnames:
-			polygon_data.values[colname] = []
-		for rec in read_GIS_file(gis_data.filespec):
-			selected = np.zeros(len(gis_data.selection_dict.keys()))
-			for i, (selection_colname, selection_value) in enumerate(gis_data.selection_dict.items()):
-				if rec[selection_colname] == selection_value or rec[selection_colname] in list(selection_value):
-					selected[i] = 1
-				else:
-					selected[i] = 0
-			if selected.all():
-				label = rec.get(gis_data.label_colname)
-				geom = rec['obj']
-				geom_type = geom.GetGeometryName()
-				# TODO: MultiPoint
-				if geom_type == "POINT":
-					pt = PointData.from_ogr(geom)
-					pt.label = label
-					point_data.append(pt)
-					for colname in point_value_colnames:
-						point_data.values[colname].append(rec[colname])
-				elif geom_type == "LINESTRING":
-					line = LineData.from_ogr(geom)
-					line.label = label
-					line_data.append(line)
-					for colname in line_value_colnames:
-						line_data.values[colname].append(rec[colname])
-				elif geom_type == "MULTILINESTRING":
-					multi_line = MultiLineData.from_ogr(geom)
-					for line in multi_line:
-						line.label = label
-						line_data.append(line)
-						for colname in line_value_colnames:
-							line_data.values[colname].append(rec[colname])
-				elif geom_type == "POLYGON":
-					polygon = PolygonData.from_ogr(geom)
-					polygon.label = label
-					polygon_data.append(polygon)
-					for colname in polygon_value_colnames:
-						polygon_data.values[colname].append(rec[colname])
-				elif geom_type == "MULTIPOLYGON":
-					multi_polygon = MultiPolygonData.from_ogr(geom)
-					for polygon in multi_polygon:
-						polygon.label = label
-						polygon_data.append(polygon)
-						for colname in polygon_value_colnames:
-							polygon_data.values[colname].append(rec[colname])
+		point_data, line_data, polygon_data = gis_data.get_data(point_value_colnames,
+										line_value_colnames, polygon_value_colnames)
 
 		self.draw_composite_layer(point_data=point_data, point_style=point_style, line_data=line_data, line_style=line_style, polygon_data=polygon_data, polygon_style=polygon_style, legend_label=legend_label)
 
