@@ -885,9 +885,20 @@ class LayeredBasemap:
 
 	def draw_geotiff(self, tif_filespec):
 		# TODO
+		# See http://stackoverflow.com/questions/20488765/plot-gdal-raster-using-matplotlib-basemap
+		# and https://cynici.wordpress.com/2011/08/26/geotiff-and-python-gdal/
 		import gdal
-		geo = gdal.Open("file.geotiff")
-		ar = geo.ReadAsArray()
+		ds = gdal.Open("file.geotiff")
+		band = ds.GetRasterBand(1)
+		ar = band.ReadAsArray()
+
+		srs_wkt = ds.GetProjection()
+
+		nrows, ncols = ar.shape
+		xmin, dx, dxdy, y0, dydx, dy = ds.GetGeoTransform()
+		x1 = x0 + dx * ncols
+		y1 = y0 + dy * nrows
+		plt.imshow(ar, cmap='gist_earth', extent=[x0, x1, y1, y0])
 
 	def draw_mask(self, polygon, mask_style=None, outside=True):
 		"""
