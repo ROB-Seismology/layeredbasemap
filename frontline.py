@@ -1,5 +1,7 @@
 """
 Test to plot frontlines in matplotlib using markers
+
+Author: Kris Vanneste, Royal Observatory of Belgium, 2014
 """
 
 import numpy as np
@@ -35,7 +37,7 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 	:param x:
 		array-like, X coordinates of points defining the line.
 	:param y:
-		array-like, Y coordinates of points defining hte line.
+		array-like, Y coordinates of points defining the line.
 	:param axes:
 		axes instance in which frontline should be drawn.
 	:param line_style:

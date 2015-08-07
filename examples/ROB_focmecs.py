@@ -11,7 +11,7 @@ from mapping.Basemap.LayeredBasemap import *
 
 #fig_filespec = None
 #fig_filespec = r"E:\Home\_kris\Projects\2012 - Electrabel\Progress Report 2\Figures\FocalMechanisms.png"
-fig_filespec = None
+fig_filespec = r"E:\Home\_kris\Projects\2013 - cAt_Rev\Figures\Maps\FocalMechanisms.png"
 
 region = (3,7,50,51.5)
 projection = "merc"
@@ -35,7 +35,8 @@ layer = MapLayer(data, country_style)
 layers.append(layer)
 
 ## Source model
-sm_name= "Seismotectonic_Hybrid"
+#sm_name= "Seismotectonic_Hybrid"
+sm_name= "Seismotectonic"
 gis_filespec = rob_source_models_dict[sm_name].gis_filespec
 src_label_name = rob_source_models_dict[sm_name].column_map['id']
 data = GisData(gis_filespec, src_label_name)
