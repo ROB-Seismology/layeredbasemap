@@ -593,6 +593,12 @@ class LayeredBasemap:
 			if isinstance(polygon_style.fill_hatch, ThematicStyle):
 				polygon_value_colnames.add(polygon_style.fill_hatch.value_key)
 
+		## Remove column names that correspond to joined attribute names
+		joined_attribute_names = set(gis_data.joined_attributes.keys())
+		point_value_colnames = point_value_colnames.difference(joined_attribute_names)
+		line_value_colnames = line_value_colnames.difference(joined_attribute_names)
+		polygon_value_colnames = polygon_value_colnames.difference(joined_attribute_names)
+
 		point_data, line_data, polygon_data = gis_data.get_data(point_value_colnames,
 										line_value_colnames, polygon_value_colnames)
 

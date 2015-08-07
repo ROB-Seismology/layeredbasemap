@@ -841,10 +841,19 @@ class UnstructuredGridData(GridData):
 
 
 class GisData(BasemapData):
-	def __init__(self, filespec, label_colname=None, selection_dict={}):
+	"""
+
+	:param joined_attributes:
+		dict, mapping additional attribute names (not present in the GIS table)
+		to dictionaries containing two entries:
+		- 'key' string, GIS attribute that will be used to join
+		- 'values': dict, mapping values of 'key' to attribute values
+	"""
+	def __init__(self, filespec, label_colname=None, selection_dict={}, joined_attributes={}):
 		self.filespec = filespec
 		self.label_colname = label_colname
 		self.selection_dict = selection_dict
+		self.joined_attributes = joined_attributes
 
 	def get_data(self, point_value_colnames=None, line_value_colnames=None,
 					polygon_value_colnames=None):
@@ -874,6 +883,14 @@ class GisData(BasemapData):
 			line_value_colnames = colnames
 		if polygon_value_colnames is None:
 			polygon_value_colnames = colnames
+
+		## Make sure attributes needed to link with joined_attributes are stored too
+		joined_attribute_colnames = set()
+		for attrib_name in self.joined_attributes.keys():
+			joined_attribute_colnames.add(self.joined_attributes[attrib_name]['key'])
+		point_value_colnames = point_value_colnames.union(joined_attribute_colnames)
+		line_value_colnames = line_value_colnames.union(joined_attribute_colnames)
+		polygon_value_colnames = polygon_value_colnames.union(joined_attribute_colnames)
 
 		## Note: it is absolutely necessary to initialize all empty lists
 		## explicitly, otherwise unexpected things may happen in subsequent
@@ -942,5 +959,13 @@ class GisData(BasemapData):
 						polygon_data.append(polygon)
 						for colname in polygon_value_colnames:
 							polygon_data.values[colname].append(rec[colname])
+
+		## Append joined attributes
+		for attrib_name in self.joined_attributes.keys():
+			key = self.joined_attributes[attrib_name]['key']
+			value_dict = self.joined_attributes[attrib_name]['values']
+			point_data.values[attrib_name] = [value_dict[key_val] for key_val in point_data.values[key]]
+			line_data.values[attrib_name] = [value_dict[key_val] for key_val in line_data.values[key]]
+			polygon_data.values[attrib_name] = [value_dict[key_val] for key_val in polygon_data.values[key]]
 
 		return (point_data, line_data, polygon_data)
