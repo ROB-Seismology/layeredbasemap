@@ -55,7 +55,7 @@ class ThematicLegend:
 
 
 class LayeredBasemap:
-	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), extent=(None, None), grid_interval=(None, None), resolution="i", annot_axes="SE", title_style=DefaultTitleTextStyle, legend_style=LegendStyle(), scalebar_style=None, border_style=MapBorderStyle(), graticule_style=LineStyle(), **proj_args):
+	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), extent=(None, None), grid_interval=(None, None), resolution="i", annot_axes="SE", title_style=DefaultTitleTextStyle, legend_style=LegendStyle(), scalebar_style=None, border_style=MapBorderStyle(), graticule_style=LineStyle(), ax=None, **proj_args):
 		self.layers = layers
 		self.title = title
 		self.region = region
@@ -72,8 +72,11 @@ class LayeredBasemap:
 		self.graticule_style = graticule_style
 		self.proj_args = proj_args
 
-		self.map = self.init_basemap()
-		self.ax = pylab.gca()
+		self.map = self.init_basemap(ax)
+		if ax is None:
+			self.ax = pylab.gca()
+		else:
+			self.ax = ax
 		self.thematic_legends = []
 
 	@property
@@ -116,7 +119,7 @@ class LayeredBasemap:
 	def dlat(self):
 		return self.grid_interval[1]
 
-	def init_basemap(self):
+	def init_basemap(self, ax=None):
 		self.zorder = 0
 		lon_0, lat_0 = self.origin
 		llcrnrlon, urcrnrlon, llcrnrlat, urcrnrlat = self.region
@@ -131,7 +134,7 @@ class LayeredBasemap:
 		else:
 			width, height = self.extent
 
-		map = Basemap(projection=self.projection, resolution=self.resolution, llcrnrlon=llcrnrlon, llcrnrlat=llcrnrlat, urcrnrlon=urcrnrlon, urcrnrlat=urcrnrlat, lon_0=lon_0, lat_0=lat_0, width=width, height=height, **self.proj_args)
+		map = Basemap(projection=self.projection, resolution=self.resolution, llcrnrlon=llcrnrlon, llcrnrlat=llcrnrlat, urcrnrlon=urcrnrlon, urcrnrlat=urcrnrlat, lon_0=lon_0, lat_0=lat_0, width=width, height=height, ax=ax, **self.proj_args)
 		self.region = (map.llcrnrlon, map.urcrnrlon, map.llcrnrlat, map.urcrnrlat)
 		self.is_drawn = False
 		return map
@@ -889,22 +892,9 @@ class LayeredBasemap:
 				thematic_legend = ThematicLegend(legend_artists, legend_labels, focmec_style.thematic_legend_style)
 				self.thematic_legends.append(thematic_legend)
 
-	def draw_geotiff(self, tif_filespec):
+	def draw_image(self, img_filespec):
 		# TODO
-		# See http://stackoverflow.com/questions/20488765/plot-gdal-raster-using-matplotlib-basemap
-		# and https://cynici.wordpress.com/2011/08/26/geotiff-and-python-gdal/
-		import gdal
-		ds = gdal.Open("file.geotiff")
-		band = ds.GetRasterBand(1)
-		ar = band.ReadAsArray()
-
-		srs_wkt = ds.GetProjection()
-
-		nrows, ncols = ar.shape
-		xmin, dx, dxdy, y0, dydx, dy = ds.GetGeoTransform()
-		x1 = x0 + dx * ncols
-		y1 = y0 + dy * nrows
-		plt.imshow(ar, cmap='gist_earth', extent=[x0, x1, y1, y0])
+		plt.imshow(ar, extent=[x0, x1, y1, y0])
 
 	def draw_mask(self, polygon, mask_style=None, outside=True):
 		"""
@@ -1120,6 +1110,16 @@ class LayeredBasemap:
 
 	def map_from_display_coordinates(self, display_x, display_y):
 		return zip(*self.ax.transData.inverted().transform(zip(display_x, display_y)))
+
+	def get_srs(self):
+		import osr
+		srs = osr.SpatialReference()
+		srs.ImportFromProj4(self.map.proj4string)
+		return srs
+
+	def get_srs_wkt(self):
+		srs = self.get_srs()
+		return srs.ExportToWkt()
 
 	def plot(self, fig_filespec=None, fig_width=0, dpi=300):
 		#fig = pylab.figure()

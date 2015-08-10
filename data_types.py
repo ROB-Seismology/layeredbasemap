@@ -764,6 +764,9 @@ class MeshGridData(GridData):
 		masked_values = maskoceans(self.lons, self.lats, self.values, inlands=mask_lakes, resolution=resolution, grid=grid_spacing)
 		return MeshGridData(self.lons, self.lats, masked_values)
 
+	def reproject(self, source_srs, target_srs):
+		pass
+
 
 class UnstructuredGridData(GridData):
 	"""
@@ -838,6 +841,80 @@ class UnstructuredGridData(GridData):
 		mesh_lons, mesh_lats = np.meshgrid(lons, lats)
 		mesh_values = griddata((self.lons, self.lats), self.values, (mesh_lons, mesh_lats), method=interpolation_method)
 		return MeshGridData(mesh_lons, mesh_lats, mesh_values)
+
+
+class GdalRasterData(MeshGridData):
+	"""
+	GDAL raster data (including GeoTiff)
+	Unrotated!
+
+	:param filespec:
+		str, full path to GDAL raster dataset
+	:param band_nr:
+		int,  raster band number (one-based)
+	"""
+	def __init__(self, filespec, band_nr=1):
+		self.filespec = filespec
+		self.band_nr = band_nr
+
+		self.lons, self.lats, self.values = self.read_band(self.band_nr)
+
+	def read_band(self, band_nr=1):
+		"""
+		Read a particular raster band
+
+		:param band_nr:
+			int, raster band number (one-based)
+
+		:return:
+			(lons, lats, values) tuple, 2-D arrays containing grid
+			longitudes, grid latitudes and grid values
+		"""
+		## Based on:
+		## http://stackoverflow.com/questions/20488765/plot-gdal-raster-using-matplotlib-basemap
+
+		import osr, gdal
+		from mapping.geo.coordtrans import (transform_mesh_coordinates, wgs84)
+
+		## Read data values and metadata
+		ds = gdal.Open(self.filespec)
+		band = ds.GetRasterBand(band_nr)
+		values = band.ReadAsArray()
+		srs_wkt = ds.GetProjection()
+		gt = ds.GetGeoTransform()
+		ds = None
+
+		## Compute grid extent
+		## If dx is positive, X is West. Otherwise, X is East.
+		## If dy is positive, Y is South. Otherwise, Y is North.
+		## In other words, when both dx and dy are positive, (X, Y) is the
+		## lower-left corner of the image.
+		## It is also common to have positive dx but negative dy which indicates
+		## that (X, Y) is the top-left corner of the image.
+		nrows, ncols = values.shape
+		dx, dy = gt[1], gt[5]
+		xmin = gt[0] + dx * 0.5
+		xmax = gt[0] + (dx * ncols) - dx * 0.5
+		if dx < 0:
+			xmin, xmax = xmax, xmin
+		ymin = gt[3] + (dy * nrows) + dy * 0.5
+		ymax = gt[3] - dy * 0.5
+		if dy < 0:
+			ymin, ymax = ymax, ymin
+
+		## Create meshed coordinates
+		x_source, y_source = np.meshgrid(np.linspace(xmin, xmax, ncols),
+										np.linspace(ymin, ymax, nrows))
+
+		## Create the projection objects for the conversion
+		source_srs = osr.SpatialReference()
+		source_srs.ImportFromWkt(srs_wkt)
+		target_srs = wgs84
+
+		## Convert from source projection to WGS84
+		lons, lats = transform_mesh_coordinates(source_srs, target_srs, x_source, y_source)
+
+		return (lons, lats, values)
 
 
 class GisData(BasemapData):
@@ -969,3 +1046,11 @@ class GisData(BasemapData):
 			polygon_data.values[attrib_name] = [value_dict[key_val] for key_val in polygon_data.values[key]]
 
 		return (point_data, line_data, polygon_data)
+
+
+class WMSData(object):
+	# TODO
+	def __init__(self, url):
+		self.url = url
+
+
