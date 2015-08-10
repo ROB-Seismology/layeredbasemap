@@ -363,10 +363,12 @@ class LayeredBasemap:
 					if colorbar_style is None:
 						## interpret thematic_legend_style as colorbar_style
 						colorbar_style = polygon_style.thematic_legend_style
-					sm = polygon_style.fill_color.to_scalar_mappable()
-					if not isinstance(polygon_style.fill_color, ThematicStyleColormap):
-						colorbar_style.ticks = polygon_style.fill_color.values
-					self.draw_colorbar(sm, colorbar_style)
+					if colorbar_style:
+						sm = polygon_style.fill_color.to_scalar_mappable()
+						if not isinstance(polygon_style.fill_color, ThematicStyleColormap):
+							if colorbar_style.ticks is None:
+								colorbar_style.ticks = polygon_style.fill_color.values
+						self.draw_colorbar(sm, colorbar_style)
 				else:
 					legend_labels.extend(polygon_style.fill_color.labels)
 					for color in polygon_style.fill_color.styles:
@@ -381,9 +383,11 @@ class LayeredBasemap:
 					if colorbar_style is None:
 						## interpret thematic_legend_style as colorbar_style
 						colorbar_style = polygon_style.thematic_legend_style
-					sm = polygon_style.line_color.to_scalar_mappable()
-					if not isinstance(polygon_style.line_color, ThematicStyleColormap):
-						colorbar_style.ticks = polygon_style.line_color.values
+					if colorbar_style:
+						sm = polygon_style.line_color.to_scalar_mappable()
+						if not isinstance(polygon_style.line_color, ThematicStyleColormap):
+							if colorbar_style.ticks is None:
+								colorbar_style.ticks = polygon_style.line_color.values
 					self.draw_colorbar(sm, colorbar_style)
 				if isinstance(polygon_style.line_color, (ThematicStyleIndividual,  ThematicStyleRanges)):
 					legend_labels.extend(polygon_style.line_color.labels)
@@ -481,10 +485,12 @@ class LayeredBasemap:
 					if colorbar_style is None:
 						## interpret thematic_legend_style as colorbar_style
 						colorbar_style = line_style.thematic_legend_style
-					sm = line_style.line_color.to_scalar_mappable()
-					if not isinstance(line_style.line_color, ThematicStyleColormap):
-						colorbar_style.ticks = line_style.line_color.values
-					self.draw_colorbar(sm, colorbar_style)
+					if colorbar_style:
+						sm = line_style.line_color.to_scalar_mappable()
+						if not isinstance(line_style.line_color, ThematicStyleColormap):
+							if colorbar_style.ticks is None:
+								colorbar_style.ticks = line_style.line_color.values
+						self.draw_colorbar(sm, colorbar_style)
 				if isinstance(line_style.line_color, (ThematicStyleIndividual,  ThematicStyleRanges)):
 					legend_labels.extend(line_style.line_color.labels)
 					for color in line_style.line_color.styles:

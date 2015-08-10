@@ -1120,7 +1120,7 @@ class ThematicStyleColormap(ThematicStyle):
 	Thematic style feature corresponding to a matplotlib colormap.
 
 	:param color_map:
-		string or matplotlib colormap
+		string or matplotlib colormap (default: "jet")
 	:param norm:
 		matplotlib Normalize object for scaling data values to the 0-1 range
 		(default: None, will apply linear scaling between vmin and vmax)
@@ -1199,7 +1199,9 @@ class ThematicStyleColormap(ThematicStyle):
 		Convert colormap and norm to a Scalarmappable object
 		"""
 		norm = self.get_norm()
-		return matplotlib.cm.ScalarMappable(norm=norm, cmap=self.color_map)
+		sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=self.color_map)
+		sm.set_array(self.values)
+		return sm
 
 
 class ColorbarStyle(BasemapStyle):
