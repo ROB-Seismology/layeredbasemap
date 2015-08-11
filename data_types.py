@@ -981,6 +981,22 @@ class GdalRasterData(MeshGridData):
 
 		return values
 
+	def export(self, format, out_filespec):
+		from osgeo import gdal
+
+		## Open existing dataset
+		src_ds = gdal.Open(self.filespec)
+
+		## Open output format driver, see gdal_translate --formats for list
+		driver = gdal.GetDriverByName(format)
+
+		## Output to new format
+		dst_ds = driver.CreateCopy(out_filespec, src_ds, 0)
+
+		## Properly close the datasets to flush to disk
+		dst_ds = None
+		src_ds = None
+
 
 class GisData(BasemapData):
 	"""
