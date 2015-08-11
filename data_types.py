@@ -878,8 +878,15 @@ class GdalRasterData(MeshGridData):
 
 		## Read data values and metadata
 		ds = gdal.Open(self.filespec)
-		band = ds.GetRasterBand(band_nr)
-		values = band.ReadAsArray()
+		if band_nr:
+			## Single band
+			band = ds.GetRasterBand(band_nr)
+			values = band.ReadAsArray()
+		else:
+			## TrueColor (R, G, B) image
+			#import matplotlib.image as mpimg
+			#values = mpimg.imread('stinkbug.png')
+			values = ds.ReadAsArray()
 		srs_wkt = ds.GetProjection()
 		gt = ds.GetGeoTransform()
 		ds = None

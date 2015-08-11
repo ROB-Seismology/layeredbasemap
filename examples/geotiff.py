@@ -5,8 +5,9 @@ GeoTIFF example
 import mapping.Basemap as lbm
 
 
-region = (1, 8, 49, 52)
-region = (6, 7, 49, 50)
+#region = (1, 8, 49, 52)
+#region = (6, 7, 49, 50)
+region = (5, 8, 49.5, 51.5)
 projection = "tmerc"
 title = "GeoTIFF example"
 
@@ -14,10 +15,11 @@ layers = []
 
 ## GeoTiff
 ## http://www.eurogeographics.org/content/products-services-eurodem
-geotiff_filespec = r"C:\Users\kris\Downloads\euro_sample.tif"
+#geotiff_filespec = r"C:\Users\kris\Downloads\euro_sample.tif"
+geotiff_filespec = r"D:\seismo-gis\collections\ASTER_GDEM\GEOTIFF\ASTGTM_N50E006.tif"
 gdal_data = lbm.GdalRasterData(geotiff_filespec)
-colorbar_style = lbm.ColorbarStyle("EuroDEM sample")
-style = lbm.GridStyle(colorbar_style=colorbar_style)
+colorbar_style = lbm.ColorbarStyle("DEM sample")
+style = lbm.GridStyle(colorbar_style=colorbar_style, pixelated=True)
 layer = lbm.MapLayer(gdal_data, style)
 layers.append(layer)
 

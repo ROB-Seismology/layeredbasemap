@@ -894,6 +894,13 @@ class LayeredBasemap:
 
 	def draw_image(self, img_filespec):
 		# TODO
+		ds = gdal.Open(fname)
+		data = ds.ReadAsArray()
+		extent = (gt[0], gt[0] + ds.RasterXSize * gt[1],
+				  gt[3] + ds.RasterYSize * gt[5], gt[3])
+
+		img = ax.imshow(data[:3, :, :].transpose((1, 2, 0)), extent=extent,
+						origin='upper')
 		plt.imshow(ar, extent=[x0, x1, y1, y0])
 
 	def draw_mask(self, polygon, mask_style=None, outside=True):
