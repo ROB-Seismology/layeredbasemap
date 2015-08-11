@@ -851,15 +851,102 @@ class GdalRasterData(MeshGridData):
 	:param filespec:
 		str, full path to GDAL raster dataset
 	:param band_nr:
-		int,  raster band number (one-based)
+		int,  raster band number (one-based). If 0 or None, data
+		will be read as truecolor (RGB) image
+		(default: 1)
 	"""
 	def __init__(self, filespec, band_nr=1):
 		self.filespec = filespec
 		self.band_nr = band_nr
+		self.read_metadata()
+		self._lons = None
+		self._lats = None
 
-		self.lons, self.lats, self.values = self.read_band(self.band_nr)
+	## Following methods are based on:
+	## http://stackoverflow.com/questions/20488765/plot-gdal-raster-using-matplotlib-basemap
 
-	def read_band(self, band_nr=1):
+	def read_metadata(self):
+		"""
+		Read raster metadata.
+
+		The following properties are set:
+		- :prop:`srs`: instance of class osr.SpatialReference
+		- :prop:`num_bands`: int, number of raster bands
+		- :prop:`ncols`, :prop:`nrows`: int, number of raster columns
+			and rows
+		- :prop:`dx`, :prop:`dy`: int, cell size in X and Y direction
+			in the native spatial reference system
+		- :prop:`xmin`, :prop:`xmax`: float, extent in X direction in
+			the native spatial reference system
+		- :prop:`xmin`, :prop:`xmax`: float, extent in Y direction in
+			the native spatial reference system
+		"""
+		import gdal, osr
+
+		ds = gdal.Open(self.filespec)
+		self.srs = osr.SpatialReference()
+		self.srs.ImportFromWkt(ds.GetProjection())
+		self.num_bands = ds.RasterCount
+
+		gt = ds.GetGeoTransform()
+		# TODO: support rotated grids
+		self.ncols, self.nrows = ds.RasterXSize, ds.RasterYSize
+		self.dx, self.dy = gt[1], gt[5]
+		xmin = gt[0] + self.dx * 0.5
+		xmax = gt[0] + (self.dx * self.ncols) - self.dx * 0.5
+		if self.dx < 0:
+			xmin, xmax = xmax, xmin
+		ymin = gt[3] + (self.dy * self.nrows) + self.dy * 0.5
+		ymax = gt[3] - self.dy * 0.5
+		if self.dy < 0:
+			ymin, ymax = ymax, ymin
+		self.xmin, self.xmax = xmin, xmax
+		self.ymin, self.ymax = ymin, ymax
+
+		ds = None
+
+	def get_mesh_coordinates(self):
+		"""
+		Get mesh coordinates as WGS84 longitudes and latitudes
+
+		:return:
+			(lons, lats) tuple, 2-D arrays containing raster
+			longitudes and raster latitudes
+		"""
+		from mapping.geo.coordtrans import (transform_mesh_coordinates, wgs84)
+
+		## Create meshed coordinates
+		xx, yy = np.meshgrid(np.linspace(self.xmin, self.xmax, self.ncols),
+							np.linspace(self.ymin, self.ymax, self.nrows))
+
+		## Convert from source projection to WGS84
+		target_srs = wgs84
+		lons, lats = transform_mesh_coordinates(self.srs, target_srs, xx, yy)
+		self._lons, self._lats = lons, lats
+		return lons, lats
+
+	@property
+	def lons(self):
+		if self._lons is None:
+			return self.get_mesh_coordinates()[0]
+		else:
+			return self._lons
+
+	@property
+	def lats(self):
+		if self._lats is None:
+			return self.get_mesh_coordinates()[1]
+		else:
+			return self._lats
+
+	@property
+	def values(self):
+		if self.band_nr:
+			return self.read_band(self.band_nr)
+		else:
+			return self.read_image()
+
+	def read_band(self, band_nr):
 		"""
 		Read a particular raster band
 
@@ -867,61 +954,32 @@ class GdalRasterData(MeshGridData):
 			int, raster band number (one-based)
 
 		:return:
-			(lons, lats, values) tuple, 2-D arrays containing grid
-			longitudes, grid latitudes and grid values
+			2-D array containing raster data values
 		"""
-		## Based on:
-		## http://stackoverflow.com/questions/20488765/plot-gdal-raster-using-matplotlib-basemap
-
-		import osr, gdal
-		from mapping.geo.coordtrans import (transform_mesh_coordinates, wgs84)
-
-		## Read data values and metadata
+		# TODO: ReadAsArray method also takes xoff, yoff, xsize, ysize params
+		import gdal
 		ds = gdal.Open(self.filespec)
-		if band_nr:
-			## Single band
-			band = ds.GetRasterBand(band_nr)
-			values = band.ReadAsArray()
-		else:
-			## TrueColor (R, G, B) image
-			#import matplotlib.image as mpimg
-			#values = mpimg.imread('stinkbug.png')
-			values = ds.ReadAsArray()
-		srs_wkt = ds.GetProjection()
-		gt = ds.GetGeoTransform()
+		band = ds.GetRasterBand(band_nr)
+		values = band.ReadAsArray()
 		ds = None
 
-		## Compute grid extent
-		## If dx is positive, X is West. Otherwise, X is East.
-		## If dy is positive, Y is South. Otherwise, Y is North.
-		## In other words, when both dx and dy are positive, (X, Y) is the
-		## lower-left corner of the image.
-		## It is also common to have positive dx but negative dy which indicates
-		## that (X, Y) is the top-left corner of the image.
-		nrows, ncols = values.shape
-		dx, dy = gt[1], gt[5]
-		xmin = gt[0] + dx * 0.5
-		xmax = gt[0] + (dx * ncols) - dx * 0.5
-		if dx < 0:
-			xmin, xmax = xmax, xmin
-		ymin = gt[3] + (dy * nrows) + dy * 0.5
-		ymax = gt[3] - dy * 0.5
-		if dy < 0:
-			ymin, ymax = ymax, ymin
+		return values
 
-		## Create meshed coordinates
-		x_source, y_source = np.meshgrid(np.linspace(xmin, xmax, ncols),
-										np.linspace(ymin, ymax, nrows))
+	def read_image(self):
+		"""
+		Read raster data as truecolor (RGB) image
 
-		## Create the projection objects for the conversion
-		source_srs = osr.SpatialReference()
-		source_srs.ImportFromWkt(srs_wkt)
-		target_srs = wgs84
+		:return:
+			to be tested...
+		"""
+		import gdal
+		ds = gdal.Open(self.filespec)
+		#import matplotlib.image as mpimg
+		#values = mpimg.imread(self.filespec)
+		values = ds.ReadAsArray()
+		ds = None
 
-		## Convert from source projection to WGS84
-		lons, lats = transform_mesh_coordinates(source_srs, target_srs, x_source, y_source)
-
-		return (lons, lats, values)
+		return values
 
 
 class GisData(BasemapData):
