@@ -14,7 +14,7 @@ db_records = list(seismodb.read_table("communes", where_clause='country="BE"'))
 
 ## Read GIS table
 #gis_filespec = r"D:\seismo-gis\collections\Bel_administrative_ROB\TAB\Bel_villages_points.TAB"
-gis_filespec = r"D:\seismo-gis\collections\Bel_administrative_ROB\TAB\Bel_communes_avant_fusion.TAB"
+gis_filespec = r"D:\seismo-gis\collections\Bel_administrative_ROB\TAB\Bel_communes_avant_fusion_new.TAB"
 gis_records = read_GIS_file(gis_filespec)
 
 
@@ -23,9 +23,9 @@ print("Number of records: %d (db), %d (GIS)" % (len(db_records), len(gis_records
 
 
 ## Plot a database attribute
-#attribute = "language"
+attribute = "language"
 #attribute = "id_province"
-attribute = "id_main"
+#attribute = "id_main"
 region = (1,8,49,52)
 projection = "tmerc"
 title = "Join between seismodb and GIS"
@@ -39,6 +39,7 @@ joined_attributes[attribute] = {'key': 'ID', 'values': {rec['id']: rec[attribute
 gis_data = lbm.GisData(gis_filespec, joined_attributes=joined_attributes)
 if attribute == "language":
 	tsi = lbm.ThematicStyleIndividual(["FR", "NL", "DE"], ['r', 'y', 'b'], value_key='language')
+	thematic_legend_style = lbm.LegendStyle(title=attribute, location=3)
 elif attribute == "id_province":
 	tsi = lbm.ThematicStyleGradient(values=[1,6,11], styles=["r", "g", "b"], value_key='id_province')
 	thematic_legend_style = None
