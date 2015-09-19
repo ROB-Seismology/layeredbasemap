@@ -5,6 +5,7 @@ region = (1,8,49,52)
 projection = "tmerc"
 title = "Test"
 resolution = "i"
+grid_interval = (2, 1)
 
 layers = []
 
@@ -34,5 +35,14 @@ multipoint_style = PointStyle(
 	)
 layers.append(MapLayer(multipoint_data, multipoint_style))
 
-map = LayeredBasemap(layers, title, projection, region=region, resolution=resolution)
-map.plot()
+map = LayeredBasemap(layers, title, projection, region=region, resolution=resolution, grid_interval=grid_interval)
+
+#lons = [map.llcrnrlon, map.urcrnrlon]
+#lats = [map.llcrnrlat, map.urcrnrlat]
+#print zip(lons, lats)
+#x, y = map.lonlat_to_map_coordinates(lons, lats)
+#print zip(x, y)
+
+#map.plot()
+
+map.export_geotiff(out_filespec=r"C:\Temp\matplotlib.tif", dpi=200)

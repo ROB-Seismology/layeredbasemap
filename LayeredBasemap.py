@@ -55,7 +55,7 @@ class ThematicLegend:
 
 
 class LayeredBasemap:
-	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), extent=(None, None), grid_interval=(None, None), resolution="i", annot_axes="SE", title_style=DefaultTitleTextStyle, legend_style=LegendStyle(), scalebar_style=None, border_style=MapBorderStyle(), graticule_style=LineStyle(), ax=None, **proj_args):
+	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), extent=(None, None), grid_interval=(None, None), resolution="i", annot_axes="SE", title_style=DefaultTitleTextStyle, legend_style=LegendStyle(), scalebar_style=None, border_style=MapBorderStyle(), graticule_style=LineStyle(), ax=None, figsize=(8,6), dpi=120, **proj_args):
 		self.layers = layers
 		self.title = title
 		self.region = region
@@ -73,6 +73,8 @@ class LayeredBasemap:
 		self.proj_args = proj_args
 
 		self.map = self.init_basemap(ax)
+		self.dpi = dpi
+		self.fig = pylab.figure(figsize=figsize, dpi=self.dpi)
 		if ax is None:
 			self.ax = pylab.gca()
 		else:
@@ -1107,8 +1109,14 @@ class LayeredBasemap:
 		x, y = self.map(lons, lats)
 		return self.map_to_display_coordinates(x, y)
 
+	def lonlat_to_map_coordinates(self, lons, lats):
+		return self.map(lons, lats)
+
 	def map_to_display_coordinates(self, x, y):
 		return zip(*self.ax.transData.transform(zip(x, y)))
+
+	def map_to_lonlat_coordinates(self, x, y):
+		return self.map(x, y, inverse=True)
 
 	def lonlat_from_display_coordinates(self, display_x, display_y):
 		## Convert display coordinates to lon, lat
@@ -1144,6 +1152,69 @@ class LayeredBasemap:
 			pylab.clf()
 		else:
 			pylab.show()
+
+	def get_map_image(self, dpi=120):
+		"""
+		Get image corresponding to map area, cropped to map frame.
+		Note that map is supposed to be rectangular, and that title and tick
+		labels will be removed.
+
+		:param dpi:
+			int, image resolution (default: 120)
+
+		:return:
+			instance of :class:`PIL.Image`
+		"""
+		from PIL import Image
+
+		self.fig.set_dpi(dpi)
+		if not self.is_drawn:
+			self.draw()
+		self.fig.canvas.draw()
+		subplot = self.fig.add_subplot(111)
+		subplot.set_axes(self.ax)
+
+		lons = [self.llcrnrlon, self.urcrnrlon]
+		lats = [self.llcrnrlat, self.urcrnrlat]
+
+		x, y = self.lonlat_to_display_coordinates(lons, lats)
+		left, right = map(int, np.round(x))
+		lower, upper = map(int, np.round(y))
+
+		buf, size = self.fig.canvas.print_to_buffer()
+		image = Image.frombuffer('RGBA', size, buf, 'raw', 'RGBA', 0, 1)
+		image = image.crop((left, lower, right, upper))
+
+		## Reset dpi to original value
+		self.fig.set_dpi(self.dpi)
+
+		return image
+
+	def export_geotiff(self, out_filespec, dpi=120):
+		"""
+		Export map to GeoTiff.
+		May only work if map area is rectangular.
+
+		:param out_filespec:
+			str, full path to output file
+		:param dpi:
+			int, image resolution (default: 120)
+		"""
+		from mapping.geo.geotiff import write_multi_band_geotiff
+
+		img = self.get_map_image(dpi=dpi)
+		#image.save(out_filespec, format='tiff', dpi=(dpi, dpi))
+
+		srs = self.get_srs()
+
+		lons = [self.llcrnrlon, self.urcrnrlon]
+		lats = [self.llcrnrlat, self.urcrnrlat]
+		x, y = self.lonlat_to_map_coordinates(lons, lats)
+		extent = (x[0], x[1], y[0], y[1])
+
+		write_multi_band_geotiff(out_filespec, img, extent, srs, cell_registration="corner", north_up=True)
+
+
 
 
 if __name__ == "__main__":
