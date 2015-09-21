@@ -715,16 +715,17 @@ class LayeredBasemap:
 
 		if cmap:
 			colorbar_style = grid_style.colorbar_style
-			if colorbar_style.ticks is None or len(colorbar_style.ticks) == 0:
-				if grid_style.contour_levels != []:
-					colorbar_style.ticks = grid_style.contour_levels
-			if not colorbar_style.format:
-				colorbar_style.format = grid_style.label_format
-			if not colorbar_style.title:
-				colorbar_style.title = legend_label
-			colorbar_style.alpha = alpha
-			if grid_style.color_gradient:
-				self.draw_colorbar(cs, colorbar_style)
+			if colorbar_style:
+				if colorbar_style.ticks is None or len(colorbar_style.ticks) == 0:
+					if grid_style.contour_levels != []:
+						colorbar_style.ticks = grid_style.contour_levels
+				if not colorbar_style.format:
+					colorbar_style.format = grid_style.label_format
+				if not colorbar_style.title:
+					colorbar_style.title = legend_label
+				colorbar_style.alpha = alpha
+				if grid_style.color_gradient:
+					self.draw_colorbar(cs, colorbar_style)
 
 	def draw_colorbar(self, sm, style):
 		"""
