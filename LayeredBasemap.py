@@ -2,6 +2,7 @@
 Generic wrapper for creating maps with Basemap
 """
 
+import os
 import datetime
 import numpy as np
 import matplotlib
@@ -1113,6 +1114,18 @@ class LayeredBasemap:
 	def lonlat_to_map_coordinates(self, lons, lats):
 		return self.map(lons, lats)
 
+	def lonlat_to_projected_coordinates(self, lons, lats):
+		from mapping.geo.coordtrans import transform_coordinates, wgs84
+		coords = transform_coordinates(wgs84, self.get_srs(), zip(lons, lats))
+		x, y = zip(*coords)
+		return (x, y)
+
+	def projected_to_lonlat_coordinates(self, x, y):
+		from mapping.geo.coordtrans import transform_coordinates, wgs84
+		coords = transform_coordinates(self.get_srs(), wgs84, zip(x, y))
+		lons, lats = zip(*coords)
+		return (lons, lats)
+
 	def map_to_display_coordinates(self, x, y):
 		return zip(*self.ax.transData.transform(zip(x, y)))
 
@@ -1207,7 +1220,11 @@ class LayeredBasemap:
 		# Only tmerc confirmed to work so far
 
 		img = self.get_map_image(dpi=dpi)
-		#image.save(out_filespec, format='tiff', dpi=(dpi, dpi))
+		if verbose:
+			print img.size
+			png_filespec = os.path.splitext(out_filespec)[0] + ".png"
+			print png_filespec
+			img.save(png_filespec, format='png', dpi=(dpi, dpi))
 
 		srs = self.get_srs()
 
