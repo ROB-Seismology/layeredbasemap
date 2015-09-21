@@ -1191,7 +1191,7 @@ class LayeredBasemap:
 
 		return image
 
-	def export_geotiff(self, out_filespec, dpi=120):
+	def export_geotiff(self, out_filespec, dpi=120, verbose=False):
 		"""
 		Export map to GeoTiff.
 		May only work if map area is rectangular.
@@ -1203,6 +1203,9 @@ class LayeredBasemap:
 		"""
 		from mapping.geo.geotiff import write_multi_band_geotiff
 
+		# TODO: does not seem to work with all projections.
+		# Only tmerc confirmed to work so far
+
 		img = self.get_map_image(dpi=dpi)
 		#image.save(out_filespec, format='tiff', dpi=(dpi, dpi))
 
@@ -1212,6 +1215,9 @@ class LayeredBasemap:
 		lats = [self.llcrnrlat, self.urcrnrlat]
 		x, y = self.lonlat_to_map_coordinates(lons, lats)
 		extent = (x[0], x[1], y[0], y[1])
+		if verbose:
+			print("Extent: %s" % (extent,))
+			print srs.ExportToWkt()
 
 		write_multi_band_geotiff(out_filespec, img, extent, srs, cell_registration="corner", north_up=True)
 
