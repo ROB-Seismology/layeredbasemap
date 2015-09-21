@@ -2,7 +2,7 @@
 from mapping.Basemap.LayeredBasemap import *
 
 region = (1,8,49,52)
-projection = "tmerc"
+projection = "merc"
 title = "Test"
 resolution = "i"
 grid_interval = (2, 1)
@@ -45,4 +45,4 @@ map = LayeredBasemap(layers, title, projection, region=region, resolution=resolu
 
 #map.plot()
 
-map.export_geotiff(out_filespec=r"C:\Temp\matplotlib.tif", dpi=200)
+map.export_geotiff(out_filespec=r"C:\Temp\matplotlib.tif", dpi=200, verbose=True)

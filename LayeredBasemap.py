@@ -75,7 +75,8 @@ class LayeredBasemap:
 
 		self.map = self.init_basemap(ax)
 		self.dpi = dpi
-		self.fig = pylab.figure(figsize=figsize, dpi=self.dpi)
+		self.figsize = figsize
+		self.fig = pylab.figure(figsize=self.figsize, dpi=self.dpi)
 		if ax is None:
 			self.ax = pylab.gca()
 		else:
@@ -1115,15 +1116,21 @@ class LayeredBasemap:
 		return self.map(lons, lats)
 
 	def lonlat_to_projected_coordinates(self, lons, lats):
+		"""
+		Convert geographic to projected coordinates using ogr.
+		For some projections, this gives another result than meth:`lonlat_to_map_coordinates`
+		"""
 		from mapping.geo.coordtrans import transform_coordinates, wgs84
-		coords = transform_coordinates(wgs84, self.get_srs(), zip(lons, lats))
-		x, y = zip(*coords)
+		lonlats = np.vstack([lons, lats])
+		coords = transform_coordinates(wgs84, self.get_srs(), lonlats.T)
+		x, y = np.array(coords).T
 		return (x, y)
 
 	def projected_to_lonlat_coordinates(self, x, y):
 		from mapping.geo.coordtrans import transform_coordinates, wgs84
-		coords = transform_coordinates(self.get_srs(), wgs84, zip(x, y))
-		lons, lats = zip(*coords)
+		xy = np.vstack([x, y])
+		coords = transform_coordinates(self.get_srs(), wgs84, xy.T)
+		lons, lats = coords.T
 		return (lons, lats)
 
 	def map_to_display_coordinates(self, x, y):
@@ -1230,7 +1237,14 @@ class LayeredBasemap:
 
 		lons = [self.llcrnrlon, self.urcrnrlon]
 		lats = [self.llcrnrlat, self.urcrnrlat]
-		x, y = self.lonlat_to_map_coordinates(lons, lats)
+		# TODO: understand why some projections work with map coordinates,
+		# some with projected coordinates, and some not at all
+		if self.projection in ("merc", "cyl", "lcc", "laea", "cass", "poly", "eqdc", "aea", "gall", "mill"):
+			x, y = self.lonlat_to_projected_coordinates(lons, lats)
+		elif self.projection in ("tmerc", "cea", "aeqd", "stere"):
+			x, y = self.lonlat_to_map_coordinates(lons, lats)
+		else:
+			raise Exception("Projection %s not supported!" % self.projection)
 		extent = (x[0], x[1], y[0], y[1])
 		if verbose:
 			print("Extent: %s" % (extent,))
