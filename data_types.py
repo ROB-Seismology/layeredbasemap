@@ -1122,9 +1122,12 @@ class GisData(BasemapData):
 		for attrib_name in self.joined_attributes.keys():
 			key = self.joined_attributes[attrib_name]['key']
 			value_dict = self.joined_attributes[attrib_name]['values']
-			point_data.values[attrib_name] = [value_dict[key_val] for key_val in point_data.values[key]]
-			line_data.values[attrib_name] = [value_dict[key_val] for key_val in line_data.values[key]]
-			polygon_data.values[attrib_name] = [value_dict[key_val] for key_val in polygon_data.values[key]]
+			try:
+				point_data.values[attrib_name] = [value_dict[key_val] for key_val in point_data.values[key]]
+				line_data.values[attrib_name] = [value_dict[key_val] for key_val in line_data.values[key]]
+				polygon_data.values[attrib_name] = [value_dict[key_val] for key_val in polygon_data.values[key]]
+			except:
+				print("Warning: %s not found in data value keys!" % key_val)
 
 		return (point_data, line_data, polygon_data)
 

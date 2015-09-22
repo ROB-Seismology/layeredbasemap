@@ -1340,11 +1340,14 @@ class GridStyle(BasemapStyle):
 
 	@property
 	def colorbar_style(self):
-		return self.color_map_theme.colorbar_style
+		if self.color_map_theme:
+			return self.color_map_theme.colorbar_style
+		else:
+			return None
 
 	@property
 	def label_format(self):
-		if self.color_map_theme.colorbar_style:
+		if self.color_map_theme and self.color_map_theme.colorbar_style:
 			return self.color_map_theme.colorbar_style.format
 		else:
 			return "%.2f"
