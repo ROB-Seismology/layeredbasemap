@@ -1325,11 +1325,14 @@ class GridStyle(BasemapStyle):
 	:param colorbar_style:
 		instance of :class:`ColorbarStyle`, will override colorbar_style
 		property of color_map_theme
+	:param hillshade_style:
+		instance of :class:`HillShadeStyle` to apply hill shading
+		(default: None)
 
 	Note: format of contour labels is determined by format property
 	of colorbar_style.
 	"""
-	def __init__(self, color_map_theme=ThematicStyleColormap("jet"), color_gradient="continuous", pixelated=False, line_style=None, contour_levels=None, colorbar_style=None):
+	def __init__(self, color_map_theme=ThematicStyleColormap("jet"), color_gradient="continuous", pixelated=False, line_style=None, contour_levels=None, colorbar_style=None, hillshade_style=None):
 		self.color_map_theme = color_map_theme
 		self.color_gradient = color_gradient
 		self.pixelated = pixelated
@@ -1337,6 +1340,7 @@ class GridStyle(BasemapStyle):
 		self.contour_levels = contour_levels
 		if colorbar_style:
 			self.color_map_theme.colorbar_style = colorbar_style
+		self.hillshade_style = hillshade_style
 
 	@property
 	def colorbar_style(self):
@@ -1351,6 +1355,24 @@ class GridStyle(BasemapStyle):
 			return self.color_map_theme.colorbar_style.format
 		else:
 			return "%.2f"
+
+
+class HillshadeStyle(BasemapStyle):
+	"""
+	:param azimuth:
+		float, azimuth of light source in degrees
+	:param elevation_angle:
+		float, elevation angle of light source in degrees
+	:param scale:
+		float, multiplication factor to apply (default: 1.)
+	:param color_map:
+		string or matplotlib colormap (default: "gray")
+	"""
+	def __init__(self, azimuth, elevation_angle, scale=1., color_map="gray"):
+		self.azimuth = azimuth
+		self.elevation_angle = elevation_angle
+		self.scale = scale
+		self.color_map = color_map
 
 
 class LegendStyle(BasemapStyle):
@@ -1554,4 +1576,96 @@ class MapBorderStyle(BasemapStyle):
 		d["linewidth"] = self.line_width
 		d["color"] = self.line_color
 		d["fill_color"] = self.fill_color
+		return d
+
+
+class GridImageStyle(BasemapStyle):
+	"""
+	Style defining how to plot grid image
+
+	:param masked:
+		bool, whether or not region outside grid image should be masked
+		(default: True)
+	:param interpolation_method:
+		str, one of "nearest neighbor", "bilinear" or "cubic spline"
+		(default: "bilinear")
+	:param alpha:
+		Float in the range 0 - 1, opacity (default: 1.)
+	"""
+	def __init__(self, masked=True, interpolation_method="bilinear", alpha=1.):
+		self.masked = masked
+		self.interpolation_method = interpolation_method
+		self.alpha = alpha
+
+	def get_order(self, interpolation_method):
+		method_order_dict = {"nearest neighbor": 0, "bilinear": 1, "cubic spline": 3}
+		return method_order_dict[interpolation_method]
+
+	def to_kwargs(self):
+		d = {}
+		d['masked'] = self.masked
+		d['order'] = self.get_order(self.interpolation_method)
+		#d['alpha'] = self.alpha
+		return d
+
+
+class ImageStyle(BasemapStyle):
+	"""
+	Style defining how to plot an image
+
+	:param width:
+		int, width of image in pixels
+		(default: None, use original width of image)
+	:param height:
+		int, height of image in pixels
+		(default: None, determine height from width keeping original aspect ratio)
+	:param horizontal_alignment:
+		str, one of 'left', 'center' or 'right', horizontal alignment with
+		respect to image position
+		(default: 'center')
+	:param vertical_alignment:
+		str, one of 'bottom', 'center' or 'top', vertical alignment with respect
+		to image position
+		(default: 'center')
+	:param alpha:
+		Float in the range 0 - 1, opacity (default: 1.)
+	"""
+	def __init__(self, width=None, height=None, horizontal_alignment='center',
+				vertical_alignment='center', alpha=1.):
+		self.width = width
+		self.height = height
+		self.horizontal_alignment = horizontal_alignment
+		self.vertical_alignment = vertical_alignment
+		self.alpha = alpha
+
+
+class WMSStyle(BasemapStyle):
+	"""
+	Style defining how to plot WMS image
+
+	:param xpixels:
+		int, requested number of image pixels in x-direction
+		(default: 400)
+	:param ypixels:
+		int, requested number of image pixels in y-direction
+		(default: None, will infer the number from from xpixels and the aspect
+		ratio of the map projection region)
+	:param format:
+		str, image format, either 'png' or 'jpg'
+		(default: 'png')
+	:param alpha:
+		Float in the range 0 - 1, opacity (default: 1.)
+	"""
+	def __init__(self, xpixels=400, ypixels=None, format='png', alpha=1.):
+		self.xpixels = xpixels
+		self.ypixels = ypixels
+		self.format = format
+		self.alpha = alpha
+
+	def to_kwargs(self):
+		d = {}
+		d["xpixels"] = self.xpixels
+		d["ypixels"] = self.ypixels
+		d["format"] = self.format
+		d["alpha"] = self.alpha
 		return d

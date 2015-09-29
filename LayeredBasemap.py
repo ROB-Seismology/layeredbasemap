@@ -138,7 +138,14 @@ class LayeredBasemap:
 		else:
 			width, height = self.extent
 
-		map = Basemap(projection=self.projection, resolution=self.resolution, llcrnrlon=llcrnrlon, llcrnrlat=llcrnrlat, urcrnrlon=urcrnrlon, urcrnrlat=urcrnrlat, lon_0=lon_0, lat_0=lat_0, width=width, height=height, ax=ax, **self.proj_args)
+		if "EPSG:" in self.projection:
+			projection = None
+			epsg = int(self.projection.split("EPSG:")[1])
+		else:
+			projection = self.projection
+			epsg = None
+
+		map = Basemap(projection=projection, epsg=epsg, resolution=self.resolution, llcrnrlon=llcrnrlon, llcrnrlat=llcrnrlat, urcrnrlon=urcrnrlon, urcrnrlat=urcrnrlat, lon_0=lon_0, lat_0=lat_0, width=width, height=height, ax=ax, **self.proj_args)
 		self.region = (map.llcrnrlon, map.urcrnrlon, map.llcrnrlat, map.urcrnrlat)
 		self.is_drawn = False
 		return map
@@ -655,8 +662,15 @@ class LayeredBasemap:
 			self.map.drawgreatcircle(start_lon, start_lat, end_lon, end_lat, del_s=gc_data.resolution, **gc_style.to_kwargs())
 
 	def draw_grid_layer(self, grid_data, grid_style, legend_label=""):
+		# TODO: add ax=self.ax to plot functions??
+
+		# TODO: Note that pcolor(mesh), if the dimensions or X and Y are the same as C, then the last row and column of C will be ignored
+		# Is this the case for contourf as well?? No!
 		from cm.norm import PiecewiseLinearNorm
-		x, y = self.map(grid_data.lons, grid_data.lats)
+
+		## Projected center and edge coordinates
+		xc, yc = self.map(grid_data.center_lons, grid_data.center_lats)
+		xe, ye = self.map(grid_data.edge_lons, grid_data.edge_lats)
 
 		if grid_style.color_map_theme:
 			cmap = grid_style.color_map_theme.color_map
@@ -684,7 +698,7 @@ class LayeredBasemap:
 					norm = norm.to_piecewise_constant_norm()
 
 			if grid_style.color_gradient == "discontinuous" and grid_style.pixelated == False:
-				cs = self.map.contourf(x, y, grid_data.values, levels=grid_style.contour_levels, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, extend="both", alpha=alpha, zorder=self.zorder)
+				cs = self.map.contourf(xc, yc, grid_data.values, levels=grid_style.contour_levels, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, extend="both", alpha=alpha, zorder=self.zorder)
 			else:
 				## Necessary for pcolor, but not for pcolormesh??
 				#dlon = grid_data.lons[0,1] - grid_data.lons[0,0]
@@ -700,21 +714,58 @@ class LayeredBasemap:
 				#corner_lats[:,-1] = corner_lats[:,-2]
 				#corner_x, corner_y = self.map(corner_lons, corner_lats)
 				shading = {True: 'flat', False: 'gouraud'}[grid_style.pixelated]
-				cs = self.map.pcolormesh(x, y, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, alpha=alpha, zorder=self.zorder)
+				if grid_style.hillshade_style:
+					## Source: http://rnovitsky.blogspot.com.es/2010/04/using-hillshade-image-as-intensity.html
+					azimuth = grid_style.hillshade_style.azimuth
+					elevation_angle = grid_style.hillshade_style.elevation_angle
+					scale = grid_style.hillshade_style.scale
+					hillshade = grid_data.calc_hillshade(azimuth, elevation_angle, scale)
+					data = grid_data.values
+					ny, nx = xe.shape
+					## Get RGB of normalized data based on cmap
+					#data_min, data_max = data.min(), data.max()
+					#rgba = cmap_obj((data - data_min) / float(data_max - data_min))
+					rgba = grid_style.color_map_theme(data)
+					rgb = rgba[:,:,:3]
+					## Form an RGB eqvivalent of shade
+					d = hillshade.repeat(3)
+					d = d.reshape(rgb.shape)
+					## Simulate illumination based on pegtop algorithm
+					rgba[:,:,:3] = 2 * d * rgb + (rgb**2) * (1 - 2 * d)
+					## From http://stackoverflow.com/questions/29232439/plotting-an-irregularly-spaced-rgb-image-in-python
+					color_tuple = rgba.reshape((rgba.shape[0]*rgba.shape[1], rgba.shape[2]))
+					cs = self.map.pcolormesh(xe, ye, data, facecolor=color_tuple, linewidth=0)
+					## This removes default cmap coloring, but colorbar crashes
+					cs.set_array(None)
+					## Use scalarmappable as cs for colorbar, vmin and vmax must be set
+					grid_style.color_map_theme.vmin = vmin or data.min()
+					grid_style.color_map_theme.vmax = vmax or data.max()
+					cs = grid_style.color_map_theme.to_scalar_mappable()
+				else:
+					cs = self.map.pcolormesh(xe, ye, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, alpha=alpha, zorder=self.zorder)
+			self.zorder += 1
+
+		elif grid_style.hillshade_style:
+			## Plot hillshading only
+			shading = {True: 'flat', False: 'gouraud'}[grid_style.pixelated]
+			cmap = grid_style.hillshade_style.color_map
+			self.map.pcolormesh(xe, ye, grid_data.values, cmap=cmap, shading=shading, alpha=alpha, zorder=self.zorder)
 			self.zorder += 1
 
 		if grid_style.line_style:
 			line_style = grid_style.line_style
 			if not grid_style.color_gradient and cmap:
 				## Draw colored contour lines
-				cl = self.map.contour(x, y, grid_data.values, levels=grid_style.contour_levels, colors=None, cmap=cmap, norm=norm, linewidths=line_style.line_width, alpha=line_style.alpha, zorder=self.zorder)
+				cl = self.map.contour(xc, yc, grid_data.values, levels=grid_style.contour_levels, colors=None, cmap=cmap, norm=norm, linewidths=line_style.line_width, alpha=line_style.alpha, zorder=self.zorder)
 			else:
-				cl = self.map.contour(x, y, grid_data.values, levels=grid_style.contour_levels, colors=line_style.line_color, linewidths=line_style.line_width, alpha=line_style.alpha, zorder=self.zorder)
+				cl = self.map.contour(xc, yc, grid_data.values, levels=grid_style.contour_levels, colors=line_style.line_color, linewidths=line_style.line_width, alpha=line_style.alpha, zorder=self.zorder)
 			label_style = line_style.label_style
-			## other font properties do not seem to be supported
-			self.ax.clabel(cl, colors='k', inline=True, fontsize=label_style.font_size, fmt=grid_style.label_format, alpha=label_style.alpha, zorder=self.zorder)
+			if label_style:
+				## other font properties do not seem to be supported
+				self.ax.clabel(cl, colors='k', inline=True, fontsize=label_style.font_size, fmt=grid_style.label_format, alpha=label_style.alpha, zorder=self.zorder)
 			self.zorder += 1
 
+		## Draw color bar
 		if cmap:
 			colorbar_style = grid_style.colorbar_style
 			if colorbar_style:
@@ -728,6 +779,37 @@ class LayeredBasemap:
 				colorbar_style.alpha = alpha
 				if grid_style.color_gradient:
 					self.draw_colorbar(cs, colorbar_style)
+
+	def draw_grid_image_layer(self, grid_data, image_style):
+		img_ar = grid_data.warp_to_map(self, **image_style.to_kwargs())
+		img_ar = np.rollaxis(img_ar, 0, 3)
+		self.map.imshow(img_ar, ax=self.ax, zorder=self.zorder, alpha=image_style.alpha)
+		self.zorder += 1
+
+	def draw_image_layer(self, image_data, image_style):
+		img_ar = pylab.imread(image_data.filespec)
+		lon, lat = image_data.lon, image_data.lat
+		[x], [y] = self.lonlat_to_display_coordinates([lon], [lat])
+		width = image_style.width or img_ar.shape[1]
+		aspect = img_ar.shape[1] / float(img_ar.shape[0])
+		height = image_style.height or int(round(width / aspect))
+		if image_style.horizontal_alignment == 'left':
+			x0, x1 = x, x + width
+		elif image_style.horizontal_alignment == 'center':
+			x0, x1 = int(round((x - width/2.))), int(round(x + width/2.))
+		elif image_style.horizontal_alignment == 'right':
+			x0, x1 = x - width, x
+		if image_style.vertical_alignment == 'top':
+			y0, y1 = y - height, y
+		elif image_style.vertical_alignment == 'center':
+			y0, y1 = int(round((y - height/2.))), int(round(y + height/2.))
+		elif image_style.vertical_alignment == 'bottom':
+			y0, y1 = y, y + height
+		X, Y = self.map_from_display_coordinates([x0,x1], [y0,y1])
+		extent = X + Y
+		## Note: self.map.imshow always plots image over entire map region!
+		self.ax.imshow(img_ar, extent=extent, zorder=self.zorder, alpha=image_style.alpha)
+		self.zorder += 1
 
 	def draw_colorbar(self, sm, style):
 		"""
@@ -754,19 +836,17 @@ class LayeredBasemap:
 		self.zorder += 1
 
 	def draw_coastlines(self, coastline_style):
-		# Note: linestyle doesn't work yet
-		self.map.drawcoastlines(linewidth=coastline_style.line_width, color=coastline_style.line_color, zorder=self.zorder)
+		self.map.drawcoastlines(linewidth=coastline_style.line_width, color=coastline_style.line_color, linestyle=coastline_style.line_pattern, zorder=self.zorder)
 		self.zorder += 1
 
 	def draw_countries(self, style):
 		if style.line_color:
-			self.map.drawcountries(linewidth=style.line_width, color=style.line_color, zorder=self.zorder)
+			self.map.drawcountries(linewidth=style.line_width, color=style.line_color, linestyle=style.line_pattern, zorder=self.zorder)
 			self.zorder += 1
 
 	def draw_rivers(self, style):
 		if style.line_color:
-			## linestyle argument not supported by current version of basemap
-			self.map.drawrivers(linewidth=style.line_width, color=style.line_color, zorder=self.zorder)
+			self.map.drawrivers(linewidth=style.line_width, color=style.line_color, linestyle=style.line_pattern, zorder=self.zorder)
 			self.zorder += 1
 
 	def draw_nightshade(self, date_time, style, alpha=0.5):
@@ -897,16 +977,9 @@ class LayeredBasemap:
 				thematic_legend = ThematicLegend(legend_artists, legend_labels, focmec_style.thematic_legend_style)
 				self.thematic_legends.append(thematic_legend)
 
-	def draw_image(self, img_filespec):
-		# TODO
-		ds = gdal.Open(fname)
-		data = ds.ReadAsArray()
-		extent = (gt[0], gt[0] + ds.RasterXSize * gt[1],
-				  gt[3] + ds.RasterYSize * gt[5], gt[3])
-
-		img = ax.imshow(data[:3, :, :].transpose((1, 2, 0)), extent=extent,
-						origin='upper')
-		plt.imshow(ar, extent=[x0, x1, y1, y0])
+	def draw_wms_layer(self, wms_data, wms_style):
+		self.map.wmsimage(wms_data.url, layers=wms_data.layers, verbose=wms_data.verbose, zorder=self.zorder, axes=self.ax, **wms_style.to_kwargs())
+		self.zorder += 1
 
 	def draw_mask(self, polygon, mask_style=None, outside=True):
 		"""
@@ -966,6 +1039,7 @@ class LayeredBasemap:
 		self.zorder += 1
 
 	def draw_layers(self):
+		self.zorder = 0
 		for layer in self.layers:
 			if isinstance(layer.data, BuiltinData):
 				if layer.data.feature == "continents":
@@ -1015,7 +1089,14 @@ class LayeredBasemap:
 				legend_label = {"points": layer.legend_label, "lines": layer.legend_label, "polygons": layer.legend_label}
 				self.draw_composite_layer(point_data=point_data, point_style=point_style, line_data=line_data, line_style=line_style, polygon_data=polygon_data, polygon_style=polygon_style, text_data=text_data, text_style=text_style)
 			elif isinstance(layer.data, GridData):
-				self.draw_grid_layer(layer.data, layer.style, layer.legend_label)
+				if isinstance(layer.style, GridStyle):
+					self.draw_grid_layer(layer.data, layer.style, layer.legend_label)
+				elif isinstance(layer.style, GridImageStyle):
+					self.draw_grid_image_layer(layer.data, layer.style)
+			elif isinstance(layer.data, ImageData):
+				self.draw_image_layer(layer.data, layer.style)
+			elif isinstance(layer.data, WMSData):
+				self.draw_wms_layer(layer.data, layer.style)
 
 	def draw_decoration(self):
 		self.draw_graticule()
@@ -1120,17 +1201,13 @@ class LayeredBasemap:
 		Convert geographic to projected coordinates using ogr.
 		For some projections, this gives another result than meth:`lonlat_to_map_coordinates`
 		"""
-		from mapping.geo.coordtrans import transform_coordinates, wgs84
-		lonlats = np.vstack([lons, lats])
-		coords = transform_coordinates(wgs84, self.get_srs(), lonlats.T)
-		x, y = np.array(coords).T
+		from mapping.geo.coordtrans import transform_array_coordinates, wgs84
+		x, y = transform_array_coordinates(wgs84, self.get_srs(), lons, lats)
 		return (x, y)
 
 	def projected_to_lonlat_coordinates(self, x, y):
-		from mapping.geo.coordtrans import transform_coordinates, wgs84
-		xy = np.vstack([x, y])
-		coords = transform_coordinates(self.get_srs(), wgs84, xy.T)
-		lons, lats = coords.T
+		from mapping.geo.coordtrans import transform_array_coordinates, wgs84
+		lons, lats = transform_coordinates(self.get_srs(), wgs84, x, y)
 		return (lons, lats)
 
 	def map_to_display_coordinates(self, x, y):
@@ -1222,9 +1299,6 @@ class LayeredBasemap:
 			int, image resolution (default: 120)
 		"""
 		from mapping.geo.geotiff import write_multi_band_geotiff
-
-		# TODO: does not seem to work with all projections.
-		# Only tmerc confirmed to work so far
 
 		img = self.get_map_image(dpi=dpi)
 		if verbose:

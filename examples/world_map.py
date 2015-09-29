@@ -6,7 +6,7 @@ from mapping.Basemap import *
 
 region = (-180, 180, -90, 90)
 origin = (0, 0)
-projection = "robin"
+projection = "moll"
 title = "Hello World from LayeredBasemap"
 resolution = "c"
 grid_interval = (60, 30)

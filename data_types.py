@@ -9,6 +9,7 @@ import shapely.wkt
 import ogr
 
 
+# TODO: add srs (default: wgs84)
 
 class BasemapData(object):
 	"""
@@ -729,45 +730,6 @@ class GridData(BasemapData):
 		self.values = np.asarray(values)
 
 
-class MeshGridData(GridData):
-	"""
-	Meshed grid data, representing a grid with regular longitudinal and
-	latitudinal spacing
-
-	:param lons:
-		2-D array
-	:param lats:
-		2-D array
-	:param values:
-		2-D array
-	"""
-	def __init__(self, lons, lats, values):
-		if lons.ndim != 2 or lats.ndim != 2 or values.ndim != 2:
-			raise ValueError("lons, lats, and values should be 2-dimensional")
-		## Not sure the following is really necessary
-		dlon = np.diff(lons)
-		dlat = np.diff(lats)
-		if not np.allclose(dlon, dlon[0]) or not np.allclose(dlat, dlat[0]):
-			raise ValueError("Grid spacing must be uniform")
-		super(MeshGridData, self).__init__(lons, lats, values)
-
-	@property
-	def dlon(self):
-		return self.lons[0,1] - self.lons[0,0]
-
-	@property
-	def dlat(self):
-		return self.lats[1,0] - self.lats[0,0]
-
-	def mask_oceans(self, resolution, mask_lakes=False, grid_spacing=1.25):
-		from mpl_toolkits.basemap import maskoceans
-		masked_values = maskoceans(self.lons, self.lats, self.values, inlands=mask_lakes, resolution=resolution, grid=grid_spacing)
-		return MeshGridData(self.lons, self.lats, masked_values)
-
-	def reproject(self, source_srs, target_srs):
-		pass
-
-
 class UnstructuredGridData(GridData):
 	"""
 	Unstructured 2-dimensional data
@@ -843,6 +805,76 @@ class UnstructuredGridData(GridData):
 		return MeshGridData(mesh_lons, mesh_lats, mesh_values)
 
 
+class MeshGridData(GridData):
+	"""
+	Meshed grid data, representing a grid with regular longitudinal and
+	latitudinal spacing
+
+	:param lons:
+		2-D array
+	:param lats:
+		2-D array
+	:param values:
+		2-D array
+	"""
+	def __init__(self, lons, lats, values):
+		if lons.ndim != 2 or lats.ndim != 2 or values.ndim != 2:
+			raise ValueError("lons, lats, and values should be 2-dimensional")
+		## Not sure the following is really necessary
+		dlon = np.diff(lons)
+		dlat = np.diff(lats)
+		if not np.allclose(dlon, dlon[0]) or not np.allclose(dlat, dlat[0]):
+			raise ValueError("Grid spacing must be uniform")
+		super(MeshGridData, self).__init__(lons, lats, values)
+
+		# TODO: need to make functions for these using source srs
+		# (in which grid is rectangular)
+		self.center_lons = self.edge_lons = lons
+		self.center_lats = self.edge_lats = lats
+
+	@property
+	def dlon(self):
+		return self.lons[0,1] - self.lons[0,0]
+
+	@property
+	def dlat(self):
+		return self.lats[1,0] - self.lats[0,0]
+
+	def mask_oceans(self, resolution, mask_lakes=False, grid_spacing=1.25):
+		from mpl_toolkits.basemap import maskoceans
+		masked_values = maskoceans(self.lons, self.lats, self.values, inlands=mask_lakes, resolution=resolution, grid=grid_spacing)
+		return MeshGridData(self.lons, self.lats, masked_values)
+
+	def reproject(self, source_srs, target_srs):
+		pass
+
+	def calc_hillshade(self, azimuth, elevation_angle, scale=1.):
+		"""
+		Compute hillshading
+		Source: http://rnovitsky.blogspot.com.es/2010/04/using-hillshade-image-as-intensity.html
+
+		:param azimuth:
+			float, azimuth of light source in degrees
+		:param elevation_angle:
+			float, elevation angle of light source in degrees
+		:param scale:
+			float, multiplication factor to apply (default: 1.)
+		"""
+		az = np.radians(azimuth)
+		elev = np.radians(elevation_angle)
+		data = self.values
+
+		## Gradient in x and y directions
+		dx, dy = np.gradient(data * float(scale))
+		slope = 0.5 * np.pi - np.arctan(np.hypot(dx, dy))
+		aspect = np.arctan2(dx, dy)
+		shade = np.sin(elev) * np.sin(slope) + np.cos(elev) * np.cos(slope) * np.cos(-az - aspect - 0.5*np.pi)
+		## Normalize
+		shade = (shade - shade.min())/(shade.max() - shade.min())
+
+		return shade
+
+
 class GdalRasterData(MeshGridData):
 	"""
 	GDAL raster data (including GeoTiff)
@@ -854,20 +886,32 @@ class GdalRasterData(MeshGridData):
 		int,  raster band number (one-based). If 0 or None, data
 		will be read as truecolor (RGB) image
 		(default: 1)
+	:param downsampling:
+		float, factor for downsampling, i.e. to divide number of columns and
+		rows with
+		(default: 1., no downsampling)
 	"""
-	def __init__(self, filespec, band_nr=1):
+	def __init__(self, filespec, band_nr=1, down_sampling=1.):
 		self.filespec = filespec
 		self.band_nr = band_nr
-		self.read_metadata()
-		self._lons = None
-		self._lats = None
+		self.read_grid_info()
+		self._edge_lons = None
+		self._edge_lats = None
+		self._center_lons = None
+		self._center_lats = None
+		self.set_down_sampling(down_sampling)
+
+	def set_down_sampling(self, down_sampling):
+		self.down_sampling = float(down_sampling)
+		self.ncols = int(round(self.ncols / self.down_sampling))
+		self.nrows = int(round(self.nrows / self.down_sampling))
 
 	## Following methods are based on:
 	## http://stackoverflow.com/questions/20488765/plot-gdal-raster-using-matplotlib-basemap
 
-	def read_metadata(self):
+	def read_grid_info(self):
 		"""
-		Read raster metadata.
+		Read raster parameters.
 
 		The following properties are set:
 		- :prop:`srs`: instance of class osr.SpatialReference
@@ -905,9 +949,14 @@ class GdalRasterData(MeshGridData):
 
 		ds = None
 
-	def get_mesh_coordinates(self):
+	def get_mesh_coordinates(self, cell_registration="corner"):
 		"""
 		Get mesh coordinates as WGS84 longitudes and latitudes
+
+		:param cell_registration:
+			str, one of "center" or "corner" (= "edge"): whether returned coordinates
+			should correspond to cell centers or cell corners
+			(default: "corner")
 
 		:return:
 			(lons, lats) tuple, 2-D arrays containing raster
@@ -916,35 +965,58 @@ class GdalRasterData(MeshGridData):
 		from mapping.geo.coordtrans import (transform_mesh_coordinates, wgs84)
 
 		## Create meshed coordinates
-		xx, yy = np.meshgrid(np.linspace(self.xmin, self.xmax, self.ncols),
-							np.linspace(self.ymin, self.ymax, self.nrows))
+		if cell_registration in ("corner", "edge"):
+			xx, yy = np.meshgrid(np.linspace(self.xmin, self.xmax, self.ncols+1),
+							np.linspace(self.ymin, self.ymax, self.nrows+1))
+		elif cell_registration == "center":
+			xx, yy = np.meshgrid(np.linspace(self.xmin + self.dx/2., self.xmax - self.dx/2., self.ncols),
+							np.linspace(self.ymin + self.dy/2., self.ymax - self.dy/2., self.nrows))
 
 		## Convert from source projection to WGS84
 		target_srs = wgs84
 		lons, lats = transform_mesh_coordinates(self.srs, target_srs, xx, yy)
-		self._lons, self._lats = lons, lats
+		if cell_registration == "corner":
+			self._edge_lons, self._edge_lats = lons, lats
+			self._center_lons, self._center_lats = None, None
+		elif cell_registration == "center":
+			self._edge_lons, self._edge_lats = None, None
+			self._center_lons, self._center_lats = lons, lats
 		return lons, lats
 
 	@property
-	def lons(self):
-		if self._lons is None:
-			return self.get_mesh_coordinates()[0]
+	def edge_lons(self):
+		if self._edge_lons is None:
+			return self.get_mesh_coordinates("corner")[0]
 		else:
-			return self._lons
+			return self._edge_lons
 
 	@property
-	def lats(self):
-		if self._lats is None:
-			return self.get_mesh_coordinates()[1]
+	def edge_lats(self):
+		if self._edge_lats is None:
+			return self.get_mesh_coordinates("corner")[1]
 		else:
-			return self._lats
+			return self._edge_lats
+
+	@property
+	def center_lons(self):
+		if self._center_lons is None:
+			return self.get_mesh_coordinates("center")[0]
+		else:
+			return self._center_lons
+
+	@property
+	def center_lats(self):
+		if self._center_lats is None:
+			return self.get_mesh_coordinates("center")[1]
+		else:
+			return self._center_lats
 
 	@property
 	def values(self):
 		if self.band_nr:
 			return self.read_band(self.band_nr)
 		else:
-			return self.read_image()
+			return self.read_image_array()
 
 	def read_band(self, band_nr):
 		"""
@@ -960,47 +1032,137 @@ class GdalRasterData(MeshGridData):
 		import gdal
 		ds = gdal.Open(self.filespec)
 		band = ds.GetRasterBand(band_nr)
-		values = band.ReadAsArray()
+		values = band.ReadAsArray(buf_xsize=self.ncols, buf_ysize=self.nrows)
+		ds = None
+
+		return values
+
+	def read_image_array(self):
+		"""
+		Read raster data as truecolor (RGB[A]) image array
+
+		:return:
+			3-D (RGB[A], Y, X) float array
+		"""
+		import gdal
+		ds = gdal.Open(self.filespec)
+		#import matplotlib.image as mpimg
+		#values = mpimg.imread(self.filespec)
+		values = np.zeros((4, self.nrows, self.ncols), dtype=np.uint8)
+		ds.ReadAsArray(buf_obj=values)
 		ds = None
 
 		return values
 
 	def read_image(self):
 		"""
-		Read raster data as truecolor (RGB) image
+		Read raster data as truecolor (RGB[A]) image
 
 		:return:
-			to be tested...
+			instance of :class:`PIL.Image`
 		"""
-		import gdal
-		ds = gdal.Open(self.filespec)
-		#import matplotlib.image as mpimg
-		#values = mpimg.imread(self.filespec)
-		values = ds.ReadAsArray()
-		ds = None
+		from PIL import Image
+		img_ar = self.read_image_array()
+		return Image.fromarray(img_ar, 'RGBA')
 
-		return values
+	def interpolate(self, xout, yout, checkbounds=False, masked=True, order=1):
+		## Check scipy.interpolate.Rbf for additional interpolation methods
+		from mpl_toolkits.basemap import interp
+
+		xin = np.linspace(self.xmin, self.xmax, self.ncols)
+		## yin must be linearly increasing, so we need to reverse!
+		yin = np.linspace(self.ymax, self.ymin, self.nrows)
+
+		if self.band_nr:
+			out_data = interp(self.values[::-1,:], xin, yin, xout, yout, checkbounds=checkbounds,
+								masked=masked, order=order)
+		else:
+			in_values = self.values
+			ny, nx = xout.shape
+			num_channels = in_values.shape[0]
+			out_data = np.empty((num_channels, ny, nx), np.uint8)
+			#if masked:
+			#	mask = np.ma.zeros((num_channels, ny, nx), np.int8)
+			for k in range(num_channels):
+				ch_out = interp(in_values[k,::-1,:], xin, yin, xout, yout, checkbounds=checkbounds,
+								masked=masked, order=order)
+				out_data[k] = ch_out
+			if masked and num_channels == 4:
+				## imshow draws masked part of image black
+				## so we make masked part transparent
+				#mask[:,] = ch_out.mask
+				#out_data = np.ma.masked_array(out_data, mask=mask)
+				out_data[3, ch_out.mask==True] = 0
+
+		return out_data
+
+	def warp_to_map(self, map, checkbounds=False, masked=True, order=1):
+		from mapping.geo.coordtrans import transform_mesh_coordinates
+
+		nx = int(round(map.figsize[0] * float(map.dpi)))
+		ny = int(round(map.figsize[1] * float(map.dpi)))
+		lonsout, latsout, x_map, y_map = map.map.makegrid(nx, ny, returnxy=True)
+		x_grid, y_grid = transform_mesh_coordinates(map.get_srs(), self.srs, x_map, y_map)
+		out_values = self.interpolate(x_grid, y_grid, checkbounds=checkbounds,
+										masked=masked, order=order)
+
+		return out_values
 
 	def export(self, format, out_filespec):
-		from osgeo import gdal
+		"""
+		Export raster to another format
 
-		## Open existing dataset
-		src_ds = gdal.Open(self.filespec)
+		:param format:
+			str, GDAL format speciication
+		:param out_filespec:
+			str, full path to output file
+		"""
+		from osgeo import gdal
 
 		## Open output format driver, see gdal_translate --formats for list
 		driver = gdal.GetDriverByName(format)
+		if driver and driver.GetMetaData().get(gdal.DCAP_CREATE) == 'YES':
+			## Open existing dataset
+			src_ds = gdal.Open(self.filespec)
 
-		## Output to new format
-		dst_ds = driver.CreateCopy(out_filespec, src_ds, 0)
+			## Output to new format
+			dst_ds = driver.CreateCopy(out_filespec, src_ds, 0)
 
-		## Properly close the datasets to flush to disk
-		dst_ds = None
-		src_ds = None
+			## Properly close the datasets to flush to disk
+			dst_ds = None
+			src_ds = None
+
+		else:
+			print("Driver %s does not support CreateCopy() method" % format)
+
+
+class ImageData(BasemapData):
+	"""
+	Class representing image
+
+	:param filespec:
+		str, full path to image file
+	:param lon:
+		float, longitude
+	:param lat:
+		float, latitude
+	"""
+	# TODO: should we also support display coordinates instead of lon, lat??
+	def __init__(self, filespec, lon, lat):
+		self.filespec = filespec
+		self.lon = lon
+		self.lat = lat
 
 
 class GisData(BasemapData):
 	"""
-
+	:param filespec:
+		str, full path to GIS file
+	:param label_colname:
+		str, name of column to use for labels
+		(default: None)
+	:param selection_dict:
+		dict, mapping column names to values; only matching records will be selected
 	:param joined_attributes:
 		dict, mapping additional attribute names (not present in the GIS table)
 		to dictionaries containing two entries:
@@ -1131,10 +1293,31 @@ class GisData(BasemapData):
 
 		return (point_data, line_data, polygon_data)
 
+	def export(format, out_filespec):
+		"""
+		Export GIS file to another format
+
+		:param format:
+			str, OGR format speciication
+		:param out_filespec:
+			str, full path to output file
+		"""
+		driver = ogr.GetDriverByName(format)
+		if driver:
+			in_ds = ogr.Open(self.filespec, 0)
+			out_ds = driver.CopyDataSource(in_ds, out_filespec)
+		else:
+			print("Driver %s does not support CreateCopy() method" % format)
+
 
 class WMSData(object):
-	# TODO
-	def __init__(self, url):
+	"""
+	Class representing WMS image
+
+	:param url:
+		str, WMS server URL
+	"""
+	def __init__(self, url, layers, verbose=False):
 		self.url = url
-
-
+		self.layers = layers
+		self.verbose = verbose
