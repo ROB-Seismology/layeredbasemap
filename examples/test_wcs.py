@@ -17,6 +17,7 @@ coverage = wcs[layer_name]
 
 #width, height = 500, 500
 width, height = None, None
+## resx, resy are resolution in CRS units, in this case m
 #resx, resy = None, None
 resx, resy = 200, 200
 # Note: bbox (llx, lly, urx, ury)
@@ -32,5 +33,5 @@ band = ds.GetRasterBand(1)
 nodata = band.GetNoDataValue()
 ar = band.ReadAsArray()
 ar[ar == nodata] = np.nan
-pylab.imshow(ar, cmap=pylab.cm.gray_r)
+pylab.imshow(ar, cmap=pylab.cm.gist_earth, vmin=0)
 pylab.show()
