@@ -3,7 +3,9 @@ Example demonstrating how to get a grid from a WCS server
 """
 
 import os
-print os.environ['GDAL_DATA']
+for key in os.environ:
+	if "GDAL" in key or "OSR" in key:
+		print key, os.environ[key]
 
 
 import numpy as np

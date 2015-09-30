@@ -748,8 +748,9 @@ class LayeredBasemap:
 		elif grid_style.hillshade_style:
 			## Plot hillshading only
 			shading = {True: 'flat', False: 'gouraud'}[grid_style.pixelated]
-			cmap = grid_style.hillshade_style.color_map
-			self.map.pcolormesh(xe, ye, grid_data.values, cmap=cmap, shading=shading, alpha=alpha, zorder=self.zorder)
+			## Note: do not use variable name 'cmap' !
+			hillshade_cmap = grid_style.hillshade_style.color_map
+			self.map.pcolormesh(xe, ye, grid_data.values, cmap=hillshade_cmap, shading=shading, alpha=alpha, zorder=self.zorder)
 			self.zorder += 1
 
 		if grid_style.line_style:

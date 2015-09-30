@@ -13,21 +13,23 @@ title = "GeoTIFF example"
 
 layers = []
 
-## GeoTiff
-## http://www.eurogeographics.org/content/products-services-eurodem
-#geotiff_filespec = r"C:\Users\kris\Downloads\euro_sample.tif"
-#geotiff_filespec = r"D:\seismo-gis\collections\ASTER_GDEM\GEOTIFF\ASTGTM_N50E006.tif"
-geotiff_filespec = r"C:\Temp\ASTGTM_N50E006.tif"
+## GeoTiff / WCS
+geotiff_filespec = r"D:\seismo-gis\collections\ASTER_GDEM\GEOTIFF\ASTGTM_N50E006.tif"
+#geotiff_filespec = r"C:\Temp\ASTGTM_N50E006.tif"
 #geotiff_filespec = r"C:\Temp\matplotlib.tif"
-gdal_data = lbm.GdalRasterData(geotiff_filespec, band_nr=1, down_sampling=3)
+#gdal_data = lbm.GdalRasterData(geotiff_filespec, band_nr=1, down_sampling=3)
+url = 'http://seishaz.oma.be:8080/geoserver/wcs'
+layer_name = 'ngi:DTM10k'
+wcs_data = lbm.WCSData(url, layer_name, resolution=500)
 colorbar_style = lbm.ColorbarStyle("DEM sample")
 #colorbar_style = None
 hillshade_style = lbm.HillshadeStyle(azimuth=45,elevation_angle=30, scale=0.1, color_map="copper")
 #hillshade_style = None
-tsc = lbm.ThematicStyleColormap(color_map="terrain")
+tsc = lbm.ThematicStyleColormap(color_map="gist_earth", vmin=0, vmax=700)
+#tsc.color_map = None
 style = lbm.GridStyle(color_map_theme=tsc, colorbar_style=colorbar_style, line_style=None, pixelated=True, hillshade_style=hillshade_style)
 #style = lbm.GridImageStyle()
-layer = lbm.MapLayer(gdal_data, style)
+layer = lbm.MapLayer(wcs_data, style)
 layers.append(layer)
 
 ## Coastlines

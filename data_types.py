@@ -1032,7 +1032,11 @@ class GdalRasterData(MeshGridData):
 		import gdal
 		ds = gdal.Open(self.filespec)
 		band = ds.GetRasterBand(band_nr)
+		nodata = band.GetNoDataValue()
 		values = band.ReadAsArray(buf_xsize=self.ncols, buf_ysize=self.nrows)
+		## Mask nodata values
+		#values[values == nodata] = np.nan
+		values = np.ma.array(values, mask=np.isclose(values, nodata))
 		ds = None
 
 		return values
@@ -1134,6 +1138,50 @@ class GdalRasterData(MeshGridData):
 
 		else:
 			print("Driver %s does not support CreateCopy() method" % format)
+
+
+class WCSData(GdalRasterData):
+	"""
+	:param url:
+		str, base URL of WCS server
+	:param layer_name:
+		str, name of requested dataset on WCS server
+	:param resolution:
+		float or tuple of floats: resolution in units of dataset's CRS
+	"""
+	def __init__(self, url, layer_name, resolution, band_nr=1, wcs_version='1.0.0'):
+		self.url = url
+		self.layer_name = layer_name
+		if isinstance(resolution, (int, float)):
+			self.resolution = (resolution, resolution)
+		else:
+			self.resolution = resolution
+		self.wcs_version = wcs_version
+		response = self.get_server_response()
+		super(WCSData, self).__init__(response.geturl(), band_nr=band_nr)
+
+	def get_server_response(self):
+		# TODO: mechanism to set bbox from LayeredBasemap
+		from owslib.wcs import WebCoverageService
+		wcs = WebCoverageService(self.url, version=self.wcs_version)
+		#print sorted(wcs.contents.keys())
+
+		coverage = wcs[self.layer_name]
+		width, height = None, None
+		# Note: bbox (llx, lly, urx, ury)
+		bbox = coverage.boundingboxes[0]['bbox']
+		crs = coverage.supportedCRS[0]
+		format = "GeoTIFF"
+		return wcs.getCoverage(identifier=self.layer_name, width=width, height=height,
+					resx=self.resx, resy=self.resy, bbox=bbox, format=format, crs=crs)
+
+	@property
+	def resx(self):
+		return self.resolution[0]
+
+	@property
+	def resy(self):
+		return self.resolution[1]
 
 
 class ImageData(BasemapData):
