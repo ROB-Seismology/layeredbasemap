@@ -1,0 +1,8 @@
+#	cpt file created by: makecpt -Cmuted-d-02-raw.cpt -T-1/1/1
+#COLOR_MODEL = RGB
+#
+-1	55	117	179	0	55	117	179
+0	204	95	111	1	204	95	111
+B	0	0	0
+F	255	255	255
+N	255	0	0

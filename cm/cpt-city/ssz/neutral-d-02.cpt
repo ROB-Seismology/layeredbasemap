@@ -1,0 +1,8 @@
+#	cpt file created by: makecpt -Cneutral-d-02-raw.cpt -T-1/1/1
+#COLOR_MODEL = RGB
+#
+-1	71	128	123	0	71	128	123
+0	165	124	87	1	165	124	87
+B	0	0	0
+F	255	255	255
+N	255	0	0
