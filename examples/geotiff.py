@@ -2,30 +2,38 @@
 GeoTIFF example
 """
 
+import os
 import mapping.Basemap as lbm
+
+
+os.environ["CPL_TMPDIR"] = r"C:\Temp"
 
 
 #region = (1, 8, 49, 52)
 #region = (6, 7, 49, 50)
-region = (5, 8, 49.5, 51.5)
+region = (5., 8., 49.5, 51.5)
 projection = "tmerc"
 title = "GeoTIFF example"
 
 layers = []
 
 ## GeoTiff / WCS
-geotiff_filespec = r"D:\seismo-gis\collections\ASTER_GDEM\GEOTIFF\ASTGTM_N50E006.tif"
-#geotiff_filespec = r"C:\Temp\ASTGTM_N50E006.tif"
+#geotiff_filespec = r"D:\seismo-gis\collections\ASTER_GDEM\GEOTIFF\ASTGTM_N50E006.tif"
+geotiff_filespec = r"C:\Temp\ASTGTM_N50E006.tif"
 #geotiff_filespec = r"C:\Temp\matplotlib.tif"
-#gdal_data = lbm.GdalRasterData(geotiff_filespec, band_nr=1, down_sampling=3)
+gdal_data = lbm.GdalRasterData(geotiff_filespec, band_nr=1, down_sampling=3)
 url = 'http://seishaz.oma.be:8080/geoserver/wcs'
 layer_name = 'ngi:DTM10k'
-wcs_data = lbm.WCSData(url, layer_name, resolution=500)
-colorbar_style = lbm.ColorbarStyle("DEM sample")
+layer_name = 'nasa:ASTER_GDEM_V2'
+bbox = region[::2]+region[1::2]
+print bbox
+wcs_data = lbm.WCSData(url, layer_name, resolution=0.02, bbox=bbox, wcs_version="1.0.0")
+colorbar_style = lbm.ColorbarStyle("Elevation (m)")
 #colorbar_style = None
 hillshade_style = lbm.HillshadeStyle(azimuth=45,elevation_angle=30, scale=0.1, color_map="copper")
 #hillshade_style = None
-tsc = lbm.ThematicStyleColormap(color_map="gist_earth", vmin=0, vmax=700)
+cmap, norm = lbm.cm.from_cpt_city(r"esri\hypsometry\eu\spain")
+tsc = lbm.ThematicStyleColormap(color_map=cmap, vmin=0, vmax=700)
 #tsc.color_map = None
 style = lbm.GridStyle(color_map_theme=tsc, colorbar_style=colorbar_style, line_style=None, pixelated=True, hillshade_style=hillshade_style)
 #style = lbm.GridImageStyle()

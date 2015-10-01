@@ -1036,7 +1036,8 @@ class GdalRasterData(MeshGridData):
 		values = band.ReadAsArray(buf_xsize=self.ncols, buf_ysize=self.nrows)
 		## Mask nodata values
 		#values[values == nodata] = np.nan
-		values = np.ma.array(values, mask=np.isclose(values, nodata))
+		if nodata != None:
+			values = np.ma.array(values, mask=np.isclose(values, nodata))
 		ds = None
 
 		return values
@@ -1100,6 +1101,9 @@ class GdalRasterData(MeshGridData):
 
 		return out_data
 
+	def cross_section(self):
+		pass
+
 	def warp_to_map(self, map, checkbounds=False, masked=True, order=1):
 		from mapping.geo.coordtrans import transform_mesh_coordinates
 
@@ -1148,32 +1152,56 @@ class WCSData(GdalRasterData):
 		str, name of requested dataset on WCS server
 	:param resolution:
 		float or tuple of floats: resolution in units of dataset's CRS
+	:param band_nr:
+		int,  raster band number (one-based). If 0 or None, data
+		will be read as truecolor (RGB) image
+		(default: 1)
+	:param bbox:
+		list or tuple of floats: (llx, lly, urx, ury)
+		(default: [], will use bounding box of dataset)
+	:param wcs_version:
+		str, WCS version
+		(default: '1.0.0')
 	"""
-	def __init__(self, url, layer_name, resolution, band_nr=1, wcs_version='1.0.0'):
+	def __init__(self, url, layer_name, resolution, band_nr=1, bbox=[], wcs_version='1.0.0'):
+		import tempfile, urllib
+
 		self.url = url
 		self.layer_name = layer_name
 		if isinstance(resolution, (int, float)):
 			self.resolution = (resolution, resolution)
 		else:
 			self.resolution = resolution
+		self.bbox = bbox
 		self.wcs_version = wcs_version
 		response = self.get_server_response()
-		super(WCSData, self).__init__(response.geturl(), band_nr=band_nr)
+		print urllib.unquote(response.geturl())
+		#fd = tempfile.NamedTemporaryFile(suffix=".tif")
+		#fd.write(response.read())
+		#fd.close()
+		#super(WCSData, self).__init__(fd.name, band_nr=band_nr)
+		try:
+			super(WCSData, self).__init__(response.geturl(), band_nr=band_nr)
+		except:
+			print response.read()
+			raise
 
 	def get_server_response(self):
 		# TODO: mechanism to set bbox from LayeredBasemap
 		from owslib.wcs import WebCoverageService
 		wcs = WebCoverageService(self.url, version=self.wcs_version)
-		#print sorted(wcs.contents.keys())
+		print sorted(wcs.contents.keys())
 
 		coverage = wcs[self.layer_name]
 		width, height = None, None
-		# Note: bbox (llx, lly, urx, ury)
-		bbox = coverage.boundingboxes[0]['bbox']
+		if not self.bbox:
+			bbox = coverage.boundingboxes[0]['bbox']
+		else:
+			bbox = self.bbox
 		crs = coverage.supportedCRS[0]
 		format = "GeoTIFF"
 		return wcs.getCoverage(identifier=self.layer_name, width=width, height=height,
-					resx=self.resx, resy=self.resy, bbox=bbox, format=format, crs=crs)
+					resx=self.resx, resy=self.resy, bbox=bbox, format=format, crs=crs.getcode())
 
 	@property
 	def resx(self):
