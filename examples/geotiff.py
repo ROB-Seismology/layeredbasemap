@@ -23,16 +23,15 @@ geotiff_filespec = r"C:\Temp\ASTGTM_N50E006.tif"
 #geotiff_filespec = r"C:\Temp\matplotlib.tif"
 gdal_data = lbm.GdalRasterData(geotiff_filespec, band_nr=1, down_sampling=3)
 url = 'http://seishaz.oma.be:8080/geoserver/wcs'
-layer_name = 'ngi:DTM10k'
-layer_name = 'nasa:ASTER_GDEM_V2'
-bbox = region[::2]+region[1::2]
-print bbox
-wcs_data = lbm.WCSData(url, layer_name, resolution=0.02, bbox=bbox, wcs_version="1.0.0")
+layer_name, resolution, bbox = 'ngi:DTM10k', 500, []
+#layer_name, resolution, bbox = 'nasa:ASTER_GDEM_V2', 0.02, region[::2]+region[1::2]
+wcs_data = lbm.WCSData(url, layer_name, resolution=resolution, bbox=bbox)
 colorbar_style = lbm.ColorbarStyle("Elevation (m)")
 #colorbar_style = None
 hillshade_style = lbm.HillshadeStyle(azimuth=45,elevation_angle=30, scale=0.1, color_map="copper")
 #hillshade_style = None
-cmap, norm = lbm.cm.from_cpt_city(r"esri\hypsometry\eu\spain")
+cmap, norm = lbm.cm.from_cpt_city(r"grass\elevation")
+cmap = "gist_earth"
 tsc = lbm.ThematicStyleColormap(color_map=cmap, vmin=0, vmax=700)
 #tsc.color_map = None
 style = lbm.GridStyle(color_map_theme=tsc, colorbar_style=colorbar_style, line_style=None, pixelated=True, hillshade_style=hillshade_style)
