@@ -22,7 +22,7 @@ from styles import (FontStyle, TextStyle, DefaultTitleTextStyle, PointStyle,
 					ThematicStyleIndividual, ThematicStyleRanges, ThematicStyleGradient,
 					ThematicStyleColormap, ColorbarStyle, GridStyle, LegendStyle,
 					ScalebarStyle, MapBorderStyle, GridImageStyle, ImageStyle,
-					HillshadeStyle, WMSStyle)
+					HillshadeStyle, WMSStyle, FrontStyle)
 
 
 import data_types

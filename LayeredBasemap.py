@@ -742,7 +742,8 @@ class LayeredBasemap:
 					grid_style.color_map_theme.vmax = vmax or data.max()
 					cs = grid_style.color_map_theme.to_scalar_mappable()
 				else:
-					cs = self.map.pcolormesh(xe, ye, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, alpha=alpha, zorder=self.zorder)
+					cs = self.map.pcolormesh(xe, ye, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, linewidth=None, edgecolors=(1.0, 1.0, 1.0, 0.), alpha=alpha, zorder=self.zorder)
+					cs._is_stroked = False
 			self.zorder += 1
 
 		elif grid_style.hillshade_style:
