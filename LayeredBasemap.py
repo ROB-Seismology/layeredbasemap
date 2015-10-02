@@ -731,7 +731,7 @@ class LayeredBasemap:
 					d = hillshade.repeat(3)
 					d = d.reshape(rgb.shape)
 					## Simulate illumination based on pegtop algorithm
-					rgba[:,:,:3] = 2 * d * rgb + (rgb**2) * (1 - 2 * d)
+					rgba[:,:,:3] = np.minimum(1., (2 * d * rgb + (rgb*rgb) * (1 - 2 * d)))
 					## From http://stackoverflow.com/questions/29232439/plotting-an-irregularly-spaced-rgb-image-in-python
 					color_tuple = rgba.reshape((rgba.shape[0]*rgba.shape[1], rgba.shape[2]))
 					cs = self.map.pcolormesh(xe, ye, data, facecolor=color_tuple, linewidth=0)
