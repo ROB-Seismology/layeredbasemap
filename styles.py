@@ -753,11 +753,14 @@ class CompositeStyle:
 		instance of :class:`LineStyle`
 	:param polygon_style:
 		instance of :class:`PolygonStyle`
+	:param text_style:
+		instance of :class:`TextStyle`
 	"""
-	def __init__(self, point_style=None, line_style=None, polygon_style=None):
+	def __init__(self, point_style=None, line_style=None, polygon_style=None, text_style=None):
 		self.point_style = point_style
 		self.line_style = line_style
 		self.polygon_style = polygon_style
+		self.text_style = text_style
 
 	def is_thematic(self):
 		"""
