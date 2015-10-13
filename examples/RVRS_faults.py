@@ -12,8 +12,8 @@ from mapping.Basemap.styles import PointStyle, LineStyle, PolygonStyle, TextStyl
 
 
 fig_folder = r"E:\Home\_kris\Publications\2014 - DGEB"
-#fig_filespec = None
-fig_filespec = os.path.join(fig_folder, "SourceModel_RVRS_CSS.png")
+fig_filespec = None
+#fig_filespec = os.path.join(fig_folder, "SourceModel_RVRS_CSS.png")
 
 
 layers = []

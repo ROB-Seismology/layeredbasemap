@@ -489,6 +489,8 @@ class LayeredBasemap:
 			self._draw_texts(midpoints, line_style.label_style)
 			self.zorder += 1
 
+		# TODO: lines with frontstyle in legend (or thematic legend)
+
 		# Thematic legend
 		if line_style.is_thematic:
 			legend_artists, legend_labels = [], []
@@ -734,7 +736,7 @@ class LayeredBasemap:
 					rgba[:,:,:3] = np.minimum(1., (2 * d * rgb + (rgb*rgb) * (1 - 2 * d)))
 					## From http://stackoverflow.com/questions/29232439/plotting-an-irregularly-spaced-rgb-image-in-python
 					color_tuple = rgba.reshape((rgba.shape[0]*rgba.shape[1], rgba.shape[2]))
-					cs = self.map.pcolormesh(xe, ye, data, facecolor=color_tuple, linewidth=0)
+					cs = self.map.pcolormesh(xe, ye, data, facecolor=color_tuple, linewidth=0, rasterized=True, zorder=self.zorder)
 					## This removes default cmap coloring, but colorbar crashes
 					cs.set_array(None)
 					## Use scalarmappable as cs for colorbar, vmin and vmax must be set
@@ -742,8 +744,14 @@ class LayeredBasemap:
 					grid_style.color_map_theme.vmax = vmax or data.max()
 					cs = grid_style.color_map_theme.to_scalar_mappable()
 				else:
-					cs = self.map.pcolormesh(xe, ye, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, linewidth=None, edgecolors=(1.0, 1.0, 1.0, 0.), alpha=alpha, zorder=self.zorder)
-					cs._is_stroked = False
+					cs = self.map.pcolormesh(xe, ye, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, linewidth=0, rasterized=True, zorder=self.zorder)
+				if alpha < 1:
+					print("Warning: Due to a bug in matplotlib, gridlines are visible when alpha < 1!")
+					## Note: nothing helps to remove the gridlines
+					#cs.set_rasterized(True)
+					#cs.set_edgecolor("face")
+					#cs.set_edgecolor('none')
+					#cs._is_stroked = False
 			self.zorder += 1
 
 		elif grid_style.hillshade_style:
