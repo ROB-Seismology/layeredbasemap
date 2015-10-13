@@ -476,6 +476,10 @@ class LayeredBasemap:
 				if line_style.front_style.fill_color is None:
 					line_style.front_style.fill_color = line_color
 				self._draw_fronts(line, line_style.front_style)
+				# TODO: lines with frontstyle in legend (or thematic legend)
+				#handle, label = ax.get_legend_handles_labels()
+				#handles = handle+p_handle
+				#labels = label+p_label
 		self.zorder += 1
 		if line_data.labels and line_style.label_style:
 			# TODO: rotate labels
@@ -488,8 +492,6 @@ class LayeredBasemap:
 				midpoints.labels.append(line.label)
 			self._draw_texts(midpoints, line_style.label_style)
 			self.zorder += 1
-
-		# TODO: lines with frontstyle in legend (or thematic legend)
 
 		# Thematic legend
 		if line_style.is_thematic:
