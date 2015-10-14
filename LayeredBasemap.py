@@ -82,6 +82,8 @@ class LayeredBasemap:
 		else:
 			self.ax = ax
 		self.thematic_legends = []
+		self.legend_artists = []
+		self.legend_labels = []
 
 	@property
 	def llcrnrlon(self):
@@ -155,7 +157,11 @@ class LayeredBasemap:
 	def _draw_points(self, points, style, legend_label="_nolegend_", thematic_legend_artists=[], thematic_legend_labels=[]):
 		x, y = self.map(points.lons, points.lats)
 		if not style.is_thematic():
-			self.map.plot(x, y, ls="None", lw=0, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
+			#self.map.plot(x, y, ls="None", lw=0, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
+			pt, = self.map.plot(x, y, ls="None", lw=0, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
+			if legend_label and legend_label != "_nolegend_":
+				self.legend_artists.append(pt)
+				self.legend_labels.append(legend_label)
 		else:
 			## Thematic style, use scatter method
 			if isinstance(style.size, ThematicStyle):
@@ -259,14 +265,21 @@ class LayeredBasemap:
 
 	def _draw_line(self, line, style, legend_label="_nolegend_"):
 		x, y = self.map(line.lons, line.lats)
-		self.map.plot(x, y, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
+		#self.map.plot(x, y, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
+		l, = self.map.plot(x, y, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
+		if legend_label and legend_label != "_nolegend_":
+			self.legend_artists.append(l)
+			self.legend_labels.append(legend_label)
 
-	def _draw_fronts(self, line, style):
+	def _draw_fronts(self, line, style, legend_label="_nolegend_"):
 		from frontline import draw_frontline
 		x, y = self.map(line.lons, line.lats)
 		style_dict = {"line_style": "None", "line_color": 'k', "line_width": 0, "line_alpha": 0}
 		style_dict.update(style.to_kwargs())
-		draw_frontline(x, y, self.ax, zorder=self.zorder, **style_dict)
+		fr = draw_frontline(x, y, self.ax, zorder=self.zorder, **style_dict)
+		if legend_label and legend_label != "_nolegend_":
+			artist = self.legend_artists.pop()
+			self.legend_artists.append([artist] + fr[0])
 
 	def _draw_polygon(self, polygon, style, legend_label="_nolegend_"):
 		if isinstance(style, LineStyle):
@@ -278,7 +291,11 @@ class LayeredBasemap:
 		if len(polygon.interior_lons) == 0:
 			## Simple polygon
 			x, y = self.map(polygon.lons, polygon.lats)
-			self.ax.fill(x, y, fill=fill, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
+			#self.ax.fill(x, y, fill=fill, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
+			patch, = self.ax.fill(x, y, fill=fill, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
+			if legend_label and legend_label != "_nolegend_":
+				self.legend_artists.append(patch)
+				self.legend_labels.append(legend_label)
 		else:
 			## Complex polygon with holes
 			proj_polygon = self.get_projected_polygon(polygon)
@@ -293,9 +310,13 @@ class LayeredBasemap:
 				proj_polygon = proj_polygon.to_shapely()
 				## Make sure exterior and interior rings of polygon are properly oriented
 				proj_polygon = shapely.geometry.polygon.orient(proj_polygon)
-				patch = PolygonPatch(proj_polygon, fill=fill, label=legend_label, **style.to_kwargs())
+				#patch = PolygonPatch(proj_polygon, fill=fill, label=legend_label, **style.to_kwargs())
+				patch = PolygonPatch(proj_polygon, fill=fill, **style.to_kwargs())
 				patch.set_zorder(self.zorder)
 				self.ax.add_patch(patch)
+			if legend_label and legend_label != "_nolegend_":
+				self.legend_artists.append(patch)
+				self.legend_labels.append(legend_label)
 
 	def _draw_texts(self, text_points, style):
 		## Compute offset in map units (not needed for annotate method)
@@ -475,7 +496,7 @@ class LayeredBasemap:
 					line_style.front_style.line_color = line_color
 				if line_style.front_style.fill_color is None:
 					line_style.front_style.fill_color = line_color
-				self._draw_fronts(line, line_style.front_style)
+				fr = self._draw_fronts(line, line_style.front_style, legend_label)
 				# TODO: lines with frontstyle in legend (or thematic legend)
 				#handle, label = ax.get_legend_handles_labels()
 				#handles = handle+p_handle
@@ -1142,10 +1163,16 @@ class LayeredBasemap:
 			title_style = self.legend_style.title_style
 
 			#ml = self.ax.legend(loc=loc+1, prop=label_style.get_font_prop(), markerscale=marker_scale, frameon=frame_on, fancybox=fancy_box, shadow=shadow, ncol=ncol, borderpad=border_pad, labelspacing=label_spacing, handlelength=handle_length, handleheight=handle_height, handletextpad=handle_text_pad, borderaxespad=border_axes_pad, columnspacing=column_spacing, numpoints=numpoints)
-			ml = self.ax.legend(**self.legend_style.to_kwargs())
+			print len(self.legend_artists), len(self.legend_labels)
+			print self.legend_labels
+			print [type(artist) for artist in self.legend_artists]
+			ml = self.ax.legend(self.legend_artists, self.legend_labels, **self.legend_style.to_kwargs())
 			if ml:
 				ml.set_title(title)
 				ml.set_zorder(self.zorder)
+				# TODO: we can also set frame color like this (need to add in LegendStyle)
+				#frame = ml.get_frame()
+				#frame.set_facecolor('0.90')
 
 	def draw_title(self):
 		if isinstance(self.title, str):

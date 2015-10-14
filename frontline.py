@@ -132,8 +132,13 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 		(default: None)
 	:param kwargs:
 		remaining keyword arguments for matplotlib plot command
+
+	:return:
+		list of matplotlib artists to be used in legend
 	"""
 	dpi = ax.get_figure().dpi
+
+	legend_artists = []
 
 	def pt2pixel(val):
 		#return val * (dpi / 72.)
@@ -210,7 +215,8 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 		for i, (marker_x, marker_y) in enumerate(marker_coords):
 			angle = np.degrees(display_marker_angles[i]) + marker_angle
 			marker = (marker_num_sides, marker_shape_code, angle)
-			ax.plot(marker_x, marker_y, linestyle='None', marker=marker, markersize=marker_size, mec=marker_edge_color, mfc=marker_face_color, mew=marker_edge_width, alpha=marker_alpha, zorder=zorder)
+			m = ax.plot(marker_x, marker_y, linestyle='None', marker=marker, markersize=marker_size, mec=marker_edge_color, mfc=marker_face_color, mew=marker_edge_width, alpha=marker_alpha, zorder=zorder)
+			legend_artists.append(m)
 
 
 	## Patches
@@ -258,6 +264,10 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 			patch = mpl.patches.PathPatch(path, ec=marker_edge_color, fc=marker_face_color, lw=marker_edge_width, alpha=marker_alpha)
 			patch.set_zorder(zorder)
 			ax.add_patch(patch)
+
+	# TODO: create proxy artist for legend
+
+	return legend_artists
 
 
 
