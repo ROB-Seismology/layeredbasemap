@@ -4,6 +4,8 @@ Generic wrapper for creating maps with Basemap
 
 import os
 import datetime
+from copy import copy
+
 import numpy as np
 import matplotlib
 from mpl_toolkits.basemap import Basemap
@@ -272,14 +274,24 @@ class LayeredBasemap:
 			self.legend_labels.append(legend_label)
 
 	def _draw_fronts(self, line, style, legend_label="_nolegend_"):
+		"""
+		:param style:
+			instance of :class:`LineStyle`
+		"""
 		from frontline import draw_frontline
 		x, y = self.map(line.lons, line.lats)
-		style_dict = {"line_style": "None", "line_color": 'k', "line_width": 0, "line_alpha": 0}
-		style_dict.update(style.to_kwargs())
+		style_dict = {}
+		style_dict["line_style"] = style.line_pattern
+		style_dict["line_color"] = style.line_color
+		style_dict["line_width"] = style.line_width
+		style_dict["line_alpha"] = style.alpha
+		#style_dict = {"line_style": "None", "line_color": 'k', "line_width": 0, "line_alpha": 0}
+		style_dict.update(style.front_style.to_kwargs())
 		fr = draw_frontline(x, y, self.ax, zorder=self.zorder, **style_dict)
 		if legend_label and legend_label != "_nolegend_":
-			artist = self.legend_artists.pop()
-			self.legend_artists.append([artist] + fr[0])
+			#artist = self.legend_artists.pop()
+			self.legend_artists.append(fr)
+			self.legend_labels.append(legend_label)
 
 	def _draw_polygon(self, polygon, style, legend_label="_nolegend_"):
 		if isinstance(style, LineStyle):
@@ -488,19 +500,21 @@ class LayeredBasemap:
 			line_width = line_widths[i]
 			line_color = line_colors[i]
 			style = LineStyle(line_pattern=line_pattern, line_width=line_width, line_color=line_color, label_style=None, alpha=line_style.alpha)
-			self._draw_line(line, style, legend_label)
 			if line_style.front_style:
-				if line_style.front_style.line_width is None:
-					line_style.front_style.line_width = line_width
-				if line_style.front_style.line_color is None:
-					line_style.front_style.line_color = line_color
-				if line_style.front_style.fill_color is None:
-					line_style.front_style.fill_color = line_color
-				fr = self._draw_fronts(line, line_style.front_style, legend_label)
+				style.front_style = copy(line_style.front_style)
+				if style.front_style.line_width is None:
+					style.front_style.line_width = line_width
+				if style.front_style.line_color is None:
+					style.front_style.line_color = line_color
+				if style.front_style.fill_color is None:
+					style.front_style.fill_color = line_color
+				fr = self._draw_fronts(line, style, legend_label)
 				# TODO: lines with frontstyle in legend (or thematic legend)
 				#handle, label = ax.get_legend_handles_labels()
 				#handles = handle+p_handle
 				#labels = label+p_label
+			else:
+				self._draw_line(line, style, legend_label)
 		self.zorder += 1
 		if line_data.labels and line_style.label_style:
 			# TODO: rotate labels

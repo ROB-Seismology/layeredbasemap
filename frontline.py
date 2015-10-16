@@ -134,11 +134,11 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 		remaining keyword arguments for matplotlib plot command
 
 	:return:
-		list of matplotlib artists to be used in legend
+		matplotlib artist to be used in legend
 	"""
 	dpi = ax.get_figure().dpi
 
-	legend_artists = []
+	legend_artist = None
 
 	def pt2pixel(val):
 		#return val * (dpi / 72.)
@@ -215,8 +215,14 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 		for i, (marker_x, marker_y) in enumerate(marker_coords):
 			angle = np.degrees(display_marker_angles[i]) + marker_angle
 			marker = (marker_num_sides, marker_shape_code, angle)
-			m = ax.plot(marker_x, marker_y, linestyle='None', marker=marker, markersize=marker_size, mec=marker_edge_color, mfc=marker_face_color, mew=marker_edge_width, alpha=marker_alpha, zorder=zorder)
-			legend_artists.append(m)
+			ax.plot(marker_x, marker_y, linestyle='None', marker=marker, markersize=marker_size, mec=marker_edge_color, mfc=marker_face_color, mew=marker_edge_width, alpha=marker_alpha, zorder=zorder)
+			x = np.arange(0, mpl.rcParams['legend.handlelength']*10, marker_interval_px)
+			y = np.zeros_like(x)
+			print x, marker_interval_px
+			print mpl.rcParams['legend.handlelength']
+			line1 = mpl.lines.Line2D(x, y, lw=line_width, color=line_color, ls=line_style, alpha=line_alpha)
+			line2 = mpl.lines.Line2D(x, y, linestyle='None', marker=marker, markersize=marker_size, mec=marker_edge_color, mfc=marker_face_color, mew=marker_edge_width, alpha=marker_alpha)
+			legend_artist = (line1, line2)
 
 
 	## Patches
@@ -265,9 +271,9 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 			patch.set_zorder(zorder)
 			ax.add_patch(patch)
 
-	# TODO: create proxy artist for legend
+	# TODO: use custom legend handler
 
-	return legend_artists
+	return legend_artist
 
 
 

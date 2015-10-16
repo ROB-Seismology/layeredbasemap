@@ -434,6 +434,7 @@ class LineStyle(BasemapStyle):
 		String, line pattern format string, or instance of :class:`ThematicStyle`
 		"-" | "--" | "-." | ":"
 		or "solid" | "dashed" | "dashdot" | "dotted"
+		(default: "solid")
 	:param line_width:
 		Float, line width, or instance of :class:`ThematicStyle`
 		(default: 1)
