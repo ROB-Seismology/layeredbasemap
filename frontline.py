@@ -10,6 +10,11 @@ import matplotlib.mlab as mlab
 
 
 
+class FrontlineLegendHandler(object):
+	pass
+
+
+
 def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_alpha=1,
 					marker_shape="polygon", marker_num_sides=3, marker_angle=0,
 					marker_size=12, marker_interval=24, marker_offset=0,
@@ -134,11 +139,13 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 		remaining keyword arguments for matplotlib plot command
 
 	:return:
-		matplotlib artist to be used in legend
+		instance of :class:`FrontlineLegendHandler`, which can be passed
+		(in handler_map dictionary) to matplotlib legend function
 	"""
 	dpi = ax.get_figure().dpi
 
-	legend_artist = None
+	#legend_artist = None
+	legend_handler = None
 
 	def pt2pixel(val):
 		#return val * (dpi / 72.)
@@ -216,14 +223,31 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 			angle = np.degrees(display_marker_angles[i]) + marker_angle
 			marker = (marker_num_sides, marker_shape_code, angle)
 			ax.plot(marker_x, marker_y, linestyle='None', marker=marker, markersize=marker_size, mec=marker_edge_color, mfc=marker_face_color, mew=marker_edge_width, alpha=marker_alpha, zorder=zorder)
-			x = np.arange(0, mpl.rcParams['legend.handlelength']*10, marker_interval_px)
-			y = np.zeros_like(x)
-			print x, marker_interval_px
-			print mpl.rcParams['legend.handlelength']
-			line1 = mpl.lines.Line2D(x, y, lw=line_width, color=line_color, ls=line_style, alpha=line_alpha)
-			line2 = mpl.lines.Line2D(x, y, linestyle='None', marker=marker, markersize=marker_size, mec=marker_edge_color, mfc=marker_face_color, mew=marker_edge_width, alpha=marker_alpha)
-			legend_artist = (line1, line2)
 
+		#def legend_artist(cls, legend, orig_handle, fontsize, handlebox):
+		def legend_artist(legend, orig_handle, fontsize, handlebox):
+			# TODO: marker_alternate_sides!
+			marker = (marker_num_sides, marker_shape_code, marker_angle)
+			x0, y0 = handlebox.xdescent, handlebox.ydescent
+			width, height = handlebox.width, handlebox.height
+
+			x = np.array([x0, x0+width])
+			y = np.ones_like(x) * (y0 + height / 2. - marker_size / 4.)
+			line1 = mpl.lines.Line2D(x, y, lw=line_width, color=line_color, ls=line_style, alpha=line_alpha)
+			x = np.arange(x0, x0+width, marker_interval_px)
+			y = np.ones_like(x) * (y0 + height / 2. - marker_size / 4.)
+			line2 = mpl.lines.Line2D(x, y, linestyle='None', marker=marker, markersize=marker_size, mec=marker_edge_color, mfc=marker_face_color, mew=marker_edge_width, alpha=marker_alpha)
+
+			handlebox.add_artist(line1)
+			handlebox.add_artist(line2)
+			return (line1, line2)
+
+		if mpl.__version__ <= "1.3.1":
+			legend_handler = legend_artist
+		else:
+			#legend_handler = FrontlineLegendHandler()
+			#setattr(legend_handler, 'legend_artist', classmethod(legend_artist))
+			legend_handler = type('FrontlineLegendHandler',  (), {'legend_artist': classmethod(legend_artist)})()
 
 	## Patches
 	elif marker_shape in ["arc", "arrow", "ellipse", "rectangle"] or isinstance(marker_shape, mpl.patches.Patch):
@@ -271,9 +295,9 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 			patch.set_zorder(zorder)
 			ax.add_patch(patch)
 
-	# TODO: use custom legend handler
+		# TODO: custom legend handler for patches
 
-	return legend_artist
+	return legend_handler
 
 
 

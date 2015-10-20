@@ -86,6 +86,7 @@ class LayeredBasemap:
 		self.thematic_legends = []
 		self.legend_artists = []
 		self.legend_labels = []
+		self.legend_handler_map = {}
 
 	@property
 	def llcrnrlon(self):
@@ -287,11 +288,13 @@ class LayeredBasemap:
 		style_dict["line_alpha"] = style.alpha
 		#style_dict = {"line_style": "None", "line_color": 'k', "line_width": 0, "line_alpha": 0}
 		style_dict.update(style.front_style.to_kwargs())
-		fr = draw_frontline(x, y, self.ax, zorder=self.zorder, **style_dict)
+		lh = draw_frontline(x, y, self.ax, zorder=self.zorder, **style_dict)
 		if legend_label and legend_label != "_nolegend_":
-			#artist = self.legend_artists.pop()
-			self.legend_artists.append(fr)
+			## Note: doesn't work in matplotlib 1.3.1
+			dummy_artist = type('DummyArtist', (), {})()
+			self.legend_artists.append(dummy_artist)
 			self.legend_labels.append(legend_label)
+			self.legend_handler_map[dummy_artist] = lh
 
 	def _draw_polygon(self, polygon, style, legend_label="_nolegend_"):
 		if isinstance(style, LineStyle):
@@ -508,7 +511,7 @@ class LayeredBasemap:
 					style.front_style.line_color = line_color
 				if style.front_style.fill_color is None:
 					style.front_style.fill_color = line_color
-				fr = self._draw_fronts(line, style, legend_label)
+				self._draw_fronts(line, style, legend_label)
 				# TODO: lines with frontstyle in legend (or thematic legend)
 				#handle, label = ax.get_legend_handles_labels()
 				#handles = handle+p_handle
@@ -1177,10 +1180,7 @@ class LayeredBasemap:
 			title_style = self.legend_style.title_style
 
 			#ml = self.ax.legend(loc=loc+1, prop=label_style.get_font_prop(), markerscale=marker_scale, frameon=frame_on, fancybox=fancy_box, shadow=shadow, ncol=ncol, borderpad=border_pad, labelspacing=label_spacing, handlelength=handle_length, handleheight=handle_height, handletextpad=handle_text_pad, borderaxespad=border_axes_pad, columnspacing=column_spacing, numpoints=numpoints)
-			print len(self.legend_artists), len(self.legend_labels)
-			print self.legend_labels
-			print [type(artist) for artist in self.legend_artists]
-			ml = self.ax.legend(self.legend_artists, self.legend_labels, **self.legend_style.to_kwargs())
+			ml = self.ax.legend(self.legend_artists, self.legend_labels, handler_map=self.legend_handler_map, **self.legend_style.to_kwargs())
 			if ml:
 				ml.set_title(title)
 				ml.set_zorder(self.zorder)
