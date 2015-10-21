@@ -1157,27 +1157,44 @@ class WCSData(GdalRasterData):
 		will be read as truecolor (RGB) image
 		(default: 1)
 	:param bbox:
-		list or tuple of floats: (llx, lly, urx, ury)
+		list or tuple of floats: (llx, lly, urx, ury) in native coordinates
 		(default: [], will use bounding box of dataset)
+	:param region:
+		list or tuple of floats: (lonmin, lonmax, latmin, latmax)
+		that will be used to determine bbox
+		(default: [])
 	:param wcs_version:
 		str, WCS version
 		(default: '1.0.0')
+	:param verbose:
+		bool, whether or not to print information
+		(default: True)
 	"""
-	def __init__(self, url, layer_name, resolution, band_nr=1, bbox=[], wcs_version='1.0.0'):
-		import tempfile, urllib
-
+	def __init__(self, url, layer_name, resolution, band_nr=1, bbox=[], region=[],
+				wcs_version='1.0.0', verbose=True):
 		self.url = url
 		self.layer_name = layer_name
 		if isinstance(resolution, (int, float)):
 			self.resolution = (resolution, resolution)
 		else:
 			self.resolution = resolution
-		self.bbox = bbox
+		self.resolution = np.asarray(self.resolution)
+
+		## Query server for some information
 		self.wcs_version = wcs_version
-		self.wcs = self.init_wcs()
+		self.wcs = self.init_wcs(verbose=verbose)
+
+		if region:
+			self.bbox = self.get_bbox_from_region(self.layer_name, region)
+		else:
+			self.bbox = bbox
+
+		## Read coverage
+		import tempfile, urllib
 
 		response = self.get_coverage(self.layer_name)
-		print urllib.unquote(response.geturl())
+		if verbose:
+			print urllib.unquote(response.geturl())
 		#fd = tempfile.NamedTemporaryFile(suffix=".tif")
 		#fd.write(response.read())
 		#fd.close()
@@ -1189,6 +1206,16 @@ class WCSData(GdalRasterData):
 			raise
 
 	def init_wcs(self, verbose=True):
+		"""
+		Initiate WCS connection
+
+		:param verbose:
+			bool, whether or not to print information
+			(default: True)
+
+		:return:
+			instance of :class:`owslib.wcs.WebCoverageService`
+		"""
 		from owslib.wcs import WebCoverageService
 		wcs = WebCoverageService(self.url, version=self.wcs_version)
 		if verbose:
@@ -1196,31 +1223,62 @@ class WCSData(GdalRasterData):
 		return wcs
 
 	def get_coverage_info(self, layer_name):
+		"""
+		Get coordinate system and bounding box for a particular coverage
+
+		:param layer_name:
+			str, name of requested dataset on WCS server
+
+		:return:
+			(crs, bbox) tuple
+		"""
 		coverage = self.wcs[layer_name]
 		crs = coverage.supportedCRS[0]
 		bbox = coverage.boundingboxes[0]['bbox']
 		return (crs, bbox)
 
-	def get_bbox(self, layer_name, region, margin=0.1):
+	def get_bbox_from_region(self, layer_name, region):
 		"""
-		Get bounding box in native coordinates from region in geographic
-		coordinates
+		Get bounding box in native coordinates for a particular coverage
+		from region in geographic coordinates
+
+		:param layer_name:
+			str, name of requested dataset on WCS server
+		:param region:
+			list or tuple of floats: (lonmin, lonmax, latmin, latmax)
+
+		:return:
+			list or tuple of floats: (llx, lly, urx, ury)
+			bbox in native coordinates
 		"""
 		from mapping.geo.coordtrans import get_epsg_srs, wgs84, transform_coordinates
 
 		crs, _bbox = self.get_coverage_info(layer_name)
-		srs = get_epsg_srs(crs.getcode())
+		if crs.authority == 'EPSG':
+			srs = get_epsg_srs(crs.getcode())
+		else:
+			raise Exception("CRS %s not supported!" % crs.getcode())
 
-		llx, urx, lly, ury = region
-		coords = transform_coordinates(wgs84, srs, [(llx-margin, lly-margin), (urx+margin, ury+margin)])
-		bbox = coords[0] + coords[1]
+		lonmin, lonmax, latmin, latmax = region
+		lon_margin = (lonmax - lonmin) / 20.
+		lat_margin = (latmax - latmin) / 20.
+		coords_in = [(lonmin-lon_margin, latmin-lat_margin),
+					(lonmax+lon_margin, latmax+lat_margin)]
+		coords = transform_coordinates(wgs84, srs, coords_in)
+		bbox = (list(np.floor(coords[0] / self.resolution) * self.resolution) +
+				list(np.ceil(coords[1] / self.resolution) * self.resolution))
 		return bbox
 
-	def set_bbox_from_region(self, region, margin=0.1):
-		self.bbox = self.get_bbox(self.layer_name, region, margin=margin)
-
 	def get_coverage(self, layer_name):
-		# TODO: mechanism to set bbox from LayeredBasemap
+		"""
+		Fetch coverage from server
+
+		:param layer_name:
+			str, name of requested dataset on WCS server
+
+		:return:
+			instance of :class:`owslib.util.ResponseWrapper`
+		"""
 		width, height = None, None
 		crs, _bbox = self.get_coverage_info(layer_name)
 		if not self.bbox:
