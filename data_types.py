@@ -1174,7 +1174,9 @@ class WCSData(GdalRasterData):
 			self.resolution = resolution
 		self.bbox = bbox
 		self.wcs_version = wcs_version
-		response = self.get_server_response()
+		self.wcs = self.init_wcs()
+
+		response = self.get_coverage(self.layer_name)
 		print urllib.unquote(response.geturl())
 		#fd = tempfile.NamedTemporaryFile(suffix=".tif")
 		#fd.write(response.read())
@@ -1186,21 +1188,47 @@ class WCSData(GdalRasterData):
 			print response.read()
 			raise
 
-	def get_server_response(self):
-		# TODO: mechanism to set bbox from LayeredBasemap
+	def init_wcs(self, verbose=True):
 		from owslib.wcs import WebCoverageService
 		wcs = WebCoverageService(self.url, version=self.wcs_version)
-		print sorted(wcs.contents.keys())
+		if verbose:
+			print sorted(wcs.contents.keys())
+		return wcs
 
-		coverage = wcs[self.layer_name]
+	def get_coverage_info(self, layer_name):
+		coverage = self.wcs[layer_name]
+		crs = coverage.supportedCRS[0]
+		bbox = coverage.boundingboxes[0]['bbox']
+		return (crs, bbox)
+
+	def get_bbox(self, layer_name, region, margin=0.1):
+		"""
+		Get bounding box in native coordinates from region in geographic
+		coordinates
+		"""
+		from mapping.geo.coordtrans import get_epsg_srs, wgs84, transform_coordinates
+
+		crs, _bbox = self.get_coverage_info(layer_name)
+		srs = get_epsg_srs(crs.getcode())
+
+		llx, urx, lly, ury = region
+		coords = transform_coordinates(wgs84, srs, [(llx-margin, lly-margin), (urx+margin, ury+margin)])
+		bbox = coords[0] + coords[1]
+		return bbox
+
+	def set_bbox_from_region(self, region, margin=0.1):
+		self.bbox = self.get_bbox(self.layer_name, region, margin=margin)
+
+	def get_coverage(self, layer_name):
+		# TODO: mechanism to set bbox from LayeredBasemap
 		width, height = None, None
+		crs, _bbox = self.get_coverage_info(layer_name)
 		if not self.bbox:
-			bbox = coverage.boundingboxes[0]['bbox']
+			bbox = _bbox
 		else:
 			bbox = self.bbox
-		crs = coverage.supportedCRS[0]
 		format = "GeoTIFF"
-		return wcs.getCoverage(identifier=self.layer_name, width=width, height=height,
+		return self.wcs.getCoverage(identifier=layer_name, width=width, height=height,
 					resx=self.resx, resy=self.resy, bbox=bbox, format=format, crs=crs.getcode())
 
 	@property
