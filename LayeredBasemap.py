@@ -756,6 +756,12 @@ class LayeredBasemap:
 				#corner_lats[:,-1] = corner_lats[:,-2]
 				#corner_x, corner_y = self.map(corner_lons, corner_lats)
 				shading = {True: 'flat', False: 'gouraud'}[grid_style.pixelated]
+				if shading == 'gouraud':
+					## Data must have same size as X and Y
+					x, y = xc, yc
+				else:
+					## Length of X and Y should be one more than data size
+					x, y = xe, ye
 				if grid_style.hillshade_style:
 					## Source: http://rnovitsky.blogspot.com.es/2010/04/using-hillshade-image-as-intensity.html
 					azimuth = grid_style.hillshade_style.azimuth
@@ -763,7 +769,7 @@ class LayeredBasemap:
 					scale = grid_style.hillshade_style.scale
 					hillshade = grid_data.calc_hillshade(azimuth, elevation_angle, scale)
 					data = grid_data.values
-					ny, nx = xe.shape
+					#ny, nx = xe.shape
 					## Get RGB of normalized data based on cmap
 					#data_min, data_max = data.min(), data.max()
 					#rgba = cmap_obj((data - data_min) / float(data_max - data_min))
@@ -776,7 +782,7 @@ class LayeredBasemap:
 					rgba[:,:,:3] = np.minimum(1., (2 * d * rgb + (rgb*rgb) * (1 - 2 * d)))
 					## From http://stackoverflow.com/questions/29232439/plotting-an-irregularly-spaced-rgb-image-in-python
 					color_tuple = rgba.reshape((rgba.shape[0]*rgba.shape[1], rgba.shape[2]))
-					cs = self.map.pcolormesh(xe, ye, data, facecolor=color_tuple, linewidth=0, rasterized=True, zorder=self.zorder)
+					cs = self.map.pcolormesh(x, y, data, facecolor=color_tuple, shading=shading, linewidth=0, rasterized=True, zorder=self.zorder)
 					## This removes default cmap coloring, but colorbar crashes
 					cs.set_array(None)
 					## Use scalarmappable as cs for colorbar, vmin and vmax must be set
@@ -784,7 +790,7 @@ class LayeredBasemap:
 					grid_style.color_map_theme.vmax = vmax or data.max()
 					cs = grid_style.color_map_theme.to_scalar_mappable()
 				else:
-					cs = self.map.pcolormesh(xe, ye, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, linewidth=0, rasterized=True, zorder=self.zorder)
+					cs = self.map.pcolormesh(x, y, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, linewidth=0, rasterized=True, zorder=self.zorder)
 				if alpha < 1:
 					print("Warning: Due to a bug in matplotlib, gridlines are visible when alpha < 1!")
 					## Note: nothing helps to remove the gridlines
@@ -797,9 +803,13 @@ class LayeredBasemap:
 		elif grid_style.hillshade_style:
 			## Plot hillshading only
 			shading = {True: 'flat', False: 'gouraud'}[grid_style.pixelated]
+			if shading == 'gouraud':
+				x, y = xc, yc
+			else:
+				x, y = xe, ye
 			## Note: do not use variable name 'cmap' !
 			hillshade_cmap = grid_style.hillshade_style.color_map
-			self.map.pcolormesh(xe, ye, grid_data.values, cmap=hillshade_cmap, shading=shading, alpha=alpha, zorder=self.zorder)
+			self.map.pcolormesh(x, y, grid_data.values, cmap=hillshade_cmap, shading=shading, alpha=alpha, zorder=self.zorder)
 			self.zorder += 1
 
 		if grid_style.line_style:
