@@ -1146,8 +1146,11 @@ class LayeredBasemap:
 				point_style = layer.style.point_style
 				text_data = layer.data.texts
 				text_style = layer.style.text_style
-				legend_label = {"points": layer.legend_label, "lines": layer.legend_label, "polygons": layer.legend_label}
-				self.draw_composite_layer(point_data=point_data, point_style=point_style, line_data=line_data, line_style=line_style, polygon_data=polygon_data, polygon_style=polygon_style, text_data=text_data, text_style=text_style)
+				if not isinstance(layer.legend_label, dict):
+					legend_label = {"points": layer.legend_label, "lines": layer.legend_label, "polygons": layer.legend_label}
+				else:
+					legend_label = layer.legend_label
+				self.draw_composite_layer(point_data=point_data, point_style=point_style, line_data=line_data, line_style=line_style, polygon_data=polygon_data, polygon_style=polygon_style, text_data=text_data, text_style=text_style, legend_label=legend_label)
 			elif isinstance(layer.data, GridData):
 				if isinstance(layer.style, GridStyle):
 					self.draw_grid_layer(layer.data, layer.style, layer.legend_label)
