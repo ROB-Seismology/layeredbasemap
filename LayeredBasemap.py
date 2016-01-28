@@ -420,12 +420,25 @@ class LayeredBasemap:
 								colorbar_style.ticks = polygon_style.fill_color.values
 						self.draw_colorbar(sm, colorbar_style)
 				else:
-					legend_labels.extend(polygon_style.fill_color.labels)
-					for color in polygon_style.fill_color.styles:
-						ntl = polygon_style.get_non_thematic_style()
-						ntl.fill_color = color
-						p = matplotlib.patches.Rectangle((0, 0), 1, 1, fill=1, **ntl.to_kwargs())
-						legend_artists.append(p)
+					#legend_labels.extend(polygon_style.fill_color.labels)
+					# TODO: see if a more elegant solution can be found,
+					# and apply to all other thematic styles !!
+					# Ideas: e.g. for ranges / gradients
+					# np.digitize(np.array(list(set(polygon_style.fill_color.apply_value_key(polygon_data.values)))), np.array(polygon_style.fill_color.values))
+					used_colors = []
+					for color in fill_colors:
+						color = tuple(color)
+						if not color in used_colors:
+							used_colors.append(color)
+					for color, label in zip(polygon_style.fill_color.styles,
+											polygon_style.fill_color.labels):
+						if color in used_colors:
+							## Keep only colors that are actually used
+							ntl = polygon_style.get_non_thematic_style()
+							ntl.fill_color = color
+							p = matplotlib.patches.Rectangle((0, 0), 1, 1, fill=1, **ntl.to_kwargs())
+							legend_artists.append(p)
+							legend_labels.append(label)
 			## Line color
 			if isinstance(polygon_style.line_color, ThematicStyle) and polygon_style.line_color.add_legend:
 				colorbar_style = polygon_style.line_color.colorbar_style
@@ -892,7 +905,7 @@ class LayeredBasemap:
 			lake_color = getattr(continent_style, "bg_color", "None")
 			self.map.fillcontinents(color=continent_style.fill_color, lake_color=lake_color, zorder=self.zorder)
 		if continent_style.line_color:
-			self.draw_coastlines(continent_style)
+			self.draw_coastlines(continent_style.to_line_style())
 		self.zorder += 1
 
 	def draw_coastlines(self, coastline_style):
@@ -1099,8 +1112,9 @@ class LayeredBasemap:
 		self.zorder += 1
 
 	def draw_layers(self):
-		self.zorder = 0
-		for layer in self.layers:
+		## Note: start with zorder = 1, to allow place for map border
+		self.zorder = 1
+		for l, layer in enumerate(self.layers):
 			if isinstance(layer.data, BuiltinData):
 				if layer.data.feature == "continents":
 					#continent_style = layer.style
@@ -1179,9 +1193,21 @@ class LayeredBasemap:
 
 				# TODO: in current version of matplotlib, legend does not support framealpha parameter
 				tl = self.ax.legend(thematic_legend.artists, thematic_legend.labels, **thematic_legend.style.to_kwargs())
-				# TODO: in current version of matplotlib set_title does not accept prop
-				#tl.set_title(title, prop=title_style.get_font_prop())
-				tl.set_title(title)
+				tl.set_title(title, prop=title_style.get_font_prop())
+				## Align title to center...
+				ha = getattr(title_style, 'horizontal_alignment', 'center')
+				if ha != 'left':
+					ttl = tl.get_title()
+					ttl.set_ha(ha)
+					renderer = self.fig.canvas.get_renderer()
+					shift = ttl.get_window_extent(renderer).width
+					# TODO: shift depends on dpi!
+					# So dpi needs to be known to compute shift correctly...
+					if ha == 'center':
+						ttl.set_position((shift/2., 0))
+					if ha == 'right':
+						ttl.set_position((shift, 0))
+
 				tl.set_zorder(self.zorder)
 				self.ax.add_artist(tl)
 
@@ -1195,8 +1221,19 @@ class LayeredBasemap:
 			#ml = self.ax.legend(loc=loc+1, prop=label_style.get_font_prop(), markerscale=marker_scale, frameon=frame_on, fancybox=fancy_box, shadow=shadow, ncol=ncol, borderpad=border_pad, labelspacing=label_spacing, handlelength=handle_length, handleheight=handle_height, handletextpad=handle_text_pad, borderaxespad=border_axes_pad, columnspacing=column_spacing, numpoints=numpoints)
 			ml = self.ax.legend(self.legend_artists, self.legend_labels, handler_map=self.legend_handler_map, **self.legend_style.to_kwargs())
 			if ml:
-				ml.set_title(title)
-				ml.set_zorder(self.zorder)
+				ml.set_title(title, prop=title_style.get_font_prop())
+				## Align title to center...
+				ha = getattr(title_style, 'horizontal_alignment', 'center')
+				if ha != 'left':
+					ttl = ml.get_title()
+					ttl.set_ha(ha)
+					renderer = self.fig.canvas.get_renderer()
+					shift = ttl.get_window_extent(renderer).width
+					if ha == 'center':
+						ttl.set_position((shift/2.,0))
+					if ha == 'right':
+						ttl.set_position((shift,0))
+					ml.set_zorder(self.zorder)
 				# TODO: we can also set frame color like this (need to add in LegendStyle)
 				#frame = ml.get_frame()
 				#frame.set_facecolor('0.90')
@@ -1216,17 +1253,22 @@ class LayeredBasemap:
 		if self.annot_axes is None:
 			self.annot_axes = "SE"
 		ax_labels = [c in self.annot_axes for c in "WENS"]
+		# TODO: define graticule_style, including fmt, labelstyle, etc.
 		style = self.graticule_style
+		if abs(self.region[1] - self.region[0]) == 360:
+			labelstyle = "+/-"
+		else:
+			labelstyle = ""
 		if self.dlon != None:
 			first_meridian = np.ceil(self.region[0] / self.dlon) * self.dlon
 			last_meridian = np.floor(self.region[1] / self.dlon) * self.dlon + self.dlon
 			meridians = np.arange(first_meridian, last_meridian, self.dlon)
-			self.map.drawmeridians(meridians, color=style.line_color, linewidth=style.line_width, labels=ax_labels, latmax=90, zorder=self.zorder)
+			self.map.drawmeridians(meridians, color=style.line_color, linewidth=style.line_width, labels=ax_labels, latmax=90, labelstyle=labelstyle, zorder=self.zorder)
 		if self.dlat != None:
 			first_parallel = np.ceil(self.region[2] / self.dlat) * self.dlat
 			last_parallel = np.floor(self.region[3] / self.dlat) * self.dlat + self.dlat
 			parallels = np.arange(first_parallel, last_parallel, self.dlat)
-			self.map.drawparallels(parallels, color=style.line_color, linewidth=style.line_width, labels=ax_labels, latmax=90, zorder=self.zorder)
+			self.map.drawparallels(parallels, color=style.line_color, linewidth=style.line_width, labels=ax_labels, latmax=90, labelstyle=labelstyle, zorder=self.zorder)
 		self.zorder += 1
 
 	def draw_scalebar(self):
@@ -1237,7 +1279,9 @@ class LayeredBasemap:
 
 	def draw_map_border(self):
 		if self.border_style:
-			self.map.drawmapboundary(zorder=10000, ax=self.ax, **self.border_style.to_kwargs())
+			## Note: zorder left to default
+			## High zorder values don't work with global projections
+			self.map.drawmapboundary(zorder=None, ax=self.ax, **self.border_style.to_kwargs())
 
 	def draw(self):
 		self.draw_layers()
