@@ -866,10 +866,16 @@ class ThematicStyleIndividual(ThematicStyle):
 	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True, colorbar_style=None):
 		super(ThematicStyleIndividual, self).__init__(value_key, add_legend, colorbar_style)
 		self.values = values
-		self.styles = styles
-		self.style_dict = {}
-		for value, style in zip(self.values, self.styles):
-			self.style_dict[value] = style
+		if styles[:12] == "random_color":
+			if ',' in styles:
+				random_seed = int(styles.split(',')[-1])
+			else:
+				random_seed = None
+			self.set_styles_from_random_colors(random_seed)
+		elif isinstance(styles, (list, tuple)):
+			self.set_styles(styles)
+		elif isinstance(styles, (str, matplotlib.colors.Colormap)):
+			self.set_styles_from_colormap(styles)
 		if labels:
 			self.labels = labels
 		else:
@@ -889,6 +895,27 @@ class ThematicStyleIndividual(ThematicStyle):
 				self.colorbar_style.ticks = sm.get_array()
 			if self.colorbar_style.tick_labels is None:
 				self.colorbar_style.tick_labels = self.labels
+
+	def set_styles(self, styles):
+		self.styles = styles
+		self.style_dict = {}
+		for value, style in zip(self.values, self.styles):
+			self.style_dict[value] = style
+
+	def set_styles_from_colormap(self, color_map):
+		N = len(self.values)
+		norm  = matplotlib.colors.Normalize(vmin=0, vmax=N-1)
+		sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=color_map)
+		styles = [sm.to_rgba(i) for i in range(N)]
+		self.set_styles(styles)
+
+	def set_styles_from_random_colors(self, random_seed=None):
+		import random
+		N = len(self.values)
+		rnd = random.Random()
+		rnd.seed(random_seed)
+		styles = [rnd.choice(matplotlib.colors.cnames.keys()) for i in range(N)]
+		self.set_styles(styles)
 
 	def __call__(self, values):
 		"""
@@ -968,7 +995,16 @@ class ThematicStyleRanges(ThematicStyle):
 	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True, colorbar_style=None):
 		super(ThematicStyleRanges, self).__init__(value_key, add_legend, colorbar_style)
 		self.values = np.array(values, dtype='f')
-		self.styles = styles
+		if styles[:12] == "random_color":
+			if ',' in styles:
+				random_seed = int(styles.split(',')[-1])
+			else:
+				random_seed = None
+			self.set_styles_from_random_colors(random_seed)
+		elif isinstance(styles, (list, tuple)):
+			self.set_styles(styles)
+		elif isinstance(styles, (str, matplotlib.colors.Colormap)):
+			self.set_styles_from_colormap(styles)
 		if labels:
 			self.labels = labels
 		else:
@@ -983,6 +1019,24 @@ class ThematicStyleRanges(ThematicStyle):
 				self.colorbar_style.ticks = sm.get_array()
 			if self.colorbar_style.tick_labels is None and labels:
 				self.colorbar_style.tick_labels = labels
+
+	def set_styles(self, styles):
+		self.styles = styles
+
+	def set_styles_from_colormap(self, color_map):
+		N = len(self.values) - 1
+		norm  = matplotlib.colors.Normalize(vmin=0, vmax=N-1)
+		sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=color_map)
+		styles = [sm.to_rgba(i) for i in range(N)]
+		self.set_styles(styles)
+
+	def set_styles_from_random_colors(self, random_seed=None):
+		import random
+		N = len(self.values) - 1
+		rnd = random.Random()
+		rnd.seed(random_seed)
+		styles = [rnd.choice(matplotlib.colors.cnames.keys()) for i in range(N)]
+		self.set_styles(styles)
 
 	def __call__(self, values):
 		"""
@@ -1054,12 +1108,25 @@ class ThematicStyleGradient(ThematicStyle):
 	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True, colorbar_style=None):
 		super(ThematicStyleGradient, self).__init__(value_key, add_legend, colorbar_style)
 		self.values = np.array(values, dtype='f')
-		self.styles = styles
+		if styles[:12] == "random_color":
+			if ',' in styles:
+				random_seed = int(styles.split(',')[-1])
+			else:
+				random_seed = None
+			self.set_styles_from_random_colors(random_seed)
+		elif isinstance(styles, (list, tuple)):
+			self.set_styles(styles)
+		elif isinstance(styles, (str, matplotlib.colors.Colormap)):
+			self.set_styles_from_colormap(styles)
 		#TODO: assert len(values) = len(styles)
 		if labels:
 			self.labels = labels
 		else:
-			self.labels = map(str, self.values)
+			#self.labels = map(str, self.values)
+			self.labels = []
+			for i in range(len(self.values) - 1):
+				self.labels.append("[%s - %s[" % (self.values[i], self.values[i+1]))
+			self.labels.append("[%s -" % self.values[-1])
 
 		## Override colorbar default ticks and tick_labels
 		if self.colorbar_style and self.is_color_style():
@@ -1068,6 +1135,24 @@ class ThematicStyleGradient(ThematicStyle):
 				self.colorbar_style.ticks = sm.get_array()
 			if self.colorbar_style.tick_labels is None and labels:
 				self.colorbar_style.tick_labels = labels
+
+	def set_styles(self, styles):
+		self.styles = styles
+
+	def set_styles_from_colormap(self, color_map):
+		N = len(self.values)
+		norm  = matplotlib.colors.Normalize(vmin=0, vmax=N-1)
+		sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=color_map)
+		styles = [sm.to_rgba(i) for i in range(N)]
+		self.set_styles(styles)
+
+	def set_styles_from_random_colors(self, random_seed=None):
+		import random
+		N = len(self.values)
+		rnd = random.Random()
+		rnd.seed(random_seed)
+		styles = [rnd.choice(matplotlib.colors.cnames.keys()) for i in range(N)]
+		self.set_styles(styles)
 
 	def __call__(self, values):
 		"""
@@ -1400,7 +1485,8 @@ class LegendStyle(BasemapStyle):
 			"center" 	10
 		(default: 0)
 	:param label_style:
-		instance of :class:`FontStyle`, font style of legend labels
+		instance of :class:`FontStyle` or :class:`TextStyle`, font style of legend labels
+		Note: use TextStyle if you want to control horizontal alignment
 		(default: FontStyle())
 	:param title_style:
 		instance of :class:`FontStyle`, font style of legend title
@@ -1573,7 +1659,7 @@ class MapBorderStyle(BasemapStyle):
 	def __init__(self, line_width=1, line_color="k", fill_color=None):
 		self.line_width = line_width
 		self.line_color = line_color
-		self.fill_color = fill_color
+		self.fill_color = fill_color or "none"
 
 	def to_kwargs(self):
 		d = {}
