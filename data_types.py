@@ -1435,10 +1435,7 @@ class GisData(BasemapData):
 					for colname in polygon_value_colnames:
 						polygon_data.values[colname].append(rec[colname])
 				elif geom_type == "MULTIPOLYGON":
-					try:
-						multi_polygon = MultiPolygonData.from_ogr(geom)
-					except:
-						print label
+					multi_polygon = MultiPolygonData.from_ogr(geom)
 					for polygon in multi_polygon:
 						polygon.label = label
 						polygon_data.append(polygon)
