@@ -21,8 +21,8 @@ from styles import (FontStyle, TextStyle, DefaultTitleTextStyle, PointStyle,
 					LineStyle, PolygonStyle, FocmecStyle, CompositeStyle,
 					ThematicStyleIndividual, ThematicStyleRanges, ThematicStyleGradient,
 					ThematicStyleColormap, ColorbarStyle, GridStyle, LegendStyle,
-					ScalebarStyle, MapBorderStyle, GridImageStyle, ImageStyle,
-					HillshadeStyle, WMSStyle, FrontStyle)
+					ScalebarStyle, MapBorderStyle, GraticuleStyle, GridImageStyle,
+					ImageStyle, HillshadeStyle, WMSStyle, FrontStyle)
 
 
 import data_types

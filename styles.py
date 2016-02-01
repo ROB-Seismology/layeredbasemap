@@ -1669,6 +1669,77 @@ class MapBorderStyle(BasemapStyle):
 		return d
 
 
+class GraticuleStyle(BasemapStyle):
+	"""
+	Style defining how to plot graticule
+
+	:param grid_interval:
+		(lon, lat) tuple, spacing in degrees for meridians and parallels
+	:param line_style:
+		instance of :class:`LineStyle`, style for meridians and parallels
+		Note: only color, line_width and dashes are taken into account
+		Note: default dashes [1,1]
+	:param label_style:
+		instance of :class:`TextStyle`, style for longitude and latitude
+		labels
+	:param annot_axes:
+		str, containing 'N', 'E', 'S' and/or 'W' characters, denoting which
+		side(s) of the map grid lines should be annotated
+		(default: "SE")
+	:param annot_style:
+		str, annotation style. if set to “+/-”, east and west longitudes
+		are labelled with “+” and “-”, otherwise they are labelled with
+		“E” and “W”
+		(default: "")
+	:param annot_format:
+		str, format string to format the meridian labels
+		or a function that takes a longitude value in degrees as it’s only
+		argument and returns a formatted string
+		(default '%g')
+	:param label_offset:
+		(xoffset, yoffset) tuple specifying label offset from edge of map
+		in x- and y-direction (in fraction of the width of the map in
+		map projection coordinates)
+		(default: (0.01, 0.01))
+	:param lat_max:
+		float, absolute value of latitude to which meridians are drawn
+		(default: 80)
+	"""
+	# TODO: check label_offset units
+	def __init__(self, grid_interval, line_style, label_style, annot_axes="SE",
+				annot_style="", annot_format='%g', label_offset=(.01, .01), lat_max=80):
+		self.grid_interval = grid_interval
+		self.line_style = line_style
+		self.label_style = label_style
+		self.annot_axes = annot_axes
+		self.annot_style = annot_style
+		self.annot_format = annot_format
+		self.label_offset = label_offset
+		self.lat_max = lat_max
+
+		if self.annot_axes is None:
+			self.annot_axes = "SE"
+		ax_labels = [c in self.annot_axes for c in "WENS"]
+
+	@property
+	def dlon(self):
+		return self.grid_interval[0]
+
+	def to_kwargs(self):
+		d = {}
+		d["color"] = self.line_style.color
+		d["linewidth"] = self.line_style.line_width
+		#d["dashes"] = None
+		#d["labels"] = None
+		d["labelstyle"] = self.annot_style
+		d["fmt"] = self.annot_format
+		d["x_offset"] = self.label_offset[0]
+		d["y_offset"] = self.label_offset[1]
+		d["latmax"] = self.lat_max
+		# TODO: add text properties
+		return d
+
+
 class GridImageStyle(BasemapStyle):
 	"""
 	Style defining how to plot grid image
