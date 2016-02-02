@@ -58,16 +58,15 @@ class ThematicLegend:
 
 
 class LayeredBasemap:
-	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), extent=(None, None), grid_interval=(None, None), resolution="i", annot_axes="SE", title_style=DefaultTitleTextStyle, legend_style=LegendStyle(), scalebar_style=None, border_style=MapBorderStyle(), graticule_style=LineStyle(), ax=None, figsize=(8,6), dpi=120, **proj_args):
+	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), extent=(None, None), graticule_interval=(None, None), resolution="i", title_style=DefaultTitleTextStyle, legend_style=LegendStyle(), scalebar_style=None, border_style=MapBorderStyle(), graticule_style=GraticuleStyle(), ax=None, figsize=(8,6), dpi=120, **proj_args):
 		self.layers = layers
 		self.title = title
 		self.region = region
 		self.projection = projection
 		self.origin = origin
 		self.extent = extent
-		self.grid_interval = grid_interval
+		self.graticule_interval = graticule_interval
 		self.resolution = resolution
-		self.annot_axes = annot_axes
 		self.title_style = title_style
 		self.legend_style = legend_style
 		self.scalebar_style = scalebar_style
@@ -122,11 +121,11 @@ class LayeredBasemap:
 
 	@property
 	def dlon(self):
-		return self.grid_interval[0]
+		return self.graticule_interval[0]
 
 	@property
 	def dlat(self):
-		return self.grid_interval[1]
+		return self.graticule_interval[1]
 
 	def init_basemap(self, ax=None):
 		self.zorder = 0
@@ -1250,26 +1249,22 @@ class LayeredBasemap:
 		"""
 		Draw meridians and parallels
 		"""
-		if self.annot_axes is None:
-			self.annot_axes = "SE"
-		ax_labels = [c in self.annot_axes for c in "WENS"]
-		# TODO: define graticule_style, including fmt, labelstyle, etc.
-		style = self.graticule_style
-		if abs(self.region[1] - self.region[0]) == 360:
-			labelstyle = "+/-"
-		else:
-			labelstyle = ""
-		if self.dlon != None:
-			first_meridian = np.ceil(self.region[0] / self.dlon) * self.dlon
-			last_meridian = np.floor(self.region[1] / self.dlon) * self.dlon + self.dlon
-			meridians = np.arange(first_meridian, last_meridian, self.dlon)
-			self.map.drawmeridians(meridians, color=style.line_color, linewidth=style.line_width, labels=ax_labels, latmax=90, labelstyle=labelstyle, zorder=self.zorder)
-		if self.dlat != None:
-			first_parallel = np.ceil(self.region[2] / self.dlat) * self.dlat
-			last_parallel = np.floor(self.region[3] / self.dlat) * self.dlat + self.dlat
-			parallels = np.arange(first_parallel, last_parallel, self.dlat)
-			self.map.drawparallels(parallels, color=style.line_color, linewidth=style.line_width, labels=ax_labels, latmax=90, labelstyle=labelstyle, zorder=self.zorder)
-		self.zorder += 1
+		if self.graticule_style:
+			#if abs(self.region[1] - self.region[0]) == 360:
+			#	labelstyle = "+/-"
+			#else:
+			#	labelstyle = ""
+			if self.dlon != None:
+				first_meridian = np.ceil(self.region[0] / self.dlon) * self.dlon
+				last_meridian = np.floor(self.region[1] / self.dlon) * self.dlon + self.dlon
+				meridians = np.arange(first_meridian, last_meridian, self.dlon)
+				self.map.drawmeridians(meridians, zorder=self.zorder, **self.graticule_style.to_kwargs())
+			if self.dlat != None:
+				first_parallel = np.ceil(self.region[2] / self.dlat) * self.dlat
+				last_parallel = np.floor(self.region[3] / self.dlat) * self.dlat + self.dlat
+				parallels = np.arange(first_parallel, last_parallel, self.dlat)
+				self.map.drawparallels(parallels, zorder=self.zorder, **self.graticule_style.to_kwargs())
+			self.zorder += 1
 
 	def draw_scalebar(self):
 		if self.scalebar_style:
@@ -1446,7 +1441,7 @@ if __name__ == "__main__":
 	projection = "tmerc"
 	title = "Test"
 	resolution = "h"
-	grid_interval = (2, 1)
+	graticule_interval = (2, 1)
 
 	layers = []
 
@@ -1571,7 +1566,7 @@ if __name__ == "__main__":
 	title_style = DefaultTitleTextStyle
 	title_style.color = "red"
 	title_style.weight = "bold"
-	map = LayeredBasemap(layers, title, projection, region=region, title_style=title_style, grid_interval=grid_interval, resolution=resolution, legend_style=legend_style)
+	map = LayeredBasemap(layers, title, projection, region=region, title_style=title_style, graticule_interval=graticule_interval, resolution=resolution, legend_style=legend_style)
 	mask_polygon = PolygonData([2,3,4,4,3,2,2], [50,50,50,51,51,51,50])
 	map.draw_mask(mask_polygon, outside=False)
 

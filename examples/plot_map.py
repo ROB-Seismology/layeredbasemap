@@ -6,7 +6,7 @@ projection = "merc"
 #projection = "EPSG:31300"
 title = "Test"
 resolution = "i"
-grid_interval = (2, 1)
+graticule_interval = (2, 1)
 
 layers = []
 
@@ -52,7 +52,7 @@ image_style = ImageStyle(horizontal_alignment='left', vertical_alignment='bottom
 layer = MapLayer(image_data, image_style)
 #layers.append(layer)
 
-map = LayeredBasemap(layers, title, projection, region=region, resolution=resolution, grid_interval=grid_interval)
+map = LayeredBasemap(layers, title, projection, region=region, resolution=resolution, graticule_interval=graticule_interval)
 
 #lons = [map.llcrnrlon, map.urcrnrlon]
 #lats = [map.llcrnrlat, map.urcrnrlat]

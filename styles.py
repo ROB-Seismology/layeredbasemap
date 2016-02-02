@@ -461,6 +461,9 @@ class LineStyle(BasemapStyle):
 	:param front_style:
 		instance of :class:`FrontStyle`. If None, no fronts will be plotted
 		(default: None)
+	:param dash_pattern:
+		list of on/off dash lengths in points
+		(default: [])
 	:param alpha:
 		Float in the range 0 - 1, opacity (default: 1.)
 	:param thematic_legend_style:
@@ -468,7 +471,7 @@ class LineStyle(BasemapStyle):
 		will be added to main legend
 		(default: None)
 	"""
-	def __init__(self, line_pattern="solid", line_width=1, line_color='k', solid_capstyle="butt", solid_joinstyle="round", dash_capstyle="butt", dash_joinstyle="round", label_style=None, front_style=None, alpha=1., thematic_legend_style=None):
+	def __init__(self, line_pattern="solid", line_width=1, line_color='k', solid_capstyle="butt", solid_joinstyle="round", dash_capstyle="butt", dash_joinstyle="round", label_style=None, front_style=None, dash_pattern=[], alpha=1., thematic_legend_style=None):
 		self.line_pattern = line_pattern
 		self.line_width = line_width
 		self.line_color = line_color
@@ -478,9 +481,10 @@ class LineStyle(BasemapStyle):
 		self.dash_joinstyle = dash_joinstyle
 		self.front_style = front_style
 		self.label_style = label_style
+		self.dash_pattern = dash_pattern
 		self.alpha = alpha
 		self.thematic_legend_style = thematic_legend_style
-		# TODO: dashes, drawstyle
+		# TODO: drawstyle
 
 	def is_thematic(self):
 		"""
@@ -529,6 +533,7 @@ class LineStyle(BasemapStyle):
 		d["solid_joinstyle"] = self.solid_joinstyle
 		d["dash_capstyle"] = self.dash_capstyle
 		d["dash_joinstyle"] = self.dash_joinstyle
+		d["dashes"] = self.dash_pattern
 		d["alpha"] = self.alpha
 		return d
 
@@ -1673,23 +1678,22 @@ class GraticuleStyle(BasemapStyle):
 	"""
 	Style defining how to plot graticule
 
-	:param grid_interval:
-		(lon, lat) tuple, spacing in degrees for meridians and parallels
 	:param line_style:
 		instance of :class:`LineStyle`, style for meridians and parallels
-		Note: only color, line_width and dashes are taken into account
-		Note: default dashes [1,1]
+		Note: only color, line_width and dash_pattern are taken into account
+		(default: LineStyle(dash_pattern=[1,1]))
 	:param label_style:
 		instance of :class:`TextStyle`, style for longitude and latitude
 		labels
+		(default: TextStyle())
 	:param annot_axes:
 		str, containing 'N', 'E', 'S' and/or 'W' characters, denoting which
 		side(s) of the map grid lines should be annotated
 		(default: "SE")
 	:param annot_style:
-		str, annotation style. if set to “+/-”, east and west longitudes
-		are labelled with “+” and “-”, otherwise they are labelled with
-		“E” and “W”
+		str, annotation style. if set to '+/-', east and west longitudes
+		are labelled with '+' and '-', otherwise they are labelled with
+		'E' and 'W'
 		(default: "")
 	:param annot_format:
 		str, format string to format the meridian labels
@@ -1698,17 +1702,18 @@ class GraticuleStyle(BasemapStyle):
 		(default '%g')
 	:param label_offset:
 		(xoffset, yoffset) tuple specifying label offset from edge of map
-		in x- and y-direction (in fraction of the width of the map in
-		map projection coordinates)
-		(default: (0.01, 0.01))
+		in x- and y-direction (in map projection coordinates?)
+		(default: (None, None))
 	:param lat_max:
 		float, absolute value of latitude to which meridians are drawn
 		(default: 80)
+	:param alpha:
+		Float in the range 0 - 1, opacity (default: 1.)
 	"""
 	# TODO: check label_offset units
-	def __init__(self, grid_interval, line_style, label_style, annot_axes="SE",
-				annot_style="", annot_format='%g', label_offset=(.01, .01), lat_max=80):
-		self.grid_interval = grid_interval
+	def __init__(self, line_style=LineStyle(dash_pattern=[1,1]), label_style=TextStyle(), annot_axes="SE",
+				annot_style="", annot_format='%g', label_offset=(None, None), lat_max=8,
+				alpha=1.):
 		self.line_style = line_style
 		self.label_style = label_style
 		self.annot_axes = annot_axes
@@ -1716,27 +1721,23 @@ class GraticuleStyle(BasemapStyle):
 		self.annot_format = annot_format
 		self.label_offset = label_offset
 		self.lat_max = lat_max
-
-		if self.annot_axes is None:
-			self.annot_axes = "SE"
-		ax_labels = [c in self.annot_axes for c in "WENS"]
-
-	@property
-	def dlon(self):
-		return self.grid_interval[0]
+		self.alpha = alpha
 
 	def to_kwargs(self):
 		d = {}
-		d["color"] = self.line_style.color
+		d["color"] = self.line_style.line_color
 		d["linewidth"] = self.line_style.line_width
-		#d["dashes"] = None
-		#d["labels"] = None
+		d["dashes"] = self.line_style.dash_pattern
+		d["labels"] = [c in self.annot_axes for c in "WENS"]
 		d["labelstyle"] = self.annot_style
 		d["fmt"] = self.annot_format
-		d["x_offset"] = self.label_offset[0]
-		d["y_offset"] = self.label_offset[1]
+		d["xoffset"] = self.label_offset[0]
+		d["yoffset"] = self.label_offset[1]
 		d["latmax"] = self.lat_max
-		# TODO: add text properties
+		text_kwargs = self.label_style.to_kwargs()
+		del text_kwargs["alpha"]
+		d.update(text_kwargs)
+		d["alpha"] = self.alpha
 		return d
 
 

@@ -9,7 +9,7 @@ origin = (0, 0)
 projection = "moll"
 title = "Hello World from LayeredBasemap"
 resolution = "c"
-grid_interval = (60, 30)
+graticule_interval = (60, 30)
 
 layers = []
 
@@ -62,5 +62,5 @@ legend_style = LegendStyle(location=0)
 title_style = DefaultTitleTextStyle
 title_style.weight = "bold"
 graticule_style = LineStyle(line_color="magenta")
-map = LayeredBasemap(layers, title, projection, origin=origin, title_style=title_style, grid_interval=grid_interval, resolution=resolution, legend_style=legend_style, graticule_style=graticule_style)
+map = LayeredBasemap(layers, title, projection, origin=origin, title_style=title_style, graticule_interval=graticule_interval, resolution=resolution, legend_style=legend_style, graticule_style=graticule_style)
 map.plot()

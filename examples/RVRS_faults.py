@@ -74,5 +74,5 @@ projection = "merc"
 legend_style = LegendStyle(location=1)
 #legend_style = None
 title = "RVG fault model"
-map = LayeredBasemap(layers, title, projection, region=region, grid_interval=(1,0.5), annot_axes="SE", legend_style=legend_style)
+map = LayeredBasemap(layers, title, projection, region=region, graticule_interval=(1,0.5), annot_axes="SE", legend_style=legend_style)
 map.plot(fig_filespec=fig_filespec)

@@ -11,7 +11,7 @@ region = (0,8,49,52)
 projection = "tmerc"
 title = "ROB earthquake catalog"
 resolution = "h"
-grid_interval = (2, 1)
+graticule_interval = (2, 1)
 
 layers = []
 
@@ -56,5 +56,5 @@ legend_style = LegendStyle(location=0)
 title_style = DefaultTitleTextStyle
 title_style.weight = "bold"
 scalebar_style = ScalebarStyle((4.,49.25), 100, bar_style="fancy")
-map = LayeredBasemap(layers, title, projection, region=region, title_style=title_style, grid_interval=grid_interval, resolution=resolution, legend_style=legend_style, scalebar_style=scalebar_style)
+map = LayeredBasemap(layers, title, projection, region=region, title_style=title_style, graticule_interval=graticule_interval, resolution=resolution, legend_style=legend_style, scalebar_style=scalebar_style)
 map.plot()

@@ -18,7 +18,7 @@ projection = "merc"
 #title = "ROB focal mechanisms"
 title = ""
 resolution = "h"
-grid_interval = (1, 0.5)
+graticule_interval = (1, 0.5)
 
 layers = []
 
@@ -87,5 +87,5 @@ layers.append(layer)
 legend_style = LegendStyle(location=1)
 title_style = DefaultTitleTextStyle
 title_style.weight = "bold"
-map = LayeredBasemap(layers, title, projection, region=region, title_style=title_style, grid_interval=grid_interval, resolution=resolution, legend_style=legend_style)
+map = LayeredBasemap(layers, title, projection, region=region, title_style=title_style, graticule_interval=graticule_interval, resolution=resolution, legend_style=legend_style)
 map.plot(fig_filespec=fig_filespec)

@@ -9,7 +9,7 @@ import os
 gdal_keys = ["GDAL_DATA"]
 for key in gdal_keys:
 	if not key in os.environ.keys():
-		print("Warning: %s environment variable not set. Functionality may be reduced" % key)
+		print("Warning: %s environment variable not set. This may cause errors" % key)
 	elif not os.path.exists(os.environ[key]):
 		print("Warning: %s points to non-existing directory %s" % (key, os.environ[key]))
 
