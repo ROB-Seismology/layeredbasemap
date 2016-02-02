@@ -1697,7 +1697,7 @@ class GraticuleStyle(BasemapStyle):
 		(default: "")
 	:param annot_format:
 		str, format string to format the meridian labels
-		or a function that takes a longitude value in degrees as it’s only
+		or a function that takes a longitude value in degrees as it's only
 		argument and returns a formatted string
 		(default '%g')
 	:param label_offset:
