@@ -916,10 +916,15 @@ class ThematicStyleIndividual(ThematicStyle):
 
 	def set_styles_from_random_colors(self, random_seed=None):
 		import random
+		from itertools import cycle
+
 		N = len(self.values)
 		rnd = random.Random()
 		rnd.seed(random_seed)
-		styles = [rnd.choice(matplotlib.colors.cnames.keys()) for i in range(N)]
+		named_colors = matplotlib.colors.cnames.keys()
+		rnd.shuffle(named_colors)
+		named_colors = cycle(named_colors)
+		styles = [named_colors.next() for i in range(N)]
 		self.set_styles(styles)
 
 	def __call__(self, values):
@@ -1037,11 +1042,17 @@ class ThematicStyleRanges(ThematicStyle):
 
 	def set_styles_from_random_colors(self, random_seed=None):
 		import random
-		N = len(self.values) - 1
+		from itertools import cycle
+
+		N = len(self.values)
 		rnd = random.Random()
 		rnd.seed(random_seed)
-		styles = [rnd.choice(matplotlib.colors.cnames.keys()) for i in range(N)]
+		named_colors = matplotlib.colors.cnames.keys()
+		rnd.shuffle(named_colors)
+		named_colors = cycle(named_colors)
+		styles = [named_colors.next() for i in range(N)]
 		self.set_styles(styles)
+
 
 	def __call__(self, values):
 		"""
@@ -1153,11 +1164,17 @@ class ThematicStyleGradient(ThematicStyle):
 
 	def set_styles_from_random_colors(self, random_seed=None):
 		import random
+		from itertools import cycle
+
 		N = len(self.values)
 		rnd = random.Random()
 		rnd.seed(random_seed)
-		styles = [rnd.choice(matplotlib.colors.cnames.keys()) for i in range(N)]
+		named_colors = matplotlib.colors.cnames.keys()
+		rnd.shuffle(named_colors)
+		named_colors = cycle(named_colors)
+		styles = [named_colors.next() for i in range(N)]
 		self.set_styles(styles)
+
 
 	def __call__(self, values):
 		"""
