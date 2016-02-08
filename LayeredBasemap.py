@@ -1200,8 +1200,7 @@ class LayeredBasemap:
 					ttl.set_ha(ha)
 					renderer = self.fig.canvas.get_renderer()
 					shift = ttl.get_window_extent(renderer).width
-					# TODO: shift depends on dpi!
-					# So dpi needs to be known to compute shift correctly...
+					# Note: fig.dpi must be set at final rendering value for this to work !
 					if ha == 'center':
 						ttl.set_position((shift/2., 0))
 					if ha == 'right':
@@ -1339,15 +1338,16 @@ class LayeredBasemap:
 		srs = self.get_srs()
 		return srs.ExportToWkt()
 
-	def plot(self, fig_filespec=None, fig_width=0, dpi=300):
+	def plot(self, fig_filespec=None, fig_width=0, dpi=None):
 		#fig = pylab.figure()
 		#subplot = fig.draw_subplot(111)
 		#subplot.set_axes(self.ax)
+		if dpi and dpi != self.dpi:
+			self.fig.set_dpi(dpi)
 		if not self.is_drawn:
 			self.draw()
 		if fig_filespec:
 			default_figsize = pylab.rcParams['figure.figsize']
-			default_dpi = pylab.rcParams['figure.dpi']
 			if fig_width:
 				fig_width /= 2.54
 				dpi = dpi * (fig_width / default_figsize[0])
@@ -1355,6 +1355,8 @@ class LayeredBasemap:
 			pylab.clf()
 		else:
 			pylab.show()
+		## Reset dpi to original value
+		self.fig.set_dpi(self.dpi)
 
 	def get_map_image(self, dpi=120):
 		"""
@@ -1370,7 +1372,8 @@ class LayeredBasemap:
 		"""
 		from PIL import Image
 
-		self.fig.set_dpi(dpi)
+		if dpi and dpi != self.dpi:
+			self.fig.set_dpi(dpi)
 		if not self.is_drawn:
 			self.draw()
 		self.fig.canvas.draw()
