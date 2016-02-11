@@ -1550,13 +1550,16 @@ class LegendStyle(BasemapStyle):
 	:param alpha:
 		Float, alpha value for the frame (default: 1.)
 	"""
-	def __init__(self, title="", location=0, label_style=FontStyle(), title_style=FontStyle(font_weight='bold'), marker_scale=None, frame_on=True, fancy_box=False, shadow=False, ncol=1, border_pad=None, label_spacing=None, handle_length=None, handle_height=None, handle_text_pad=None, border_axes_pad=None, column_spacing=None, num_points=1, num_scatter_points=3, alpha=1.):
+	def __init__(self, title="", location=0, label_style=FontStyle(), title_style=FontStyle(font_weight='bold'), marker_scale=None, frame_on=True, frame_color='k', frame_width=1, fill_color='w', fancy_box=False, shadow=False, ncol=1, border_pad=None, label_spacing=None, handle_length=None, handle_height=None, handle_text_pad=None, border_axes_pad=None, column_spacing=None, num_points=1, num_scatter_points=3, alpha=1.):
 		self.title = title
 		self.location = location
 		self.label_style = label_style
 		self.title_style = title_style
 		self.marker_scale = marker_scale
 		self.frame_on = frame_on
+		self.frame_color = frame_color
+		self.frame_width = frame_width
+		self.fill_color = fill_color
 		self.fancy_box = fancy_box
 		self.shadow = shadow
 		self.ncol = ncol
@@ -1576,6 +1579,7 @@ class LegendStyle(BasemapStyle):
 		Return a dictionary with keys corresponding to matplotlib parameter names,
 		and which can be passed to the legend function
 		"""
+		## Note: frame_color, fill_color and frame_width are passed differently!
 		d = {}
 		d["loc"] = self.location
 		d["prop"] = self.label_style.get_font_prop()
@@ -1593,8 +1597,7 @@ class LegendStyle(BasemapStyle):
 		d["columnspacing"] = self.column_spacing
 		d["numpoints"] = self.num_points
 		d["scatterpoints"] = self.num_scatter_points
-		# TODO: current version of matplotlib does not support framealpha
-		#d["framealpha"] = self.alpha
+		d["framealpha"] = self.alpha
 		return d
 
 

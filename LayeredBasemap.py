@@ -1190,7 +1190,6 @@ class LayeredBasemap:
 					title = title.decode('iso-8859-1')
 				title_style = thematic_legend.style.title_style
 
-				# TODO: in current version of matplotlib, legend does not support framealpha parameter
 				tl = self.ax.legend(thematic_legend.artists, thematic_legend.labels, **thematic_legend.style.to_kwargs())
 				tl.set_title(title, prop=title_style.get_font_prop())
 				## Align title to center...
@@ -1205,6 +1204,11 @@ class LayeredBasemap:
 						ttl.set_position((shift/2., 0))
 					if ha == 'right':
 						ttl.set_position((shift, 0))
+				## Set frame color and linewidth
+				frame = tl.get_frame()
+				frame.set_edgecolor(thematic_legend.style.frame_color)
+				frame.set_facecolor(thematic_legend.style.fill_color)
+				frame.set_linewidth(thematic_legend.style.frame_width)
 
 				tl.set_zorder(self.zorder)
 				self.ax.add_artist(tl)
@@ -1232,9 +1236,11 @@ class LayeredBasemap:
 					if ha == 'right':
 						ttl.set_position((shift,0))
 					ml.set_zorder(self.zorder)
-				# TODO: we can also set frame color like this (need to add in LegendStyle)
-				#frame = ml.get_frame()
-				#frame.set_facecolor('0.90')
+				## Set frame color and linewidth
+				frame = ml.get_frame()
+				frame.set_edgecolor(self.legend_style.frame_color)
+				frame.set_facecolor(self.legend_style.fill_color)
+				frame.set_linewidth(self.legend_style.frame_width)
 
 	def draw_title(self):
 		if isinstance(self.title, str):
