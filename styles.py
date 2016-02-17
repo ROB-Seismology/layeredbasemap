@@ -877,7 +877,7 @@ class ThematicStyleIndividual(ThematicStyle):
 			else:
 				random_seed = None
 			self.set_styles_from_random_colors(random_seed)
-		elif isinstance(styles, (list, tuple)):
+		elif isinstance(styles, (list, tuple, np.ndarray)):
 			self.set_styles(styles)
 		elif isinstance(styles, (str, matplotlib.colors.Colormap)):
 			self.set_styles_from_colormap(styles)
@@ -1011,7 +1011,7 @@ class ThematicStyleRanges(ThematicStyle):
 			else:
 				random_seed = None
 			self.set_styles_from_random_colors(random_seed)
-		elif isinstance(styles, (list, tuple)):
+		elif isinstance(styles, (list, tuple, np.ndarray)):
 			self.set_styles(styles)
 		elif isinstance(styles, (str, matplotlib.colors.Colormap)):
 			self.set_styles_from_colormap(styles)
@@ -1130,7 +1130,7 @@ class ThematicStyleGradient(ThematicStyle):
 			else:
 				random_seed = None
 			self.set_styles_from_random_colors(random_seed)
-		elif isinstance(styles, (list, tuple)):
+		elif isinstance(styles, (list, tuple, np.ndarray)):
 			self.set_styles(styles)
 		elif isinstance(styles, (str, matplotlib.colors.Colormap)):
 			self.set_styles_from_colormap(styles)
