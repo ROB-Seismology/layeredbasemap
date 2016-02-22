@@ -886,7 +886,7 @@ class GdalRasterData(MeshGridData):
 		int,  raster band number (one-based). If 0 or None, data
 		will be read as truecolor (RGB) image
 		(default: 1)
-	:param downsampling:
+	:param down_sampling:
 		float, factor for downsampling, i.e. to divide number of columns and
 		rows with
 		(default: 1., no downsampling)
@@ -1142,6 +1142,40 @@ class GdalRasterData(MeshGridData):
 
 		else:
 			print("Driver %s does not support CreateCopy() method" % format)
+
+
+class MeshGridVectorData(BasemapData):
+	"""
+	Evenly spaced vector data
+
+	:param grdx:
+		instance of :class:`MeshGridData`, vector X-component
+	:param grdy:
+		instance of :class:`MeshGridData`, vector Y-component
+	"""
+	def __init__(self, grdx, grdy):
+		self.grdx = grdx
+		self.grdy = grdy
+
+	@classmethod
+	def from_vx_filespec(self, vx_filespec, band_nr=1, down_sampling=1.):
+		"""
+		Set from GDAL filespec corresponding to X component,
+		assuming it follows '.vx'/'.vy' naming convention
+
+		:param vx_filespec:
+			str, full path to GDAL file containing X-component
+		:param band_nr:
+		:param down_sampling:
+			See :class:`GdalRasterData`
+
+		:return:
+			instance of :class:`MeshGridVectorData`
+		"""
+		vy_filespec = vx_filespec.replace('.vx', '.vy')
+		grdx = GdalRasterData(vx_filespec, band_nr=band_nr, down_sampling=down_sampling)
+		grdy = GdalRasterData(vy_filespec, band_nr=band_nr, down_sampling=down_sampling)
+		return MeshGridVectorData(grdx, grdy)
 
 
 class WCSData(GdalRasterData):

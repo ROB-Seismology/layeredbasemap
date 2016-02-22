@@ -340,6 +340,7 @@ class LayeredBasemap:
 		#x, y = self.map_from_display_coordinates(display_x, display_y)
 		x, y = self.map(text_points.lons, text_points.lats)
 		for i, label in enumerate(text_points.labels):
+			label = style.get_text(label)
 			if isinstance(label, str):
 				label = label.decode('iso-8859-1')
 			#self.ax.text(x[i], y[i], label, zorder=self.zorder, **style.to_kwargs())
@@ -883,6 +884,12 @@ class LayeredBasemap:
 		self.ax.imshow(img_ar, extent=extent, zorder=self.zorder, alpha=image_style.alpha)
 		self.zorder += 1
 
+	def draw_grid_vector_layer(self, vector_data, vector_style):
+		x, y = vector_data.grdx.get_mesh_coordinates("center")
+		u, v = vector_data.grdx.values, vector_data.grdy.values
+		self.map.quiver(x, y, u, v, latlon=True, zorder=self.zorder, **vector_style.to_kwargs())
+		self.zorder == 1
+
 	def draw_colorbar(self, sm, style):
 		"""
 		sm: scalarmappable
@@ -902,7 +909,7 @@ class LayeredBasemap:
 			#self.map.drawlsmask(land_color=continent_style.fill_color, ocean_color=continent_style.bg_color, lakes=True, resolution=self.resolution, zorder=self.zorder)
 		if continent_style.fill_color:
 			lake_color = getattr(continent_style, "bg_color", "None")
-			self.map.fillcontinents(color=continent_style.fill_color, lake_color=lake_color, zorder=self.zorder)
+			self.map.fillcontinents(color=continent_style.fill_color, lake_color=lake_color, zorder=self.zorder, alpha=continent_style.alpha)
 		if continent_style.line_color:
 			self.draw_coastlines(continent_style.to_line_style())
 		self.zorder += 1
@@ -1164,6 +1171,8 @@ class LayeredBasemap:
 				else:
 					legend_label = layer.legend_label
 				self.draw_composite_layer(point_data=point_data, point_style=point_style, line_data=line_data, line_style=line_style, polygon_data=polygon_data, polygon_style=polygon_style, text_data=text_data, text_style=text_style, legend_label=legend_label)
+			elif isinstance(layer.data, MeshGridVectorData):
+				self.draw_grid_vector_layer(layer.data, layer.style)
 			elif isinstance(layer.data, GridData):
 				if isinstance(layer.style, GridStyle):
 					self.draw_grid_layer(layer.data, layer.style, layer.legend_label)
