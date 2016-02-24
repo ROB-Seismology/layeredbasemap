@@ -57,7 +57,6 @@ layers.append(layer)
 
 ## Plate motion vectors
 gis_folder = r"D:\GIS-data\Plate Tectonics\Stress & Strain"
-
 vx_filespec = os.path.join(gis_folder, "nnr_nuvel1a.vx.1.-1.grd")
 data = lbm.MeshGridVectorData.from_vx_filespec(vx_filespec, down_sampling=15)
 data.grdx.srs = wgs84

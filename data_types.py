@@ -901,6 +901,23 @@ class GdalRasterData(MeshGridData):
 		self._center_lats = None
 		self.set_down_sampling(down_sampling)
 
+	# TODO: raster subdatasets
+	#subdatasets = dataset.GetSubDatasets()
+	#mysubdataset_name = subdatasets[1][0]
+	#mydata = gdal.Open(mysubdataset_name, gdal.GA_ReadOnly).ReadAsRaster()
+
+	def get_subdataset_names(self):
+		import gdal
+
+		ds = gdal.Open(self.filespec, gdal.GA_ReadOnly)
+		return [sds[0] for sds in ds.GetSubDatasets()]
+
+	def get_subdatasets(self):
+		return [self.get_subdataset(sds_name) for sds_name in self.get_subdataset_names()]
+
+	def get_subdataset(self, subdataset_name):
+		return GdalRasterData(subdataset_name)
+
 	def set_down_sampling(self, down_sampling):
 		self.down_sampling = float(down_sampling)
 		self.ncols = int(round(self.ncols / self.down_sampling))
@@ -927,7 +944,7 @@ class GdalRasterData(MeshGridData):
 		"""
 		import gdal, osr
 
-		ds = gdal.Open(self.filespec)
+		ds = gdal.Open(self.filespec, gdal.GA_ReadOnly)
 		self.srs = osr.SpatialReference()
 		self.srs.ImportFromWkt(ds.GetProjection())
 		self.num_bands = ds.RasterCount
@@ -1030,7 +1047,7 @@ class GdalRasterData(MeshGridData):
 		"""
 		# TODO: ReadAsArray method also takes xoff, yoff, xsize, ysize params
 		import gdal
-		ds = gdal.Open(self.filespec)
+		ds = gdal.Open(self.filespec, gdal.GA_ReadOnly)
 		band = ds.GetRasterBand(band_nr)
 		nodata = band.GetNoDataValue()
 		values = band.ReadAsArray(buf_xsize=self.ncols, buf_ysize=self.nrows)
