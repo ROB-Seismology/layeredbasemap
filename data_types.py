@@ -1067,7 +1067,7 @@ class GdalRasterData(MeshGridData):
 			3-D (RGB[A], Y, X) float array
 		"""
 		import gdal
-		ds = gdal.Open(self.filespec)
+		ds = gdal.Open(self.filespec, gdal.GA_ReadOnly)
 		#import matplotlib.image as mpimg
 		#values = mpimg.imread(self.filespec)
 		values = np.zeros((4, self.nrows, self.ncols), dtype=np.uint8)
@@ -1148,7 +1148,7 @@ class GdalRasterData(MeshGridData):
 		driver = gdal.GetDriverByName(format)
 		if driver and driver.GetMetaData().get(gdal.DCAP_CREATE) == 'YES':
 			## Open existing dataset
-			src_ds = gdal.Open(self.filespec)
+			src_ds = gdal.Open(self.filespec, gdal.GA_ReadOnly)
 
 			## Output to new format
 			dst_ds = driver.CreateCopy(out_filespec, src_ds, 0)
@@ -1520,7 +1520,7 @@ class GisData(BasemapData):
 			in_ds = ogr.Open(self.filespec, 0)
 			out_ds = driver.CopyDataSource(in_ds, out_filespec)
 		else:
-			print("Driver %s does not support CreateCopy() method" % format)
+			print("Driver %s does not support CopyDataSource() method" % format)
 
 
 class WMSData(object):
