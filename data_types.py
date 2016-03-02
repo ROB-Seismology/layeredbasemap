@@ -958,6 +958,7 @@ class GdalRasterData(MeshGridData):
 
 		gt = ds.GetGeoTransform()
 		# TODO: support rotated grids
+		# TODO: make distinction between x0/x1/y0/y1 and xmin/xmax/ymin/ymax
 		self.ncols, self.nrows = ds.RasterXSize, ds.RasterYSize
 		self.dx, self.dy = gt[1], gt[5]
 		xmin = gt[0] + self.dx * 0.5
