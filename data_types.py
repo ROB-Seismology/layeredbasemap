@@ -910,7 +910,9 @@ class GdalRasterData(MeshGridData):
 		import gdal
 
 		ds = gdal.Open(self.filespec, gdal.GA_ReadOnly)
-		return [sds[0] for sds in ds.GetSubDatasets()]
+		sds_names = [sds[0] for sds in ds.GetSubDatasets()]
+		ds = None
+		return sds_names
 
 	def get_subdatasets(self):
 		return [self.get_subdataset(sds_name) for sds_name in self.get_subdataset_names()]
@@ -946,7 +948,12 @@ class GdalRasterData(MeshGridData):
 
 		ds = gdal.Open(self.filespec, gdal.GA_ReadOnly)
 		self.srs = osr.SpatialReference()
-		self.srs.ImportFromWkt(ds.GetProjection())
+		projection = ds.GetProjection()
+		if projection:
+			self.srs.ImportFromWkt(projection)
+		else:
+			self.srs.SetWellKnownGeogCS("WGS84")
+			print("Warning: no spatial reference system defined, assuming WGS84!")
 		self.num_bands = ds.RasterCount
 
 		gt = ds.GetGeoTransform()
@@ -957,10 +964,12 @@ class GdalRasterData(MeshGridData):
 		xmax = gt[0] + (self.dx * self.ncols) - self.dx * 0.5
 		if self.dx < 0:
 			xmin, xmax = xmax, xmin
+			#self.dx = -self.dx
 		ymin = gt[3] + (self.dy * self.nrows) + self.dy * 0.5
 		ymax = gt[3] - self.dy * 0.5
-		if self.dy < 0:
-			ymin, ymax = ymax, ymin
+		#if self.dy < 0:
+		ymin, ymax = ymax, ymin
+			#self.dy = -self.dy
 		self.xmin, self.xmax = xmin, xmax
 		self.ymin, self.ymax = ymin, ymax
 
@@ -1091,12 +1100,21 @@ class GdalRasterData(MeshGridData):
 		## Check scipy.interpolate.Rbf for additional interpolation methods
 		from mpl_toolkits.basemap import interp
 
-		xin = np.linspace(self.xmin, self.xmax, self.ncols)
-		## yin must be linearly increasing, so we need to reverse!
-		yin = np.linspace(self.ymax, self.ymin, self.nrows)
+		## xin, yin must be linearly increasing
+		values = self.values
+		if self.xmin < self.xmax:
+			xin = np.linspace(self.xmin, self.xmax, self.ncols)
+		else:
+			xin = np.linspace(self.xmax, self.xmin, self.ncols)
+			values = values[:,::-1]
+		if self.ymin < self.ymax:
+			yin = np.linspace(self.ymin, self.ymax, self.nrows)
+		else:
+			yin = np.linspace(self.ymax, self.ymin, self.nrows)
+			values = values[::-1,:]
 
 		if self.band_nr:
-			out_data = interp(self.values[::-1,:], xin, yin, xout, yout, checkbounds=checkbounds,
+			out_data = interp(values, xin, yin, xout, yout, checkbounds=checkbounds,
 								masked=masked, order=order)
 		else:
 			in_values = self.values
@@ -1506,7 +1524,7 @@ class GisData(BasemapData):
 
 		return (point_data, line_data, polygon_data)
 
-	def export(format, out_filespec):
+	def export(self, format, out_filespec):
 		"""
 		Export GIS file to another format
 
@@ -1515,6 +1533,8 @@ class GisData(BasemapData):
 		:param out_filespec:
 			str, full path to output file
 		"""
+		# TODO: determine out_filespec automatically from format, or
+		# determine driver from out_filespec extension
 		driver = ogr.GetDriverByName(format)
 		if driver:
 			in_ds = ogr.Open(self.filespec, 0)
