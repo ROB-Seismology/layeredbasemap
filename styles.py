@@ -1379,7 +1379,7 @@ class ColorbarStyle(BasemapStyle):
 	:param alpha:
 		Float in the range 0 - 1, opacity (default: 1.)
 	"""
-	def __init__(self, title="", location="bottom", size='5%', pad='10%', extend="neither", spacing="uniform", ticks=None, tick_labels=None, format=None, drawedges=False, label_size=14, tick_label_size=12, alpha=1.):
+	def __init__(self, title="", location="bottom", size='5%', pad='10%', extend="neither", spacing="uniform", ticks=None, tick_labels=None, format="%s", drawedges=False, label_size=14, tick_label_size=12, alpha=1.):
 		self.title = title
 		self.location = location
 		self.size = size
@@ -1484,7 +1484,7 @@ class GridStyle(BasemapStyle):
 		if self.color_map_theme and self.color_map_theme.colorbar_style:
 			return self.color_map_theme.colorbar_style.format
 		else:
-			return "%.2f"
+			return "%s"
 
 
 class HillshadeStyle(BasemapStyle):
