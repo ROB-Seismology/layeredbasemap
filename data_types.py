@@ -1137,8 +1137,11 @@ class GdalRasterData(MeshGridData):
 
 		return out_data
 
-	def cross_section(self):
-		pass
+	def cross_section(self, (x0, y0), (x1, y1), num_points=100):
+		X = np.linspace(x0, x1, num_points)
+		Y = np.linspace(y0, y1, num_points)
+		## TODO: distances in km (take into account lon-lat rasters)
+		return self.interpolate(X, Y)
 
 	def warp_to_map(self, map, checkbounds=False, masked=True, order=1):
 		from mapping.geo.coordtrans import transform_mesh_coordinates
