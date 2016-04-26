@@ -840,6 +840,14 @@ class MeshGridData(GridData):
 	def dlat(self):
 		return self.center_lats[1,0] - self.center_lats[0,0]
 
+	@property
+	def num_cols(self):
+		return self.center_lons.shape[1]
+
+	@property
+	def num_rows(self):
+		return self.center_lons.shape[0]
+
 	def mask_oceans(self, resolution, mask_lakes=False, grid_spacing=1.25):
 		from mpl_toolkits.basemap import maskoceans
 		masked_values = maskoceans(self.lons, self.lats, self.values, inlands=mask_lakes, resolution=resolution, grid=grid_spacing)
