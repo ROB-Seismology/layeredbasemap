@@ -1451,6 +1451,58 @@ class LayeredBasemap:
 
 		write_multi_band_geotiff(out_filespec, img, extent, srs, cell_registration="corner", north_up=True)
 
+	def move_layer(self, cur_index, new_index):
+		"""
+		Move layer to another position
+
+		:param cur_index:
+			int, current layer index (may be negative)
+		:param new_index:
+			int, target layer index (may be negative)
+		"""
+		if cur_index < 0:
+			cur_index = len(self.layers) + cur_index
+		if new_index < 0:
+			new_index = len(self.layers) + new_index
+		layer = self.layers.pop(cur_index)
+		self.layers.insert(new_index, layer)
+
+	def move_layer_up(self, cur_index):
+		"""
+		Move layer one position upward
+
+		:param cur_index:
+			int, current layer index (may be negative)
+		"""
+		self.move_layer(cur_index, cur_index+1)
+
+	def move_layer_down(self, cur_index):
+		"""
+		Move layer one position downward
+
+		:param cur_index:
+			int, current layer index (may be negative)
+		"""
+		self.move_layer(cur_index, cur_index-1)
+
+	def move_layer_top(self, cur_index):
+		"""
+		Move layer to top
+
+		:param cur_index:
+			int, current layer index (may be negative)
+		"""
+		self.move_layer(cur_index, len(self.layers))
+
+	def move_layer_bottom(self, cur_index):
+		"""
+		Move layer to bottom
+
+		:param cur_index:
+			int, current layer index (may be negative)
+		"""
+		self.move_layer(cur_index, 0)
+
 
 
 
