@@ -33,11 +33,15 @@ class MapLayer:
 	:param legend_label:
 		string, label to be used for this data set in map legend
 		(default: "_nolegend_")
+	:param name:
+		string, layer name
+		(default: "")
 	"""
-	def __init__(self, data, style, legend_label="_nolegend_"):
+	def __init__(self, data, style, legend_label="_nolegend_", name=""):
 		self.data = data
 		self.style = style
 		self.legend_label = legend_label
+		self.name = name
 
 
 class ThematicLegend:
@@ -1451,15 +1455,21 @@ class LayeredBasemap:
 
 		write_multi_band_geotiff(out_filespec, img, extent, srs, cell_registration="corner", north_up=True)
 
-	def move_layer(self, cur_index, new_index):
+	def move_layer(self, cur_index_or_name, new_index):
 		"""
 		Move layer to another position
 
-		:param cur_index:
+		:param cur_index_or_name:
 			int, current layer index (may be negative)
+			or str, layer name
 		:param new_index:
 			int, target layer index (may be negative)
 		"""
+		if not isinstance(cur_index_or_name, int):
+			cur_index = self.get_named_layer_index(cur_index_or_name)
+		else:
+			cur_index = cur_index_or_name
+
 		if cur_index < 0:
 			cur_index = len(self.layers) + cur_index
 		if new_index < 0:
@@ -1467,42 +1477,66 @@ class LayeredBasemap:
 		layer = self.layers.pop(cur_index)
 		self.layers.insert(new_index, layer)
 
-	def move_layer_up(self, cur_index):
+	def move_layer_up(self, cur_index_or_name):
 		"""
 		Move layer one position upward
 
-		:param cur_index:
+		:param cur_index_or_name:
 			int, current layer index (may be negative)
+			or str, layer name
 		"""
-		self.move_layer(cur_index, cur_index+1)
+		self.move_layer(cur_index_or_name, cur_index+1)
 
-	def move_layer_down(self, cur_index):
+	def move_layer_down(self, cur_index_or_name):
 		"""
 		Move layer one position downward
 
-		:param cur_index:
+		:param cur_index_or_name:
 			int, current layer index (may be negative)
+			or str, layer name
 		"""
-		self.move_layer(cur_index, cur_index-1)
+		self.move_layer(cur_index_or_name, cur_index-1)
 
-	def move_layer_top(self, cur_index):
+	def move_layer_top(self, cur_index_or_name):
 		"""
 		Move layer to top
 
-		:param cur_index:
+		:param cur_index_or_name:
 			int, current layer index (may be negative)
+			or str, layer name
 		"""
-		self.move_layer(cur_index, len(self.layers))
+		self.move_layer(cur_index_or_name, len(self.layers))
 
-	def move_layer_bottom(self, cur_index):
+	def move_layer_bottom(self, cur_index_or_name):
 		"""
 		Move layer to bottom
 
-		:param cur_index:
+		:param cur_index_or_name:
 			int, current layer index (may be negative)
+			or str, layer name
 		"""
-		self.move_layer(cur_index, 0)
+		self.move_layer(cur_index_or_name, 0)
 
+	def get_layer_names(self):
+		"""
+		Obtain list of layer names
+
+		:return:
+			list of strings
+		"""
+		return [layer.name for layer in self.layers]
+
+	def get_named_layer_index(self, layer_name):
+		"""
+		Obtain index of named layer
+
+		:param layer_name:
+			str, layer name
+
+		:return:
+			int, layer index
+		"""
+		return self.get_layer_names().index(layer_name)
 
 
 

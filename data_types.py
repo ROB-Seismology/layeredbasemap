@@ -1482,6 +1482,11 @@ class GisData(BasemapData):
 				label = rec.get(self.label_colname)
 				geom = rec['obj']
 				geom_type = geom.GetGeometryName()
+				## Convert closed polylines to polygons
+				if geom_type == "LINESTRING" and geom.IsRing():
+					wkt = geom.ExportToWkt().replace("LINESTRING (", "POLYGON ((") + ")"
+					geom = ogr.CreateGeometryFromWkt(wkt)
+					geom_type = "POLYGON"
 				if geom_type == "POINT":
 					pt = PointData.from_ogr(geom)
 					pt.label = label
