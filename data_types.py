@@ -1482,7 +1482,7 @@ class GisData(BasemapData):
 				label = rec.get(self.label_colname)
 				geom = rec['obj']
 				geom_type = geom.GetGeometryName()
-				## Convert closed polylines to polygons
+				## Silently convert closed polylines to polygons
 				if geom_type == "LINESTRING" and geom.IsRing():
 					wkt = geom.ExportToWkt().replace("LINESTRING (", "POLYGON ((") + ")"
 					geom = ogr.CreateGeometryFromWkt(wkt)
@@ -1515,11 +1515,13 @@ class GisData(BasemapData):
 						for colname in line_value_colnames:
 							line_data.values[colname].append(rec[colname])
 				elif geom_type == "POLYGON":
-					polygon = PolygonData.from_ogr(geom)
-					polygon.label = label
-					polygon_data.append(polygon)
-					for colname in polygon_value_colnames:
-						polygon_data.values[colname].append(rec[colname])
+					## Silently skip polygons with less than 3 points
+					if geom.GetGeometryRef(0).GetPointCount() > 2:
+						polygon = PolygonData.from_ogr(geom)
+						polygon.label = label
+						polygon_data.append(polygon)
+						for colname in polygon_value_colnames:
+							polygon_data.values[colname].append(rec[colname])
 				elif geom_type == "MULTIPOLYGON":
 					multi_polygon = MultiPolygonData.from_ogr(geom)
 					for polygon in multi_polygon:
