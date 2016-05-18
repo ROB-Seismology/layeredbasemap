@@ -628,19 +628,44 @@ class LayeredBasemap:
 				self.thematic_legends.append(thematic_legend)
 
 	def draw_composite_layer(self, point_data=[], point_style=None, line_data=[], line_style=None, polygon_data=[], polygon_style=None, text_data=[], text_style=None, legend_label={"points": "_nolegend_", "lines": "_nolegend_", "polygons": "_nolegend_"}):
-		if polygon_data and len(polygon_data) > 0 and polygon_style:
-			self.draw_polygon_layer(polygon_data, polygon_style, legend_label.get("polygons", ""))
-		if line_data and len(line_data) > 0 and line_style:
-			self.draw_line_layer(line_data, line_style, legend_label.get("lines", ""))
+		if polygon_data and len(polygon_data) > 0 and (polygon_style or line_style):
+			if not polygon_style:
+				polygon_style = line_style.to_polygon_style()
+			try:
+				label = legend_label.get("polygons", "")
+			except AttributeError:
+				label = legend_label
+			self.draw_polygon_layer(polygon_data, polygon_style, label)
+		if line_data and len(line_data) > 0 and (line_style or polygon_style):
+			if not line_style:
+				line_style = polygon_style.to_line_style()
+			try:
+				label = legend_label.get("lines", "")
+			except AttributeError:
+				label = legend_label
+			self.draw_line_layer(line_data, line_style, label)
 		if point_data and len(point_data) > 0 and point_style:
-			self.draw_point_layer(point_data, point_style, legend_label.get("points", ""))
+			try:
+				label = legend_label.get("points", "")
+			except AttributeError:
+				label = legend_label
+			self.draw_point_layer(point_data, point_style, label)
 		if text_data and len(text_data) > 0 and text_style:
 			self._draw_texts(text_data, text_style)
 
 	def draw_gis_layer(self, gis_data, gis_style, legend_label={"points": "_nolegend_", "lines": "_nolegend_", "polygons": "_nolegend_"}):
-		point_style = gis_style.point_style
-		line_style = gis_style.line_style
-		polygon_style = gis_style.polygon_style
+		point_style = line_style = polygon_style = None
+		if isinstance(gis_style, CompositeStyle):
+			point_style = gis_style.point_style
+			line_style = gis_style.line_style
+			polygon_style = gis_style.polygon_style
+		elif isinstance(gis_style, PointStyle):
+			point_style = gis_style
+		elif isinstance(gis_style, LineStyle):
+			line_style = gis_style
+		elif isinstance(gis_style, PolygonStyle):
+			polygon_style = gis_style
+
 		point_value_colnames = set()
 		if point_style:
 			if isinstance(point_style.size, ThematicStyle):
@@ -914,9 +939,9 @@ class LayeredBasemap:
 		if continent_style.fill_color:
 			lake_color = getattr(continent_style, "bg_color", "None")
 			self.map.fillcontinents(color=continent_style.fill_color, lake_color=lake_color, zorder=self.zorder, alpha=continent_style.alpha)
+		self.zorder += 1
 		if continent_style.line_color:
 			self.draw_coastlines(continent_style.to_line_style())
-		self.zorder += 1
 
 	def draw_coastlines(self, coastline_style):
 		self.map.drawcoastlines(linewidth=coastline_style.line_width, color=coastline_style.line_color, linestyle=coastline_style.line_pattern, zorder=self.zorder)
@@ -1227,7 +1252,7 @@ class LayeredBasemap:
 				self.ax.add_artist(tl)
 
 		## Main legend
-		if self.legend_style:
+		if self.legend_style and len(self.legend_artists):
 			title = self.legend_style.title
 			if isinstance(title, str):
 				title = title.decode('iso-8859-1')
