@@ -848,6 +848,13 @@ class MeshGridData(GridData):
 	def num_rows(self):
 		return self.center_lons.shape[0]
 
+	def get_mesh_coordinates(self, cell_registration="corner"):
+		"""
+		To make MeshGridData compatible with GdalRasterData
+		Note: cell_registration currently ignored
+		"""
+		return (self.lons, self.lats)
+
 	def mask_oceans(self, resolution, mask_lakes=False, grid_spacing=1.25):
 		from mpl_toolkits.basemap import maskoceans
 		masked_values = maskoceans(self.lons, self.lats, self.values, inlands=mask_lakes, resolution=resolution, grid=grid_spacing)
@@ -899,7 +906,7 @@ class GdalRasterData(MeshGridData):
 		rows with
 		(default: 1., no downsampling)
 	"""
-	def __init__(self, filespec, band_nr=1, down_sampling=1.):
+	def __init__(self, filespec, band_nr=1, down_sampling=1., nodata_value=None):
 		self.filespec = filespec
 		self.band_nr = band_nr
 		self.read_grid_info()
@@ -908,6 +915,7 @@ class GdalRasterData(MeshGridData):
 		self._center_lons = None
 		self._center_lats = None
 		self.set_down_sampling(down_sampling)
+		self.nodata_value = nodata_value
 
 	# TODO: raster subdatasets
 	#subdatasets = dataset.GetSubDatasets()
@@ -930,8 +938,18 @@ class GdalRasterData(MeshGridData):
 
 	def set_down_sampling(self, down_sampling):
 		self.down_sampling = float(down_sampling)
-		self.ncols = int(round(self.ncols / self.down_sampling))
-		self.nrows = int(round(self.nrows / self.down_sampling))
+		if down_sampling != 1.:
+			self.x0 = self.x0 / down_sampling * down_sampling
+			self.x1 = self.x1  / down_sampling * down_sampling
+			self.y0 = self.y0 / down_sampling * down_sampling
+			self.y1 = self.y1 / down_sampling * down_sampling
+			self.dx *= down_sampling
+			self.dy *= down_sampling
+			self.ncols = int(abs((self.x0 - self.x1) / self.dx)) + 1
+			self.nrows = int(abs((self.y0 - self.y1) / self.dy)) + 1
+
+			# TODO: make sure x0, x1, y0, y1 are multiples of dx,
+			# and set xoff and yoff accordingly in read_band
 
 	## Following methods are based on:
 	## http://stackoverflow.com/questions/20488765/plot-gdal-raster-using-matplotlib-basemap
@@ -948,9 +966,9 @@ class GdalRasterData(MeshGridData):
 		- :prop:`dx`, :prop:`dy`: int, cell size in X and Y direction
 			in the native spatial reference system
 		- :prop:`xmin`, :prop:`xmax`: float, extent in X direction in
-			the native spatial reference system
+			the native spatial reference system (center of grid cells)
 		- :prop:`ymin`, :prop:`ymax`: float, extent in Y direction in
-			the native spatial reference system
+			the native spatial reference system (center of grid cells)
 		"""
 		import gdal, osr
 
@@ -966,23 +984,41 @@ class GdalRasterData(MeshGridData):
 
 		gt = ds.GetGeoTransform()
 		# TODO: support rotated grids
-		# TODO: make distinction between x0/x1/y0/y1 and xmin/xmax/ymin/ymax
 		self.ncols, self.nrows = ds.RasterXSize, ds.RasterYSize
 		self.dx, self.dy = gt[1], gt[5]
-		xmin = gt[0] + self.dx * 0.5
-		xmax = gt[0] + (self.dx * self.ncols) - self.dx * 0.5
-		if self.dx < 0:
-			xmin, xmax = xmax, xmin
+		## (x0, y0) and (x1, y1) now correspond to cell centers
+		self.x0 = gt[0] + self.dx * 0.5
+		self.x1 = gt[0] + (self.dx * self.ncols) - self.dx * 0.5
+		#if self.dx < 0:
+			#xmin, xmax = xmax, xmin
 			#self.dx = -self.dx
-		ymin = gt[3] + (self.dy * self.nrows) + self.dy * 0.5
-		ymax = gt[3] - self.dy * 0.5
+		self.y0 = gt[3] + self.dy * 0.5
+		self.y1 = gt[3] + (self.dy * self.nrows) - self.dy * 0.5
 		#if self.dy < 0:
-		ymin, ymax = ymax, ymin
+		#ymin, ymax = ymax, ymin
 			#self.dy = -self.dy
-		self.xmin, self.xmax = xmin, xmax
-		self.ymin, self.ymax = ymin, ymax
 
 		ds = None
+
+	@property
+	def xmin(self):
+		return min(self.x0, self.x1)
+
+	@property
+	def xmax(self):
+		return max(self.x0, self.x1)
+
+	@property
+	def ymin(self):
+		return min(self.y0, self.y1)
+
+	@property
+	def ymax(self):
+		return max(self.y0, self.y1)
+
+	@property
+	def shape(self):
+		return (self.nrows, self.ncols)
 
 	def get_mesh_coordinates(self, cell_registration="corner"):
 		"""
@@ -1000,12 +1036,12 @@ class GdalRasterData(MeshGridData):
 		from mapping.geo.coordtrans import (transform_mesh_coordinates, wgs84)
 
 		## Create meshed coordinates
-		if cell_registration in ("corner", "edge"):
-			xx, yy = np.meshgrid(np.linspace(self.xmin, self.xmax, self.ncols+1),
-							np.linspace(self.ymin, self.ymax, self.nrows+1))
-		elif cell_registration == "center":
-			xx, yy = np.meshgrid(np.linspace(self.xmin + self.dx/2., self.xmax - self.dx/2., self.ncols),
-							np.linspace(self.ymin + self.dy/2., self.ymax - self.dy/2., self.nrows))
+		if cell_registration == "center":
+			xx, yy = np.meshgrid(np.linspace(self.x0, self.x1, self.ncols),
+							np.linspace(self.y0, self.y1, self.nrows))
+		elif cell_registration in ("corner", "edge"):
+			xx, yy = np.meshgrid(np.linspace(self.x0 - self.dx/2., self.x1 + self.dx/2., self.ncols+1),
+							np.linspace(self.y0 - self.dy/2., self.y1 + self.dy/2., self.nrows+1))
 
 		## Convert from source projection to WGS84
 		target_srs = wgs84
@@ -1067,7 +1103,10 @@ class GdalRasterData(MeshGridData):
 		import gdal
 		ds = gdal.Open(self.filespec, gdal.GA_ReadOnly)
 		band = ds.GetRasterBand(band_nr)
-		nodata = band.GetNoDataValue()
+		if self.nodata_value is None:
+			nodata = band.GetNoDataValue()
+		else:
+			nodata = self.nodata_value
 		values = band.ReadAsArray(buf_xsize=self.ncols, buf_ysize=self.nrows)
 		## Mask nodata values
 		#values[values == nodata] = np.nan
@@ -1111,12 +1150,12 @@ class GdalRasterData(MeshGridData):
 
 		## xin, yin must be linearly increasing
 		values = self.values
-		if self.xmin < self.xmax:
+		if self.x0 < self.x1:
 			xin = np.linspace(self.xmin, self.xmax, self.ncols)
 		else:
 			xin = np.linspace(self.xmax, self.xmin, self.ncols)
 			values = values[:,::-1]
-		if self.ymin < self.ymax:
+		if self.y0 < self.y1:
 			yin = np.linspace(self.ymin, self.ymax, self.nrows)
 		else:
 			yin = np.linspace(self.ymax, self.ymin, self.nrows)
@@ -1144,6 +1183,10 @@ class GdalRasterData(MeshGridData):
 				out_data[3, ch_out.mask==True] = 0
 
 		return out_data
+
+	def interpolate_grid(self, xout, yout, checkbounds=False, masked=True, order=1):
+		values = self.interpolate(xout, yout, checkbounds=checkbounds, masked=masked, order=order)
+		return MeshGridData(xout, yout, values)
 
 	def cross_section(self, (x0, y0), (x1, y1), num_points=100):
 		X = np.linspace(x0, x1, num_points)

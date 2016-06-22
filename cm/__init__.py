@@ -105,9 +105,9 @@ def from_cpt(cpt_filespec, override_bad_color=True):
 	cpt_fd.close()
 
 	## Append last color for continuous cpt palettes
-	x.append(x2)
 	if not (r2 == r[-1] and g2 == g[-1] and b2 == b[-1]):
 		discrete = False
+		x.append(x2)
 		r.append(r2)
 		g.append(g2)
 		b.append(b2)

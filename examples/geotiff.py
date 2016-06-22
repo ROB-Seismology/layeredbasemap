@@ -18,7 +18,7 @@ title = "GeoTIFF example"
 layers = []
 
 ## GeoTiff / WCS
-#geotiff_filespec = r"D:\seismo-gis\collections\ASTER_GDEM\GEOTIFF\ASTGTM_N50E006.tif"
+geotiff_filespec = r"D:\seismo-gis\collections\ASTER_GDEM\GEOTIFF\ASTGTM_N50E006.tif"
 #geotiff_filespec = r"C:\Temp\ASTGTM_N50E006.tif"
 #geotiff_filespec = r"C:\Temp\matplotlib.tif"
 gdal_data = lbm.GdalRasterData(geotiff_filespec, band_nr=1, down_sampling=3)
