@@ -454,7 +454,7 @@ class MultiLineData(BasemapData):
 			x, y = zip(*ls.coords)
 			lons.append(x)
 			lats.append(y)
-		yield MultiLineData(lons, lats)
+		return MultiLineData(lons, lats)
 
 	@classmethod
 	def from_ogr(cls, geom):
@@ -949,7 +949,7 @@ class GdalRasterData(MeshGridData):
 			in the native spatial reference system
 		- :prop:`xmin`, :prop:`xmax`: float, extent in X direction in
 			the native spatial reference system
-		- :prop:`xmin`, :prop:`xmax`: float, extent in Y direction in
+		- :prop:`ymin`, :prop:`ymax`: float, extent in Y direction in
 			the native spatial reference system
 		"""
 		import gdal, osr
@@ -1168,7 +1168,7 @@ class GdalRasterData(MeshGridData):
 		Export raster to another format
 
 		:param format:
-			str, GDAL format speciication
+			str, GDAL format specification
 		:param out_filespec:
 			str, full path to output file
 		"""
@@ -1540,7 +1540,6 @@ class GisData(BasemapData):
 				polygon_data.values[attrib_name] = [value_dict[key_val] for key_val in polygon_data.values[key]]
 			except:
 				print("Warning: %s not found in data value keys!" % key_val)
-
 		return (point_data, line_data, polygon_data)
 
 	def export(self, format, out_filespec):
