@@ -1526,7 +1526,7 @@ class GisData(BasemapData):
 				geom = rec['obj']
 				geom_type = geom.GetGeometryName()
 				## Silently convert closed polylines to polygons
-				if geom_type == "LINESTRING" and geom.IsRing():
+				if geom_type == "LINESTRING" and geom.IsRing() and geom.GetPointCount() > 3:
 					wkt = geom.ExportToWkt().replace("LINESTRING (", "POLYGON ((") + ")"
 					geom = ogr.CreateGeometryFromWkt(wkt)
 					geom_type = "POLYGON"

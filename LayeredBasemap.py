@@ -81,11 +81,12 @@ class LayeredBasemap:
 		self.map = self.init_basemap(ax)
 		self.dpi = dpi
 		self.figsize = figsize
-		self.fig = pylab.figure(figsize=self.figsize, dpi=self.dpi)
 		if ax is None:
+			self.fig = pylab.figure(figsize=self.figsize, dpi=self.dpi)
 			self.ax = pylab.gca()
 		else:
 			self.ax = ax
+			self.fig = pylab.gcf()
 		self.thematic_legends = []
 		self.legend_artists = []
 		self.legend_labels = []
@@ -914,7 +915,10 @@ class LayeredBasemap:
 		self.zorder += 1
 
 	def draw_grid_vector_layer(self, vector_data, vector_style):
-		x, y = vector_data.grdx.get_mesh_coordinates("center")
+		try:
+			x, y = vector_data.grdx.get_mesh_coordinates("center")
+		except AttributeError:
+			x, y = vector_data.grdx.lons, vector_data.grdx.lats
 		u, v = vector_data.grdx.values, vector_data.grdy.values
 		self.map.quiver(x, y, u, v, latlon=True, zorder=self.zorder, **vector_style.to_kwargs())
 		self.zorder == 1
@@ -923,7 +927,7 @@ class LayeredBasemap:
 		"""
 		sm: scalarmappable
 		"""
-		cbar = self.map.colorbar(sm, ax=self.ax, **style.to_kwargs())
+		cbar = self.map.colorbar(sm, ax=self.ax, fig=self.fig, **style.to_kwargs())
 		# TODO: do set_label and set_ticklabels accept font kwargs?
 		cbar.set_label(style.title, size=style.label_size)
 		if style.tick_labels:
