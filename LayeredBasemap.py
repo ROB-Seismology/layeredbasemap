@@ -927,6 +927,8 @@ class LayeredBasemap:
 		"""
 		sm: scalarmappable
 		"""
+		# TODO: limit ticks to interval between norm.vmin and norm.vmax,
+		# but then we need to pass norm as well...
 		cbar = self.map.colorbar(sm, ax=self.ax, fig=self.fig, **style.to_kwargs())
 		# TODO: do set_label and set_ticklabels accept font kwargs?
 		cbar.set_label(style.title, size=style.label_size)
