@@ -509,6 +509,7 @@ class LayeredBasemap:
 		if isinstance(line_style.line_color, ThematicStyle):
 			line_colors = line_style.line_color(line_data.values)
 		else:
+			# TODO: more efficient use of iterators ?
 			line_colors = [line_style.line_color] * num_lines
 
 		for i, line in enumerate(line_data):

@@ -1814,7 +1814,7 @@ class GraticuleStyle(BasemapStyle):
 	"""
 	# TODO: check label_offset units
 	def __init__(self, line_style=LineStyle(dash_pattern=[1,1]), label_style=TextStyle(), annot_axes="SE",
-				annot_style="", annot_format='%g', label_offset=(None, None), lat_max=8,
+				annot_style="", annot_format='%g', label_offset=(None, None), lat_max=80,
 				alpha=1.):
 		self.line_style = line_style
 		self.label_style = label_style
