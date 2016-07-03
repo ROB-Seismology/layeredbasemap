@@ -29,6 +29,13 @@ class BasemapStyle(object):
 				setattr(style, key, style_dict[key])
 		return style
 
+	def copy_from(self, other):
+		for attr in dir(self):
+			if not attr.startswith('__') and not callable(getattr(self, attr)):
+				val = getattr(other, attr, None)
+				if not val is None:
+					setattr(self, attr, val)
+
 
 class FontStyle(BasemapStyle):
 	"""
@@ -228,8 +235,8 @@ class PointStyle(BasemapStyle):
 	:param alpha:
 		Float in the range 0 - 1, opacity (default: 1.)
 	:param thematic_legend_style:
-		instance of :class:`LegendStyle`. If None, thematic legend labels
-		will be added to main legend
+		instance of :class:`LegendStyle` or str, title of thematic legend
+		labels will be added to (e.g., "main")
 		(default: None)
 
 	Note: only one of line_color / fill_color may be a thematic style.
@@ -249,7 +256,7 @@ class PointStyle(BasemapStyle):
 		self.alpha = alpha
 		self.thematic_legend_style = thematic_legend_style
 		## Adjust label spacing of thematic legend to accommodate largest symbols
-		if isinstance(self.size, ThematicStyle) and self.thematic_legend_style:
+		if isinstance(self.size, ThematicStyle) and isinstance(self.thematic_legend_style, LegendStyle):
 			max_size = max(size.styles)
 			self.thematic_legend_style.label_spacing = max(max_size*0.5/10, self.thematic_legend_style.label_spacing)
 
@@ -477,6 +484,10 @@ class LineStyle(BasemapStyle):
 	:param label_style:
 		instance of :class:`TextStyle`. If None, no labels will be plotted
 		(default: None)
+	:param label_anchor:
+		float, fraction of length where label should be anchored
+		or str, one of "start", "end" or "middle"
+		(default: 0.5)
 	:param front_style:
 		instance of :class:`FrontStyle`. If None, no fronts will be plotted
 		(default: None)
@@ -486,11 +497,11 @@ class LineStyle(BasemapStyle):
 	:param alpha:
 		Float in the range 0 - 1, opacity (default: 1.)
 	:param thematic_legend_style:
-		instance of :class:`LegendStyle`. If None, thematic legend labels
-		will be added to main legend
+		instance of :class:`LegendStyle` or str, title of thematic legend
+		labels will be added to (e.g., "main")
 		(default: None)
 	"""
-	def __init__(self, line_pattern="solid", line_width=1, line_color='k', solid_capstyle="butt", solid_joinstyle="round", dash_capstyle="butt", dash_joinstyle="round", label_style=None, front_style=None, dash_pattern=[], alpha=1., thematic_legend_style=None):
+	def __init__(self, line_pattern="solid", line_width=1, line_color='k', solid_capstyle="butt", solid_joinstyle="round", dash_capstyle="butt", dash_joinstyle="round", label_style=None, label_anchor=0.5, front_style=None, dash_pattern=[], alpha=1., thematic_legend_style=None):
 		self.line_pattern = line_pattern
 		self.line_width = line_width
 		self.line_color = line_color
@@ -500,6 +511,7 @@ class LineStyle(BasemapStyle):
 		self.dash_joinstyle = dash_joinstyle
 		self.front_style = front_style
 		self.label_style = label_style
+		self.label_anchor = label_anchor
 		self.dash_pattern = dash_pattern
 		self.alpha = alpha
 		self.thematic_legend_style = thematic_legend_style
@@ -538,6 +550,12 @@ class LineStyle(BasemapStyle):
 		else:
 			line_color = self.line_color
 		return LineStyle(line_pattern, line_width, line_color, self.solid_capstyle, self.solid_joinstyle, self.dash_capstyle, self.dash_joinstyle, self.label_style, self.front_style, self.dash_pattern, self.alpha, self.thematic_legend_style)
+
+	def to_line_style(self):
+		"""
+		no-op
+		"""
+		return self
 
 	def to_polygon_style(self):
 		"""
@@ -595,8 +613,8 @@ class PolygonStyle(BasemapStyle):
 	:param alpha:
 		Float in the range 0 - 1, opacity (default: 1.)
 	:param thematic_legend_style:
-		instance of :class:`LegendStyle`. If None, thematic legend labels
-		will be added to main legend
+		instance of :class:`LegendStyle` or str, title of thematic legend
+		labels will be added to (e.g., "main")
 		(default: None)
 	"""
 	def __init__(self, line_pattern="solid", line_width=1, line_color='k', fill_color='w', fill_hatch=None, label_style=None, alpha=1., thematic_legend_style=None):
@@ -661,6 +679,12 @@ class PolygonStyle(BasemapStyle):
 		"""
 		return LineStyle(self.line_pattern, self.line_width, self.line_color, label_style=self.label_style, alpha=self.alpha, thematic_legend_style=self.thematic_legend_style)
 
+	def to_polygon_style(self):
+		"""
+		no-op
+		"""
+		return self
+
 	def to_kwargs(self):
 		"""
 		Return a dictionary with keys corresponding to matplotlib parameter names,
@@ -696,19 +720,24 @@ class FocmecStyle(BasemapStyle):
 		matplotlib color spec or instance of :class:`ThematicStyle`,
 		defining color of dilational quadrants
 		(default: 'w')
+	:param offset:
+		tuple, horizontal and vertical offset in points (default: (0, 0))
+		Note: ignored when offsets property of FocmecData is set.
 	:param alpha:
 		Float in the range 0 - 1, opacity (default: 1.)
 	:param thematic_legend_style:
-		instance of :class:`LegendStyle`. If None, thematic legend labels
-		will be added to main legend
+		instance of :class:`LegendStyle` or str, title of thematic legend
+		labels will be added to (e.g., "main")
 		(default: None)
 	"""
-	def __init__(self, size=50, line_width=1, line_color='k', fill_color='k', bg_color='w', alpha=1., thematic_legend_style=None):
+	# TODO: add overall offset
+	def __init__(self, size=50, line_width=1, line_color='k', fill_color='k', bg_color='w', offset=(0,0), alpha=1., thematic_legend_style=None):
 		self.size = size
 		self.line_width = line_width
 		self.line_color = line_color
 		self.fill_color = fill_color
 		self.bg_color = bg_color
+		self.offset = offset
 		self.alpha = alpha
 		self.thematic_legend_style = thematic_legend_style
 
@@ -750,7 +779,7 @@ class FocmecStyle(BasemapStyle):
 		else:
 			fill_color = self.fill_color
 		bg_color = self.bg_color
-		return FocmecStyle(size, line_width, line_color, fill_color, bg_color, self.alpha, self.thematic_legend_style)
+		return FocmecStyle(size, line_width, line_color, fill_color, bg_color, self.offset, self.alpha, self.thematic_legend_style)
 
 	def to_point_style(self):
 		"""
@@ -1531,7 +1560,8 @@ class VectorStyle(BasemapStyle):
 			min_length=1,
 			pivot='tail',
 			color='k',
-			alpha=1.):
+			alpha=1.,
+			thematic_legend_style=None):
 		self.units = units
 		self.angles = angles
 		self.scale = scale
@@ -1545,6 +1575,7 @@ class VectorStyle(BasemapStyle):
 		self.pivot = pivot
 		self.color = color
 		self.alpha = alpha
+		self.thematic_legend_style = thematic_legend_style
 
 	def to_kwargs(self):
 		"""
@@ -1702,7 +1733,7 @@ class ScalebarStyle(BasemapStyle):
 		(default: None, corresponds to 0.02 times the height of the map)
 	:param label_style:
 		str, either "simple" or "default", or False. If False, label
-		will be empth (default: "simple")
+		will be empty (default: "simple")
 	:param font_size:
 		int, font size for map scale annotations (default: 9)
 	:param font_color:
