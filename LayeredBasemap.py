@@ -159,6 +159,23 @@ class LayeredBasemap:
 		self.is_drawn = False
 		return map
 
+	def get_thematic_legend_artists_and_labels(self, legend_title):
+		"""
+		Fetch artists and labels from thematic legend with given title.
+
+		:param legend_title:
+			str, title of thematic legend
+
+		:return:
+			(artists, labels) tuple
+		"""
+		if legend_title.lower() == "main":
+			return (self.legend_artists, self.legend_labels)
+		for tl in self.thematic_legends:
+			if tl.style.title.lower() == legend_title.lower():
+				return (tl.artists, tl.labels)
+		return ([], [])
+
 	## Drawing primitives
 
 	def _draw_points(self, points, style, legend_label="_nolegend_", thematic_legend_artists=[], thematic_legend_labels=[]):
@@ -225,7 +242,7 @@ class LayeredBasemap:
 			if isinstance(style.fill_color, ThematicStyle) and style.fill_color.add_legend:
 				colorbar_style = style.fill_color.colorbar_style
 				if isinstance(style.fill_color, ThematicStyleColormap) or colorbar_style:
-					if colorbar_style is None:
+					if colorbar_style is None and isinstance(style.thematic_legend_style, ColorbarStyle):
 						## interpret thematic_legend_style as colorbar_style
 						colorbar_style = style.thematic_legend_style
 					#sm = style.fill_color.to_scalar_mappable()
@@ -242,7 +259,7 @@ class LayeredBasemap:
 			elif isinstance(style.line_color, ThematicStyle) and style.line_color.add_legend:
 				colorbar_style = style.line_color.colorbar_style
 				if isinstance(style.line_color, ThematicStyleColormap) or colorbar_style:
-					if colorbar_style is None:
+					if colorbar_style is None and isinstance(style.thematic_legend_style, ColorbarStyle):
 						## interpret thematic_legend_style as colorbar_style
 						colorbar_style = style.thematic_legend_style
 					self.draw_colorbar(cs, colorbar_style)
@@ -338,6 +355,9 @@ class LayeredBasemap:
 				self.legend_labels.append(legend_label)
 
 	def _draw_texts(self, text_points, style):
+		## Note: labels must have same rotation
+		# TODO: mechanism for individual offsets (in text_points), overriding offset
+		# in style
 		## Compute offset in map units (not needed for annotate method)
 		#display_x, display_y = self.lonlat_to_display_coordinates(text_points.lons, text_points.lats)
 		#display_x = np.array(display_x) + style.offset[0]
@@ -362,6 +382,10 @@ class LayeredBasemap:
 		polygon_data: MultiPolygon
 		"""
 		# TODO: use PolyCollection / PatchCollection
+		if isinstance(polygon_data, PolygonData):
+			polygon_data = polygon_data.to_multi_polygon()
+		if isinstance(polygon_style, LineStyle):
+			polygon_style = polygon_style.to_polygon_style()
 		num_polygons = len(polygon_data)
 		if isinstance(polygon_style.line_pattern, ThematicStyle):
 			line_patterns = polygon_style.line_pattern(polygon_data.values)
@@ -390,21 +414,24 @@ class LayeredBasemap:
 			else:
 				legend_label = {True: legend_label, False: "_nolegend_"}[i==0]
 			## Apply thematic styles
-			line_pattern = line_patterns[i]
-			line_width = line_widths[i]
-			line_color = line_colors[i]
-			fill_color = fill_colors[i]
-			fill_hatch = fill_hatches[i]
-			style = PolygonStyle(line_pattern=line_pattern, line_width=line_width, line_color=line_color, fill_color=fill_color, fill_hatch=fill_hatch, label_style=None, alpha=polygon_style.alpha)
+			#style = PolygonStyle(line_pattern=line_pattern, line_width=line_width, line_color=line_color, fill_color=fill_color, fill_hatch=fill_hatch, label_style=None, alpha=polygon_style.alpha)
+			style = copy(polygon_style)
+			style.line_pattern = line_patterns[i]
+			style.line_width = line_widths[i]
+			style.line_color = line_colors[i]
+			style.fill_color = fill_colors[i]
+			style.fill_hatch = fill_hatches[i]
+			style.label_style = None
 			self._draw_polygon(polygon, style, legend_label)
 		self.zorder += 1
 		if polygon_data.labels and polygon_style.label_style:
 			centroids = MultiPointData([], [], labels=[])
 			for pg in polygon_data:
-				centroid = pg.get_centroid()
-				centroids.lons.append(centroid.lon)
-				centroids.lats.append(centroid.lat)
-				centroids.labels.append(pg.label)
+				if pg.label:
+					centroid = pg.get_centroid()
+					centroids.lons.append(centroid.lon)
+					centroids.lats.append(centroid.lat)
+					centroids.labels.append(pg.label)
 			self._draw_texts(centroids, polygon_style.label_style)
 			self.zorder += 1
 
@@ -415,7 +442,7 @@ class LayeredBasemap:
 			if isinstance(polygon_style.fill_color, ThematicStyle) and polygon_style.fill_color.add_legend:
 				colorbar_style = polygon_style.fill_color.colorbar_style
 				if isinstance(polygon_style.fill_color, ThematicStyleColormap) or colorbar_style:
-					if colorbar_style is None:
+					if colorbar_style is None and isinstance(polygon_style.thematic_legend_style, ColorbarStyle):
 						## interpret thematic_legend_style as colorbar_style
 						colorbar_style = polygon_style.thematic_legend_style
 					if colorbar_style:
@@ -448,7 +475,7 @@ class LayeredBasemap:
 			if isinstance(polygon_style.line_color, ThematicStyle) and polygon_style.line_color.add_legend:
 				colorbar_style = polygon_style.line_color.colorbar_style
 				if isinstance(polygon_style.line_color, ThematicStyleColormap) or colorbar_style:
-					if colorbar_style is None:
+					if colorbar_style is None and isinstance(polygon_style.thematic_legend_style, ColorbarStyle):
 						## interpret thematic_legend_style as colorbar_style
 						colorbar_style = polygon_style.thematic_legend_style
 					if colorbar_style:
@@ -490,13 +517,24 @@ class LayeredBasemap:
 					legend_artists.append(p)
 
 			if polygon_style.thematic_legend_style and len(legend_artists) > 0:
-				thematic_legend = ThematicLegend(legend_artists, legend_labels, polygon_style.thematic_legend_style)
-				self.thematic_legends.append(thematic_legend)
+				if isinstance(polygon_style.thematic_legend_style, LegendStyle):
+					thematic_legend = ThematicLegend(legend_artists, legend_labels, polygon_style.thematic_legend_style)
+					self.thematic_legends.append(thematic_legend)
+				elif isinstance(polygon_style.thematic_legend_style, (str, unicode)):
+					legend_title = polygon_style.thematic_legend_style
+					tl_artists, tl_labels = self.get_thematic_legend_artists_and_labels(legend_title)
+					tl_artists.extend(legend_artists)
+					tl_labels.extend(legend_labels)
 
 	def draw_line_layer(self, line_data, line_style, legend_label="_nolegend_"):
 		"""
 		line_data: MultiLine
 		"""
+		if isinstance(line_data, LineData):
+			line_data = line_data.to_multi_line()
+		if isinstance(line_style, LineStyle):
+			polygon_style = line_style.to_line_style()
+
 		num_lines = len(line_data)
 		if isinstance(line_style.line_pattern, ThematicStyle):
 			line_patterns = line_style.line_pattern(line_data.values)
@@ -518,18 +556,21 @@ class LayeredBasemap:
 			else:
 				legend_label = {True: legend_label, False: "_nolegend_"}[i==0]
 			## Apply thematic styles
-			line_pattern = line_patterns[i]
-			line_width = line_widths[i]
-			line_color = line_colors[i]
-			style = LineStyle(line_pattern=line_pattern, line_width=line_width, line_color=line_color, label_style=None, alpha=line_style.alpha)
+			# TODO: several line style parameters are missing here
+			#style = LineStyle(line_pattern=line_pattern, line_width=line_width, line_color=line_color, label_style=None, alpha=line_style.alpha)
+			style = copy(line_style)
+			style.line_pattern = line_patterns[i]
+			style.line_width = line_widths[i]
+			style.line_color = line_colors[i]
+			style.label_style = None
 			if line_style.front_style:
 				style.front_style = copy(line_style.front_style)
 				if style.front_style.line_width is None:
-					style.front_style.line_width = line_width
+					style.front_style.line_width = style.line_width
 				if style.front_style.line_color is None:
-					style.front_style.line_color = line_color
+					style.front_style.line_color = style.line_color
 				if style.front_style.fill_color is None:
-					style.front_style.fill_color = line_color
+					style.front_style.fill_color = style.line_color
 				self._draw_fronts(line, style, legend_label)
 				# TODO: lines with frontstyle in legend (or thematic legend)
 				#handle, label = ax.get_legend_handles_labels()
@@ -538,16 +579,41 @@ class LayeredBasemap:
 			else:
 				self._draw_line(line, style, legend_label)
 		self.zorder += 1
+
+		## Labels
 		if line_data.labels and line_style.label_style:
-			# TODO: rotate labels
+			# TODO: auto-rotate labels
 			# See http://stackoverflow.com/questions/18780198/how-to-rotate-matplotlib-annotation-to-match-a-line
-			midpoints = MultiPointData([], [], labels=[])
+			# Add possibility to anchor label at start, end, middle or fraction of line length
+			# and obtain line orientation for that anchor point for auto-rotation
+			#label_points = TextData([], [], labels=[])
+			if isinstance(line_style.label_anchor, (str, unicode)):
+				label_anchor = {"start": 0., "middle": 0.5, "end": 1.}.get(line_style.label_anchor, 0.5)
+			else:
+				label_anchor = line_style.label_anchor
 			for line in line_data:
-				midpoint = line.get_midpoint()
-				midpoints.lons.append(midpoint.lon)
-				midpoints.lats.append(midpoint.lat)
-				midpoints.labels.append(line.label)
-			self._draw_texts(midpoints, line_style.label_style)
+				if line.label:
+					pt = line.get_point_at_fraction_of_length(label_anchor)
+					lp = TextData([pt.lon], [pt.lat], labels=[line.label])
+					#label_points.lons.append(lp.lon)
+					#label_points.lats.append(lp.lat)
+					#label_points.labels.append(line.label)
+					if line_style.label_style.rotation == "auto":
+						label_style = copy(line_style.label_style)
+						## Set rotation
+						## Note: doesn't play nicely with horizontal and vertical
+						## text alignment...
+						if label_anchor < 0.95:
+							pt2 = line.get_point_at_fraction_of_length(label_anchor + 0.05)
+						else:
+							pt2 = line.get_point_at_fraction_of_length(label_anchor - 0.05)
+						display_x, display_y = self.lonlat_to_display_coordinates([pt.lon, pt2.lon], [pt.lat, pt2.lat])
+						[dx], [dy] = np.diff(display_y), np.diff(display_x)
+						label_style.rotation = np.degrees(np.arctan(dy/dx))
+					else:
+						label_style = line_style.label_style
+					self._draw_texts(lp, label_style)
+			#self._draw_texts(label_points, line_style.label_style)
 			self.zorder += 1
 
 		# Thematic legend
@@ -591,8 +657,14 @@ class LayeredBasemap:
 					legend_artists.append(l)
 
 			if line_style.thematic_legend_style and len(legend_artists) > 0:
-				thematic_legend = ThematicLegend(legend_artists, legend_labels, line_style.thematic_legend_style)
-				self.thematic_legends.append(thematic_legend)
+				if isinstance(line_style.thematic_legend_style, LegendStyle):
+					thematic_legend = ThematicLegend(legend_artists, legend_labels, line_style.thematic_legend_style)
+					self.thematic_legends.append(thematic_legend)
+				elif isinstance(line_style.thematic_legend_style, (str, unicode)):
+					legend_title = line_style.thematic_legend_style
+					tl_artists, tl_labels = self.get_thematic_legend_artists_and_labels(legend_title)
+					tl_artists.extend(legend_artists)
+					tl_labels.extend(legend_labels)
 
 	def draw_point_layer(self, point_data, point_style, legend_label="_nolegend_"):
 		legend_artists, legend_labels = [], []
@@ -624,10 +696,15 @@ class LayeredBasemap:
 			self.zorder += 1
 
 		if point_style.is_thematic and point_style.thematic_legend_style != None:
-			# TODO: if point_style.thematic_legend_style is None, add to main legend
 			if point_style.thematic_legend_style and len(legend_artists) > 0:
-				thematic_legend = ThematicLegend(legend_artists, legend_labels, point_style.thematic_legend_style)
-				self.thematic_legends.append(thematic_legend)
+				if isinstance(point_style.thematic_legend_style, LegendStyle):
+					thematic_legend = ThematicLegend(legend_artists, legend_labels, point_style.thematic_legend_style)
+					self.thematic_legends.append(thematic_legend)
+				elif isinstance(point_style.thematic_legend_style, (str, unicode)):
+					legend_title = point_style.thematic_legend_style
+					tl_artists, tl_labels = self.get_thematic_legend_artists_and_labels(legend_title)
+					tl_artists.extend(legend_artists)
+					tl_labels.extend(legend_labels)
 
 	def draw_composite_layer(self, point_data=[], point_style=None, line_data=[], line_style=None, polygon_data=[], polygon_style=None, text_data=[], text_style=None, legend_label={"points": "_nolegend_", "lines": "_nolegend_", "polygons": "_nolegend_"}):
 		if polygon_data and len(polygon_data) > 0 and (polygon_style or line_style):
@@ -808,6 +885,9 @@ class LayeredBasemap:
 					x, y = xe, ye
 				if grid_style.hillshade_style:
 					## Source: http://rnovitsky.blogspot.com.es/2010/04/using-hillshade-image-as-intensity.html
+					# TODO: there is also a hillshade function in matplotlib
+					# TODO: find a way to add hillshade from another grid
+					# (e.g., to add topographic shading to ground-motion map)
 					azimuth = grid_style.hillshade_style.azimuth
 					elevation_angle = grid_style.hillshade_style.elevation_angle
 					scale = grid_style.hillshade_style.scale
@@ -921,7 +1001,14 @@ class LayeredBasemap:
 		except AttributeError:
 			x, y = vector_data.grdx.lons, vector_data.grdx.lats
 		u, v = vector_data.grdx.values, vector_data.grdy.values
-		self.map.quiver(x, y, u, v, latlon=True, zorder=self.zorder, **vector_style.to_kwargs())
+		Q = self.map.quiver(x, y, u, v, latlon=True, zorder=self.zorder, **vector_style.to_kwargs())
+		if isinstance(vector_style.thematic_legend_style, LegendStyle):
+			# TODO: find mechanism to pass arrow scale and label
+			length = 1
+			qk = pylab.quiverkey(Q, -1, -1, length, label="", coordinates='axes', labelpos='E')
+			label = "%s" % length
+			thematic_legend = ThematicLegend([qk], [label], vector_style.thematic_legend_style)
+			self.thematic_legends.append(thematic_legend)
 		self.zorder == 1
 
 	def draw_colorbar(self, sm, style):
@@ -943,7 +1030,7 @@ class LayeredBasemap:
 			self.map.drawmapboundary(fill_color=continent_style.bg_color, color="None", linewidth=0, zorder=-1)
 			# Note: zorder not respected by drawlsmask
 			#self.map.drawlsmask(land_color=continent_style.fill_color, ocean_color=continent_style.bg_color, lakes=True, resolution=self.resolution, zorder=self.zorder)
-		if continent_style.fill_color:
+		if getattr(continent_style, "fill_color", None):
 			lake_color = getattr(continent_style, "bg_color", "None")
 			self.map.fillcontinents(color=continent_style.fill_color, lake_color=lake_color, zorder=self.zorder, alpha=continent_style.alpha)
 		self.zorder += 1
@@ -1020,7 +1107,33 @@ class LayeredBasemap:
 		else:
 			fill_colors = [focmec_style.fill_color] * len(focmec_data)
 
-		x, y = self.map(focmec_data.lons, focmec_data.lats)
+		if focmec_data.offsets or focmec_style.offset:
+			offsets = focmec_data.offsets or [focmec_style.offset] * len(focmec_data)
+			offsets = np.array(offsets)
+			## Compute offset in map units
+			if offsets.dtype == np.int32:
+				## Offset in points
+				display_x, display_y = self.lonlat_to_display_coordinates(focmec_data.lons, focmec_data.lats)
+				display_x = np.array(display_x) + offsets[:,0]
+				display_y = np.array(display_y) + offsets[:,1]
+				x, y = self.map_from_display_coordinates(display_x, display_y)
+			else:
+				## Offsets correspond to lon, lat coordinates
+				x, y = self.map(offsets[:,0], offsets[:,1])
+
+			## Draw lines between focmec and its original position
+			x0, y0 = self.map(focmec_data.lons, focmec_data.lats)
+			arrowprops = {"lw": focmec_style.line_width,
+						"color": focmec_style.line_color,
+						"arrowstyle": "-"}
+			for i in range(len(focmec_data)):
+				if not np.allclose(offsets[i], 0):
+					self.ax.annotate("", (x0[i], y0[i]), xytext=(x[i], y[i]),
+							textcoords="data", arrowprops=arrowprops,
+							zorder=self.zorder, axes=self.ax)
+
+		else:
+			x, y = self.map(focmec_data.lons, focmec_data.lats)
 		for i in range(len(focmec_data)):
 			width = sizes[i] * conv_factor
 			style = FocmecStyle(size=width, line_width=line_widths[i], line_color=line_colors[i], fill_color=fill_colors[i], bg_color=focmec_style.bg_color, alpha=focmec_style.alpha)
@@ -1036,7 +1149,7 @@ class LayeredBasemap:
 			if isinstance(focmec_style.fill_color, ThematicStyle) and focmec_style.fill_color.add_legend:
 				colorbar_style = focmec_style.fill_color.colorbar_style
 				if isinstance(focmec_style.fill_color, ThematicStyleColormap) or colorbar_style:
-					if colorbar_style is None:
+					if colorbar_style is None and isinstance(focmec_style.thematic_legend_style, ColorbarStyle):
 						## interpret thematic_legend_style as colorbar_style
 						colorbar_style = focmec_style.thematic_legend_style
 					sm = focmec_style.fill_color.to_scalar_mappable()
@@ -1057,7 +1170,7 @@ class LayeredBasemap:
 			if isinstance(focmec_style.line_color, ThematicStyle) and focmec_style.line_color.add_legend:
 				colorbar_style = focmec_style.line_color.colorbar_style
 				if isinstance(focmec_style.line_color, ThematicStyleColormap) or colorbar_style:
-					if colorbar_style is None:
+					if colorbar_style is None and isinstance(focmec_style.thematic_legend_style, ColorbarStyle):
 						## interpret thematic_legend_style as colorbar_style
 						colorbar_style = focmec_style.thematic_legend_style
 					sm = focmec_style.line_color.to_scalar_mappable()
@@ -1089,8 +1202,14 @@ class LayeredBasemap:
 					legend_artists.append(b)
 
 			if focmec_style.thematic_legend_style and len(legend_artists) > 0:
-				thematic_legend = ThematicLegend(legend_artists, legend_labels, focmec_style.thematic_legend_style)
-				self.thematic_legends.append(thematic_legend)
+				if isinstance(focmec_style.thematic_legend_style, LegendStyle):
+					thematic_legend = ThematicLegend(legend_artists, legend_labels, focmec_style.thematic_legend_style)
+					self.thematic_legends.append(thematic_legend)
+				elif isinstance(focmec_style.thematic_legend_style, (str, unicode)):
+					legend_title = focmec_style.thematic_legend_style
+					tl_artists, tl_labels = self.get_thematic_legend_artists_and_labels(legend_title)
+					tl_artists.extend(legend_artists)
+					tl_labels.extend(legend_labels)
 
 	def draw_wms_layer(self, wms_data, wms_style):
 		self.map.wmsimage(wms_data.url, layers=wms_data.layers, verbose=wms_data.verbose, zorder=self.zorder, axes=self.ax, **wms_style.to_kwargs())
@@ -1158,6 +1277,7 @@ class LayeredBasemap:
 		self.zorder = 1
 		for l, layer in enumerate(self.layers):
 			if isinstance(layer.data, BuiltinData):
+				# TODO: legend for builtin data
 				if layer.data.feature == "continents":
 					#continent_style = layer.style
 					#ocean_style = PolygonStyle(fill_color="blue")
@@ -1177,6 +1297,8 @@ class LayeredBasemap:
 					self.draw_shadedrelief(layer.style)
 				if layer.data.feature == "etopo":
 					self.draw_etopo(layer.style)
+			elif isinstance(layer.data, TextData):
+				self._draw_texts(layer.data, layer.style)
 			elif isinstance(layer.data, FocmecData):
 				self.draw_focmecs(layer.data, layer.style)
 			elif isinstance(layer.data, CircleData):
@@ -1329,6 +1451,11 @@ class LayeredBasemap:
 			self.map.drawmapboundary(zorder=None, ax=self.ax, **self.border_style.to_kwargs())
 
 	def draw(self):
+		## Note: We call draw_map_border twice, once at the beginning
+		## and once at the end (in draw_decoration).
+		## The former is necessary to ensure correct drawing of frontlines
+		## which depends on ax.transData being correctly set
+		self.draw_map_border()
 		self.draw_layers()
 		self.draw_decoration()
 		self.is_drawn = True
