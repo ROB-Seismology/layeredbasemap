@@ -15,7 +15,62 @@ class BasemapData(object):
 	"""
 	Base class for Basemap data, containing common methods
 	"""
-	pass
+
+	@staticmethod
+	def _get_multi_values(value):
+		"""
+		Convert single-data value parameter to multi-data values,
+		used when we invoke to_multi_* methods
+
+		:param value:
+			dict or int, float, str, ...
+
+		:return:
+			dict or list of ints, floats, strs, ...
+		"""
+		if isinstance(value, dict):
+			values = {}
+			for key in value:
+				values[key] = [value[key]]
+		else:
+			values = [value]
+		return values
+
+	@staticmethod
+	def _extend_multi_values(values1, values2):
+		"""
+		Extend multi-data values with values from another multi-data object.
+
+		:param values1:
+			dict or int, float, str, ..., master values
+		:param values2:
+			dict or int, float, str, ..., values to be appended
+		"""
+		if isinstance(values1, dict):
+			for key in values1.keys():
+				if isinstance(values2, dict):
+					values1[key].extend(values2[key, []])
+		else:
+			values1.extend(values2)
+
+	@staticmethod
+	def _append_to_multi_values(values, value):
+		"""
+		Extend multi-data values with single-data value.
+
+		:param values:
+			dict or int, float, str, ..., master values
+		:param value:
+			dict or int, float, str, ..., single-data value to be appended
+		"""
+		if isinstance(values, dict):
+			for key in values.keys():
+				if isinstance(value, dict):
+					values[key].append(value[key])
+				else:
+					values[key].append(None)
+		else:
+			values.append(value)
 
 
 class BuiltinData(BasemapData):
@@ -89,12 +144,7 @@ class PointData(BasemapData):
 		:return:
 			instance of :class:`MultiPoint`
 		"""
-		if isinstance(self.value, dict):
-			values = {}
-			for key in self.value:
-				values[key] = [self.value[key]]
-		else:
-			values = [self.value]
+		values = self._get_multi_values(self.value)
 		return MultiPointData([self.lon], [self.lat], values=values, labels=[self.label])
 
 	@classmethod
@@ -221,11 +271,7 @@ class MultiPointData(BasemapData):
 		if isinstance(pt, MultiPointData):
 			self.lons = np.concatenate([self.lons, pt.lons])
 			self.lats = np.concatenate([self.lats, pt.lats])
-			if isinstance(self.values, dict):
-				for key in self.values.keys():
-					self.values[key].extend(pt.values[key])
-			else:
-				self.values.extend(pt.values)
+			self._extend_multi_values(self.values, pt.values)
 			self.labels.extend(pt.labels)
 
 	def get_masked_data(self, bbox):
@@ -359,6 +405,11 @@ class LineData(BasemapData):
 	def to_wkt(self):
 		return self.to_shapely().wkt
 
+	def to_multi_line(self):
+		values = self._get_multi_values(self.value)
+		return MultiLineData([self.lons], [self.lats], values=values,
+							labels=[self.label])
+
 	@classmethod
 	def from_wkt(cls, wkt):
 		ls = shapely.geometry.LineString(shapely.wkt.loads(wkt))
@@ -370,9 +421,13 @@ class LineData(BasemapData):
 		return cls.from_wkt(geom.ExportToWkt())
 
 	def get_midpoint(self):
+		return self.get_point_at_fraction_of_length(0.5)
+
+	def get_point_at_fraction_of_length(self, fraction):
+		assert 0 <= fraction <= 1
 		ls = self.to_shapely()
-		midPoint = ls.interpolate(ls.length/2)
-		return PointData(midPoint.x, midPoint.y)
+		pt = ls.interpolate(ls.length * fraction)
+		return PointData(pt.x, pt.y)
 
 	def get_centroid(self):
 		centroid = self.to_shapely().centroid
@@ -427,17 +482,13 @@ class MultiLineData(BasemapData):
 		if isinstance(line, LineData):
 			self.lons.append(line.lons)
 			self.lats.append(line.lats)
-			if line.value:
-				self.values.append(line.value)
-			if line.label:
-				self.labels.append(line.label)
+			self._append_to_multi_values(self.values, line.value or None)
+			self.labels.append(line.label or "")
 		elif isinstance(line, MultiLineData):
 			self.lons.extend(line.lons)
 			self.lats.extend(line.lats)
-			if line.values:
-				self.values.extend(line.values)
-			if line.labels:
-				self.labels.extend(line.labels)
+			self._extend_multi_values(self.values, line.values or [None] * len(line))
+			self.labels.extend(line.labels or [""] * len(line))
 
 	def to_shapely(self):
 		coords = [zip(self.lons[i], self.lats[i]) for i in range(len(lons))]
@@ -520,6 +571,13 @@ class PolygonData(BasemapData):
 		## Interior rings are ignored
 		return LineData(self.lons, self.lats, value=self.value, label=self.label)
 
+	def to_multi_polygon(self):
+		values = self._get_multi_values(self.value)
+		return MultiPolygonData([self.lons], [self.lats],
+					interior_lons=[self.interior_lons],
+					interior_lats=[self.interior_lats],
+					values=values, labels=[self.label])
+
 
 class MultiPolygonData(BasemapData):
 	def __init__(self, lons, lats, interior_lons=[], interior_lats=[], values=[], labels=[]):
@@ -575,13 +633,10 @@ class MultiPolygonData(BasemapData):
 		assert isinstance(polygon, PolygonData)
 		self.lons.append(polygon.lons)
 		self.lats.append(polygon.lats)
-		if polygon.interior_lons:
-			self.interior_lons.append(polygon.interior_lons)
-			self.interior_lats.append(polygon.interior_lats)
-		if polygon.value:
-			self.values.append(polygon.value)
-		if polygon.label:
-			self.labels.append(polygon.label)
+		self.interior_lons.append(polygon.interior_lons or [])
+		self.interior_lats.append(polygon.interior_lats or [])
+		self._append_to_multi_values(self.values, polygon.value or None)
+		self.labels.append(polygon.label or "")
 
 	def to_polygon(self):
 		"""
@@ -617,7 +672,11 @@ class MultiPolygonData(BasemapData):
 
 	@classmethod
 	def from_wkt(cls, wkt):
-		mpg = shapely.geometry.MultiPolygon(shapely.wkt.loads(wkt))
+		try:
+			mpg = shapely.geometry.MultiPolygon(shapely.wkt.loads(wkt))
+		except:
+			print wkt
+			raise
 		exterior_lons, exterior_lats = [], []
 		interior_lons, interior_lats = [], []
 		for pg in mpg:
@@ -643,11 +702,12 @@ class FocmecData(MultiPointData):
 	"""
 	# TODO: Add possibility to plot mechanism at different location
 	# (different coordinates or offset?)
-	def __init__(self, lons, lats, sdr, values=[], labels=[]):
+	def __init__(self, lons, lats, sdr, values=[], labels=[], offsets=[]):
 		super(FocmecData, self).__init__(lons, lats, values, labels)
 		self.sdr = sdr
+		self.offsets = offsets
 
-	def sort(self, value_key=None, ascending=True):
+	def argsort(self, value_key=None, ascending=True):
 		"""
 		:param value_key:
 			str, name of value column to be used for sorting
@@ -660,8 +720,9 @@ class FocmecData(MultiPointData):
 		:return:
 			array with indexes representing sort order
 		"""
+		# TODO: not used for the moment
 		sorted_indexes = MultiPointData.sort(self, value_key=value_key, ascending=ascending)
-		self.sdr = np.array(self.sdr)[sorted_indexes]
+		#self.sdr = np.array(self.sdr)[sorted_indexes]
 		return sorted_indexes
 
 
@@ -707,6 +768,35 @@ class GreatCircleData(MultiPointData):
 		"""
 		i = index
 		return (self.lons[i*2], self.lats[i*2], self.lons[i*2+1], self.lats[i*2+1])
+
+
+class TextData(BasemapData):
+	"""
+	Class representing text data.
+
+	:param lons:
+		list or array of floats, longitudes
+	:param lats:
+		list or array of floats, latitudes
+	:param labels:
+		list of strings, labels to be plotted
+	"""
+	# TODO: add offsets, rotations?
+	def __init__(self, lons, lats, labels):
+		self.lons = lons
+		self.lats = lats
+		self.labels = labels
+
+	def append(self, pt_data):
+		"""
+		Append from single-point data.
+
+		:param pt_data:
+			instance of :class:`PointData`
+		"""
+		self.lons.append(pt_data.lon)
+		self.lats.append(pt_data.lat)
+		self.labels.append(pt_data.label or "")
 
 
 class MaskData(BasemapData):
@@ -965,9 +1055,9 @@ class GdalRasterData(MeshGridData):
 			and rows
 		- :prop:`dx`, :prop:`dy`: int, cell size in X and Y direction
 			in the native spatial reference system
-		- :prop:`xmin`, :prop:`xmax`: float, extent in X direction in
+		- :prop:`x0`, :prop:`x1`: float, extent in X direction in
 			the native spatial reference system (center of grid cells)
-		- :prop:`ymin`, :prop:`ymax`: float, extent in Y direction in
+		- :prop:`y0`, :prop:`y1`: float, extent in Y direction in
 			the native spatial reference system (center of grid cells)
 		"""
 		import gdal, osr
@@ -1533,45 +1623,51 @@ class GisData(BasemapData):
 				if geom_type == "POINT":
 					pt = PointData.from_ogr(geom)
 					pt.label = label
+					pt.value = rec
 					point_data.append(pt)
-					for colname in point_value_colnames:
-						point_data.values[colname].append(rec[colname])
+					#for colname in point_value_colnames:
+					#	point_data.values[colname].append(rec[colname])
 				elif geom_type == "MULTIPOINT":
 					# TODO: needs to be tested
 					multi_pt = MultiPointData.from_ogr(geom)
 					for pt in multi_pt:
 						pt.label = label
+						pt.value = rec
 						point_data.append(pt)
-						for colname in point_value_colnames:
-							point_data.values[colname].append(rec[colname])
+						#for colname in point_value_colnames:
+						#	point_data.values[colname].append(rec[colname])
 				elif geom_type == "LINESTRING":
 					line = LineData.from_ogr(geom)
 					line.label = label
+					line.value = rec
 					line_data.append(line)
-					for colname in line_value_colnames:
-						line_data.values[colname].append(rec[colname])
+					#for colname in line_value_colnames:
+					#	line_data.values[colname].append(rec[colname])
 				elif geom_type == "MULTILINESTRING":
 					multi_line = MultiLineData.from_ogr(geom)
 					for line in multi_line:
 						line.label = label
+						line.value = rec
 						line_data.append(line)
-						for colname in line_value_colnames:
-							line_data.values[colname].append(rec[colname])
+						#for colname in line_value_colnames:
+						#	line_data.values[colname].append(rec[colname])
 				elif geom_type == "POLYGON":
 					## Silently skip polygons with less than 3 points
 					if geom.GetGeometryRef(0).GetPointCount() > 2:
 						polygon = PolygonData.from_ogr(geom)
 						polygon.label = label
+						polygon.value = rec
 						polygon_data.append(polygon)
-						for colname in polygon_value_colnames:
-							polygon_data.values[colname].append(rec[colname])
+						#for colname in polygon_value_colnames:
+						#	polygon_data.values[colname].append(rec[colname])
 				elif geom_type == "MULTIPOLYGON":
 					multi_polygon = MultiPolygonData.from_ogr(geom)
 					for polygon in multi_polygon:
 						polygon.label = label
+						polygon.value = rec
 						polygon_data.append(polygon)
-						for colname in polygon_value_colnames:
-							polygon_data.values[colname].append(rec[colname])
+						#for colname in polygon_value_colnames:
+						#	polygon_data.values[colname].append(rec[colname])
 
 		## Append joined attributes
 		for attrib_name in self.joined_attributes.keys():
