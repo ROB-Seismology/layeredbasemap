@@ -10,7 +10,7 @@ import mapping.Basemap as lbm
 
 
 ## Read communes from database
-db_records = list(seismodb.read_table("communes", where_clause='country="BE"'))
+db_records = list(seismodb.query_seismodb_table("communes", where_clause='country="BE"'))
 
 ## Read GIS table
 #gis_filespec = r"D:\seismo-gis\collections\Bel_administrative_ROB\TAB\Bel_villages_points.TAB"
