@@ -29,7 +29,48 @@ class BasemapStyle(object):
 				setattr(style, key, style_dict[key])
 		return style
 
+	def to_dict(self):
+		"""
+		Convert style to dictionary.
+
+		:return:
+			dict
+		"""
+		d = {}
+		for attr in dir(self):
+			if not attr.startswith('__') and not callable(getattr(self, attr)):
+				d[attr] = getattr(self, attr, None)
+		return d
+
+	@classmethod
+	def from_dict(cls, d):
+		"""
+		Construct style from dictionary.
+
+		:param d:
+			dict
+
+		:return:
+			instance of :class:`BasemapStyle` or derived class
+		"""
+		return cls(**d)
+
+	def copy(self):
+		"""
+		Create a shallow copy of the current style.
+
+		:return:
+			instance of :class:`BasemapStyle` or derived class
+		"""
+		return self.from_dict(self.to_dict())
+
 	def copy_from(self, other):
+		"""
+		Copy properties from another style.
+
+		:param other:
+			instance of :class:`BasemapStyle` or derived class
+		"""
 		for attr in dir(self):
 			if not attr.startswith('__') and not callable(getattr(self, attr)):
 				val = getattr(other, attr, None)
@@ -162,6 +203,8 @@ class TextStyle(FontStyle):
 		d["va"] = self.vertical_alignment
 		d["multialignment"] = self.multi_alignment
 		d["alpha"] = self.alpha
+		# TODO: fully implement bbox parameters
+		#d["bbox"] = {"pad": 0}
 		return d
 
 	def get_text(self, text):
@@ -579,7 +622,8 @@ class LineStyle(BasemapStyle):
 		d["solid_joinstyle"] = self.solid_joinstyle
 		d["dash_capstyle"] = self.dash_capstyle
 		d["dash_joinstyle"] = self.dash_joinstyle
-		d["dashes"] = self.dash_pattern
+		if self.dash_pattern:
+			d["dashes"] = self.dash_pattern
 		d["alpha"] = self.alpha
 		return d
 
@@ -606,7 +650,12 @@ class PolygonStyle(BasemapStyle):
 		(default: 'w')
 	:param fill_hatch:
 		char, hatch pattern format string:
-		"/" | "\" | "|" | "-" | "+" | "x" | "o" | "O" | "." | "*"
+		"/" | r"\" | "|" | "-" | "+" | "x" | "o" | "O" | "." | "*"
+		Note: repeat pattern format to increase density, e.g. "//"
+		or "..."
+	:param hatch_color:
+		matplotlib color spec
+		(default: 'k')
 	:param label_style:
 		instance of :class:`TextStyle`. If None, no labels will be plotted
 		(default: None)
@@ -617,12 +666,14 @@ class PolygonStyle(BasemapStyle):
 		labels will be added to (e.g., "main")
 		(default: None)
 	"""
-	def __init__(self, line_pattern="solid", line_width=1, line_color='k', fill_color='w', fill_hatch=None, label_style=None, alpha=1., thematic_legend_style=None):
+	# TODO: add dash_pattern as well!
+	def __init__(self, line_pattern="solid", line_width=1, line_color='k', fill_color='w', fill_hatch=None, hatch_color='k', label_style=None, alpha=1., thematic_legend_style=None):
 		self.line_pattern = {'-': 'solid', '--': 'dashed', ':': 'dotted', '-.': 'dashdot'}.get(line_pattern, line_pattern)
 		self.line_width = line_width
 		self.line_color = line_color
 		self.fill_color = fill_color
 		self.fill_hatch = fill_hatch
+		self.hatch_color = hatch_color
 		self.label_style = label_style
 		self.alpha = alpha
 		self.thematic_legend_style = thematic_legend_style
@@ -668,7 +719,7 @@ class PolygonStyle(BasemapStyle):
 			fill_hatch = None
 		else:
 			fill_hatch = self.fill_hatch
-		return PolygonStyle(line_pattern, line_width, line_color, fill_color, fill_hatch, self.label_style, self.alpha, self.thematic_legend_style)
+		return PolygonStyle(line_pattern, line_width, line_color, fill_color, fill_hatch, self.hatch_color, self.label_style, self.alpha, self.thematic_legend_style)
 
 	def to_line_style(self):
 		"""
@@ -696,6 +747,11 @@ class PolygonStyle(BasemapStyle):
 		d["ec"] = self.line_color
 		d["fc"] = self.fill_color
 		d["hatch"] = self.fill_hatch
+		if not self.hatch_color in (None, "None", "none"):
+			## override ec
+			d["ec"] = self.hatch_color
+			if self.line_color in (None, "None", "none"):
+				d["lw"] = 0
 		d["alpha"] = self.alpha
 		return d
 
