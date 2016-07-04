@@ -4,7 +4,6 @@ Generic wrapper for creating maps with Basemap
 
 import os
 import datetime
-from copy import copy
 
 import numpy as np
 import matplotlib
@@ -415,7 +414,7 @@ class LayeredBasemap:
 				legend_label = {True: legend_label, False: "_nolegend_"}[i==0]
 			## Apply thematic styles
 			#style = PolygonStyle(line_pattern=line_pattern, line_width=line_width, line_color=line_color, fill_color=fill_color, fill_hatch=fill_hatch, label_style=None, alpha=polygon_style.alpha)
-			style = copy(polygon_style)
+			style = polygon_style.copy()
 			style.line_pattern = line_patterns[i]
 			style.line_width = line_widths[i]
 			style.line_color = line_colors[i]
@@ -558,13 +557,13 @@ class LayeredBasemap:
 			## Apply thematic styles
 			# TODO: several line style parameters are missing here
 			#style = LineStyle(line_pattern=line_pattern, line_width=line_width, line_color=line_color, label_style=None, alpha=line_style.alpha)
-			style = copy(line_style)
+			style = line_style.copy()
 			style.line_pattern = line_patterns[i]
 			style.line_width = line_widths[i]
 			style.line_color = line_colors[i]
 			style.label_style = None
 			if line_style.front_style:
-				style.front_style = copy(line_style.front_style)
+				style.front_style = line_style.front_style.copy()
 				if style.front_style.line_width is None:
 					style.front_style.line_width = style.line_width
 				if style.front_style.line_color is None:
@@ -599,7 +598,7 @@ class LayeredBasemap:
 					#label_points.lats.append(lp.lat)
 					#label_points.labels.append(line.label)
 					if line_style.label_style.rotation == "auto":
-						label_style = copy(line_style.label_style)
+						label_style = line_style.label_style.copy()
 						## Set rotation
 						## Note: doesn't play nicely with horizontal and vertical
 						## text alignment...
@@ -996,6 +995,7 @@ class LayeredBasemap:
 		self.zorder += 1
 
 	def draw_grid_vector_layer(self, vector_data, vector_style):
+		# TODO: thematic legend with size of vector! (pylab.quiverkey)
 		try:
 			x, y = vector_data.grdx.get_mesh_coordinates("center")
 		except AttributeError:
@@ -1087,7 +1087,7 @@ class LayeredBasemap:
 		display_x0, display_y0 = self.map_to_display_coordinates([x0], [y0])
 		display_x1 = display_x0[0] + 100
 		x1, y1 = self.map_from_display_coordinates([display_x1], display_y0)
-		conv_factor = float(x1[0] - x0) / 100
+		conv_factor = float(x1[0] - x0) * self.dpi / 120 / 100
 
 		## Thematic mapping
 		if isinstance(focmec_style.size, ThematicStyle):
