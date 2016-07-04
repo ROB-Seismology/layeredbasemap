@@ -1574,11 +1574,11 @@ class GisData(BasemapData):
 		if None in (point_value_colnames, line_value_colnames, polygon_value_colnames):
 			colnames = read_GIS_file_attributes(self.filespec)
 		if point_value_colnames is None:
-			point_value_colnames = colnames
+			point_value_colnames = colnames[:]
 		if line_value_colnames is None:
-			line_value_colnames = colnames
+			line_value_colnames = colnames[:]
 		if polygon_value_colnames is None:
-			polygon_value_colnames = colnames
+			polygon_value_colnames = colnames[:]
 
 		## Make sure attributes needed to link with joined_attributes are stored too
 		joined_attribute_colnames = set()
@@ -1623,51 +1623,39 @@ class GisData(BasemapData):
 				if geom_type == "POINT":
 					pt = PointData.from_ogr(geom)
 					pt.label = label
-					pt.value = rec
+					pt.value = {k: rec[k] for k in point_value_colnames if k in rec}
 					point_data.append(pt)
-					#for colname in point_value_colnames:
-					#	point_data.values[colname].append(rec[colname])
 				elif geom_type == "MULTIPOINT":
 					# TODO: needs to be tested
 					multi_pt = MultiPointData.from_ogr(geom)
 					for pt in multi_pt:
 						pt.label = label
-						pt.value = rec
+						pt.value = {k: rec[k] for k in point_value_colnames if k in rec}
 						point_data.append(pt)
-						#for colname in point_value_colnames:
-						#	point_data.values[colname].append(rec[colname])
 				elif geom_type == "LINESTRING":
 					line = LineData.from_ogr(geom)
 					line.label = label
-					line.value = rec
+					line.value = {k: rec[k] for k in line_value_colnames if k in rec}
 					line_data.append(line)
-					#for colname in line_value_colnames:
-					#	line_data.values[colname].append(rec[colname])
 				elif geom_type == "MULTILINESTRING":
 					multi_line = MultiLineData.from_ogr(geom)
 					for line in multi_line:
 						line.label = label
-						line.value = rec
+						line.value = {k: rec[k] for k in line_value_colnames if k in rec}
 						line_data.append(line)
-						#for colname in line_value_colnames:
-						#	line_data.values[colname].append(rec[colname])
 				elif geom_type == "POLYGON":
 					## Silently skip polygons with less than 3 points
 					if geom.GetGeometryRef(0).GetPointCount() > 2:
 						polygon = PolygonData.from_ogr(geom)
 						polygon.label = label
-						polygon.value = rec
+						polygon.value = {k: rec[k] for k in polygon_value_colnames if k in rec}
 						polygon_data.append(polygon)
-						#for colname in polygon_value_colnames:
-						#	polygon_data.values[colname].append(rec[colname])
 				elif geom_type == "MULTIPOLYGON":
 					multi_polygon = MultiPolygonData.from_ogr(geom)
 					for polygon in multi_polygon:
 						polygon.label = label
-						polygon.value = rec
+						polygon.value = {k: rec[k] for k in polygon_value_colnames if k in rec}
 						polygon_data.append(polygon)
-						#for colname in polygon_value_colnames:
-						#	polygon_data.values[colname].append(rec[colname])
 
 		## Append joined attributes
 		for attrib_name in self.joined_attributes.keys():
