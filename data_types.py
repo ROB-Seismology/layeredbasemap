@@ -539,19 +539,24 @@ class PolygonData(BasemapData):
 		return self.to_shapely().wkt
 
 	@classmethod
-	def from_wkt(cls, wkt):
-		#pg = shapely.geometry.Polygon(shapely.wkt.loads(wkt))
-		pg = shapely.wkt.loads(wkt)
+	def from_shapely(cls, pg, value=None, label=""):
+		assert pg.geom_type == "Polygon"
 		exterior_lons, exterior_lats = zip(*pg.exterior.coords)
 		interior_lons, interior_lats = [], []
 		for interior_ring in pg.interiors:
 			lons, lats = zip(*interior_ring.coords)
 			interior_lons.append(lons)
 			interior_lats.append(lats)
-		return PolygonData(exterior_lons, exterior_lats, interior_lons, interior_lats)
+		return PolygonData(exterior_lons, exterior_lats, interior_lons, interior_lats,
+						value=value, label=label)
 
 	@classmethod
-	def from_ogr(cls, geom):
+	def from_wkt(cls, wkt, value=None, label=""):
+		pg = shapely.wkt.loads(wkt)
+		return cls.from_shapely(pg, value=value, label=label)
+
+	@classmethod
+	def from_ogr(cls, geom, value=None, label=""):
 		## Correct invalid polygons with more than 1 linear ring
 		import ogr
 		num_rings = geom.GetGeometryCount()
@@ -561,7 +566,7 @@ class PolygonData(BasemapData):
 			poly = ogr.Geometry(ogr.wkbPolygon)
 			poly.AddGeometry(geom.GetGeometryRef(idx))
 			geom = poly
-		return cls.from_wkt(geom.ExportToWkt())
+		return cls.from_wkt(geom.ExportToWkt(), value=value, label=label)
 
 	def get_centroid(self):
 		centroid = self.to_shapely().centroid
@@ -577,6 +582,29 @@ class PolygonData(BasemapData):
 					interior_lons=[self.interior_lons],
 					interior_lats=[self.interior_lats],
 					values=values, labels=[self.label])
+
+	def clip_to_polygon(self, polygon):
+		# TODO: set values, labels !
+		shape = self.to_shapely()
+		polygon = polygon.to_shapely()
+		intersection = shape.intersection(polygon)
+		if intersection.geom_type == "Polygon":
+			return self.from_wkt(intersection.wkt)
+		elif intersection.geom_type == "MultiPolygon":
+			return MultiPolygonData.from_wkt(intersection.wkt)
+		else:
+			print intersection.wkt
+
+	def get_bbox(self):
+		lonmin, lonmax = np.min(self.lons), np.max(self.lons)
+		latmin, latmax = np.min(self.lats), np.max(self.lats)
+		return (lonmin, lonmax, latmin, latmax)
+
+	def is_closed(self):
+		if self.lons[0] == self.lons[-1] and self.lats[0] == self.lats[-1]:
+			return True
+		else:
+			return False
 
 
 class MultiPolygonData(BasemapData):
@@ -695,6 +723,21 @@ class MultiPolygonData(BasemapData):
 	@classmethod
 	def from_ogr(cls, geom):
 		return cls.from_wkt(geom.ExportToWkt())
+
+	@classmethod
+	def from_shapely(cls, shape):
+		return self.from_wkt(shape.wkt)
+
+	def clip_to_polygon(self, polygon):
+		shape = self.to_shapely()
+		polygon = polygon.to_shapely()
+		intersection = shape.intersection(polygon)
+		if intersection.geom_type == "Polygon":
+			return PolygonData.from_wkt(intersection.wkt).to_multi_polygon()
+		elif intersection.geom_type == "MultiPolygon":
+			return self.from_wkt(intersection.wkt)
+		else:
+			print intersection.wkt
 
 
 class FocmecData(MultiPointData):
@@ -1574,11 +1617,11 @@ class GisData(BasemapData):
 		if None in (point_value_colnames, line_value_colnames, polygon_value_colnames):
 			colnames = read_GIS_file_attributes(self.filespec)
 		if point_value_colnames is None:
-			point_value_colnames = colnames[:]
+			point_value_colnames = set(colnames)
 		if line_value_colnames is None:
-			line_value_colnames = colnames[:]
+			line_value_colnames = set(colnames)
 		if polygon_value_colnames is None:
-			polygon_value_colnames = colnames[:]
+			polygon_value_colnames = set(colnames)
 
 		## Make sure attributes needed to link with joined_attributes are stored too
 		joined_attribute_colnames = set()
@@ -1613,6 +1656,9 @@ class GisData(BasemapData):
 					selected[i] = 0
 			if selected.all():
 				label = rec.get(self.label_colname)
+				if label is None and self.label_colname in self.joined_attributes:
+					key = self.joined_attributes[self.label_colname]['key']
+					label = self.joined_attributes[self.label_colname]['values'].get(rec[key])
 				geom = rec['obj']
 				geom_type = geom.GetGeometryName()
 				## Silently convert closed polylines to polygons
