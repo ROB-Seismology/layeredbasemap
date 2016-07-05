@@ -354,7 +354,7 @@ class LayeredBasemap:
 				self.legend_artists.append(patch)
 				self.legend_labels.append(legend_label)
 
-	def _draw_texts(self, text_points, style):
+	def _draw_texts(self, text_points, text_style):
 		## Note: labels must have same rotation
 		# TODO: mechanism for individual offsets (in text_points), overriding offset
 		# in style
@@ -365,8 +365,12 @@ class LayeredBasemap:
 		#x, y = self.map_from_display_coordinates(display_x, display_y)
 		x, y = self.map(text_points.lons, text_points.lats)
 		for i, label in enumerate(text_points.labels):
+			if text_points.style_params:
+				style = text_style.copy()
+				style.update(text_points._get_style_params_at_index(i))
+			else:
+				style = text_style
 			label = style.get_text(label)
-			_style = style.copy()
 
 			if isinstance(label, str):
 				label = label.decode('iso-8859-1')
