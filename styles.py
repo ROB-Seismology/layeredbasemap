@@ -592,7 +592,7 @@ class LineStyle(BasemapStyle):
 			line_color = 'k'
 		else:
 			line_color = self.line_color
-		return LineStyle(line_pattern, line_width, line_color, self.solid_capstyle, self.solid_joinstyle, self.dash_capstyle, self.dash_joinstyle, self.label_style, self.front_style, self.dash_pattern, self.alpha, self.thematic_legend_style)
+		return LineStyle(line_pattern, line_width, line_color, self.solid_capstyle, self.solid_joinstyle, self.dash_capstyle, self.dash_joinstyle, self.label_style, self.label_anchor, self.front_style, self.dash_pattern, self.alpha, self.thematic_legend_style)
 
 	def to_line_style(self):
 		"""
@@ -624,6 +624,8 @@ class LineStyle(BasemapStyle):
 		d["dash_joinstyle"] = self.dash_joinstyle
 		if self.dash_pattern:
 			d["dashes"] = self.dash_pattern
+		else:
+			d["dashes"] = (None, None)
 		d["alpha"] = self.alpha
 		return d
 
