@@ -323,6 +323,7 @@ class LayeredBasemap:
 			fill = 0
 		else:
 			fill = 1
+
 		if len(polygon.interior_lons) == 0:
 			## Simple polygon
 			x, y = self.map(polygon.lons, polygon.lats)
@@ -365,6 +366,8 @@ class LayeredBasemap:
 		x, y = self.map(text_points.lons, text_points.lats)
 		for i, label in enumerate(text_points.labels):
 			label = style.get_text(label)
+			_style = style.copy()
+
 			if isinstance(label, str):
 				label = label.decode('iso-8859-1')
 			#self.ax.text(x[i], y[i], label, zorder=self.zorder, **style.to_kwargs())
@@ -380,6 +383,13 @@ class LayeredBasemap:
 		"""
 		polygon_data: MultiPolygon
 		"""
+		## Clip to map region
+		#region = (self.region[0], self.region[1], self.region[2], self.region[3])
+		#lons = [region[0], region[1], region[1], region[0], region[0]]
+		#lats = [region[2], region[2], region[3], region[3], region[2]]
+		#map_polygon = PolygonData(lons, lats)
+		#polygon_data = polygon_data.clip_to_polygon(map_polygon)
+
 		# TODO: use PolyCollection / PatchCollection
 		if isinstance(polygon_data, PolygonData):
 			polygon_data = polygon_data.to_multi_polygon()
@@ -603,9 +613,9 @@ class LayeredBasemap:
 						## Note: doesn't play nicely with horizontal and vertical
 						## text alignment...
 						if label_anchor < 0.95:
-							pt2 = line.get_point_at_fraction_of_length(label_anchor + 0.05)
+							pt2 = line.get_point_at_fraction_of_length(label_anchor + 0.25)
 						else:
-							pt2 = line.get_point_at_fraction_of_length(label_anchor - 0.05)
+							pt2 = line.get_point_at_fraction_of_length(label_anchor - 0.25)
 						display_x, display_y = self.lonlat_to_display_coordinates([pt.lon, pt2.lon], [pt.lat, pt2.lat])
 						[dx], [dy] = np.diff(display_y), np.diff(display_x)
 						label_style.rotation = np.degrees(np.arctan(dy/dx))
@@ -840,6 +850,7 @@ class LayeredBasemap:
 			vmin = grid_style.color_map_theme.vmin
 			vmax = grid_style.color_map_theme.vmax
 			alpha = grid_style.color_map_theme.alpha
+			grid_style.color_map_theme.alpha = 1.
 		else:
 			cmap = None
 
@@ -913,7 +924,7 @@ class LayeredBasemap:
 					grid_style.color_map_theme.vmax = vmax or data.max()
 					cs = grid_style.color_map_theme.to_scalar_mappable()
 				else:
-					cs = self.map.pcolormesh(x, y, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, linewidth=0, rasterized=True, zorder=self.zorder)
+					cs = self.map.pcolormesh(x, y, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, linewidth=0, rasterized=True, alpha=alpha, zorder=self.zorder)
 				if alpha < 1:
 					print("Warning: Due to a bug in matplotlib, gridlines are visible when alpha < 1!")
 					## Note: nothing helps to remove the gridlines
