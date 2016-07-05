@@ -16,6 +16,8 @@ class BasemapData(object):
 	Base class for Basemap data, containing common methods
 	"""
 
+
+class SingleData(BasemapData):
 	@staticmethod
 	def _get_multi_values(value):
 		"""
@@ -36,6 +38,8 @@ class BasemapData(object):
 			values = [value]
 		return values
 
+
+class MultiData(BasemapData):
 	@staticmethod
 	def _extend_multi_values(values1, values2):
 		"""
@@ -72,6 +76,64 @@ class BasemapData(object):
 		else:
 			values.append(value)
 
+	def _get_value_at_index(self, index):
+		"""
+		Fetch value corresponding to given index.
+
+		:param index:
+			int
+
+		:return:
+			dict or single value
+		"""
+		if isinstance(self.values, dict):
+			value = {}
+			for key in self.values.keys():
+				try:
+					value[key] = self.values[key][index]
+				except:
+					value[key] = None
+		else:
+			try:
+				value = self.values[index]
+			except:
+				value = None
+		return value
+
+	def _get_label_at_index(self, index):
+		"""
+		Fetch label corresponding to given index.
+
+		:param index:
+			int
+
+		:return:
+			str
+		"""
+		try:
+			label = self.labels[index]
+		except:
+			label = ""
+		return label
+
+	def _get_style_params_at_index(self, index):
+		"""
+		Fetch style params corresponding to given index.
+
+		:param index:
+			int
+
+		:return:
+			dict
+		"""
+		style_params = {}
+		for key in self.style_params.keys():
+			try:
+				style_params[key] = self.style_params[key][index]
+			except:
+				style_params[key] = None
+		return style_params
+
 
 class BuiltinData(BasemapData):
 	"""
@@ -91,7 +153,7 @@ class BuiltinData(BasemapData):
 			setattr(self, key, val)
 
 
-class PointData(BasemapData):
+class PointData(SingleData):
 	"""
 	Basemap data corresponding to a single point
 
@@ -108,12 +170,17 @@ class PointData(BasemapData):
 		str, label to be plotted alongside point (if label_style in
 		corresponding layer style is not None)
 		(default: "")
+	:param style_params:
+		dict, mapping style parameters to a value. These values will
+		override the overall layer style.
+		(default: {})
 	"""
-	def __init__(self, lon, lat, value=None, label=""):
+	def __init__(self, lon, lat, value=None, label="", style_params={}):
 		self.lon = lon
 		self.lat = lat
 		self.value = value
 		self.label = label
+		self.style_params = style_params
 
 	def __len__(self):
 		return 1
@@ -145,37 +212,67 @@ class PointData(BasemapData):
 			instance of :class:`MultiPoint`
 		"""
 		values = self._get_multi_values(self.value)
-		return MultiPointData([self.lon], [self.lat], values=values, labels=[self.label])
+		return MultiPointData([self.lon], [self.lat], values=values,
+							labels=[self.label])
 
 	@classmethod
-	def from_wkt(cls, wkt):
+	def from_shapely(cls, pt, value=None, label="", style_params={}):
+		"""
+		Create from shapely Point object.
+
+		:param pt:
+			instance of :class:`shapely.geometry.Point`
+		:param value:
+		:param label:
+		:param style_params:
+			see :meth:`__init__`
+
+		:return:
+			instance of :class:`PointData`
+		"""
+		assert pt.geom_type == "Point"
+		return PointData(pt.x, pt.y, value=value, label=label,
+						style_params=style_params)
+
+	@classmethod
+	def from_wkt(cls, wkt, value=None, label="", style_params={}):
 		"""
 		Create from well-known text
 
 		:param wkt:
 			str, well-known text desciption of geometry
+		:param value:
+		:param label:
+		:param style_params:
+			see :meth:`__init__`
 
 		:return:
 			instance of :class:`PointData`
 		"""
 		pt = shapely.geometry.Point(shapely.wkt.loads(wkt))
-		return PointData(pt.x, pt.y)
+		return cls.from_shapely(pt, value=value, label=label,
+								style_params=style_params)
 
 	@classmethod
-	def from_ogr(cls, geom):
+	def from_ogr(cls, geom, value=None, label="", style_params={}):
 		"""
 		Create from OGRPoint object
 
 		:param geom:
 			OGRPoint object
+		:param value:
+		:param label:
+		:param style_params:
+			see :meth:`__init__`
 
 		:return:
 			instance of :class:`PointData`
 		"""
-		return cls.from_wkt(geom.ExportToWkt())
+		return cls.from_wkt(geom.ExportToWkt(), value=value, label=label,
+							style_params=style_params)
 
 
-class MultiPointData(BasemapData):
+class MultiPointData(MultiData):
 	"""
 	Basemap data corresponding to a group of points
 
@@ -193,12 +290,17 @@ class MultiPointData(BasemapData):
 		list of strings, labels to be plotted alongside points (if
 		label_style in corresponding layer style is not None)
 		(default: [])
+	:param style_params:
+		dict, mapping style parameters to a list of values. These values
+		will override the overall layer style.
+		(default: {})
 	"""
-	def __init__(self, lons, lats, values=[], labels=[]):
+	def __init__(self, lons, lats, values=[], labels=[], style_params={}):
 		self.lons = lons
 		self.lats = lats
 		self.values = values
 		self.labels = labels
+		self.style_params = style_params
 
 	def __len__(self):
 		return len(self.lons)
@@ -210,24 +312,11 @@ class MultiPointData(BasemapData):
 	def __getitem__(self, index):
 		lon = self.lons[index]
 		lat = self.lats[index]
-		if isinstance(self.values, dict):
-			value = {}
-			value_keys = self.values.keys()
-			for key in value_keys:
-				try:
-					value[key] = self.values[key][i]
-				except:
-					value[key] = None
-		else:
-			try:
-				value = self.values[index]
-			except:
-				value = None
-		try:
-			label = self.labels[index]
-		except:
-			label = ""
-		return PointData(lon, lat, value, label)
+		value = self._get_value_at_index(index)
+		label = self._get_label_at_index(index)
+		style_params = self._get_style_params_at_index(index)
+		return PointData(lon, lat, value=value, label=label,
+						style_params=style_params)
 
 	@classmethod
 	def from_points(cls, point_list):
@@ -242,22 +331,16 @@ class MultiPointData(BasemapData):
 		"""
 		lons, lats, labels = [], [], []
 		pt0 = point_list[0]
-		if isinstance(pt0.value, dict):
-			values = {}
-			for key in pt0.value.keys():
-				values[key] = []
-		else:
-			values = []
+		values = SingleData._get_multi_values(pt0.value)
+		style_params = SingleData._get_multi_values(pt0.style_params)
 		for pt in point_list:
 			lons.append(pt.lon)
 			lats.append(pt.lat)
 			labels.append(pt.label)
-			if isinstance(values, dict):
-				for key in values.keys():
-					values[key].append(pt.value[key])
-			else:
-				values.append(pt.value)
-		return MultiPointData(lons, lats, values, labels)
+			cls._append_to_multi_values(values, pt.value)
+			cls._append_to_multi_values(style_params, pt.style_params)
+		return MultiPointData(lons, lats, values=values, labels=labels,
+							style_params=style_params)
 
 	def append(self, pt):
 		"""
@@ -273,6 +356,7 @@ class MultiPointData(BasemapData):
 			self.lats = np.concatenate([self.lats, pt.lats])
 			self._extend_multi_values(self.values, pt.values)
 			self.labels.extend(pt.labels)
+			self._extend_multi_values(self.style_params, pt.style_params)
 
 	def get_masked_data(self, bbox):
 		"""
@@ -298,7 +382,11 @@ class MultiPointData(BasemapData):
 				values[key] = ma.array(val, mask=lon_mask.mask + latmask.mask).compressed()
 		else:
 			values = ma.array(values, mask=lon_mask.mask + latmask.mask).compressed()
-		return MultiPointData(lons, lats, values, labels)
+		style_params = {}
+		for key, val in self.style_params.items():
+			style_params[key] = ma.array(val, mask=lon_mask.mask + latmask.mask).compressed()
+		return MultiPointData(lons, lats, values=values, labels=labels,
+							style_params=style_params)
 
 	def to_shapely(self):
 		"""
@@ -316,31 +404,60 @@ class MultiPointData(BasemapData):
 		return self.to_shapely().wkt
 
 	@classmethod
-	def from_wkt(cls, wkt):
+	def from_shapely(cls, mp, values=[], labels=[], style_params={}):
+		"""
+		Create from shapely MultiPoint object
+
+		:param mp:
+			instance of :class:`shapely.geometry.MultiPoint`
+		:param values:
+		:param labels:
+		:param style_params:
+			see :meth:`__init__`
+
+		:return:
+			instance of :class:`MultiPointData`
+		"""
+		assert mp.geom_type == "MultiPoint"
+		return MultiPointData([pt.x for pt in mp], [pt.y for pt in mp],
+						values=values, labels=labels, style_params=style_params)
+
+	@classmethod
+	def from_wkt(cls, wkt, values=[], labels=[], style_params={}):
 		"""
 		Create from well-known text
 
 		:param wkt:
 			str, well-known text desciption of geometry
+		:param values:
+		:param labels:
+		:param style_params:
+			see :meth:`__init__`
 
 		:return:
 			instance of :class:`MultiPointData`
 		"""
 		mp = shapely.geometry.MultiPoint(shapely.wkt.loads(wkt))
-		return MultiPointData([pt.x for pt in mp], [pt.y for pt in mp])
+		return cls.from_shapely(mp, values=values, labels=labels,
+								style_params=style_params)
 
 	@classmethod
-	def from_ogr(cls, geom):
+	def from_ogr(cls, geom, values=[], labels=[], style_params={}):
 		"""
 		Create from OGRMultiPoint object
 
 		:param geom:
 			OGRMultiPoint object
+		:param values:
+		:param labels:
+		:param style_params:
+			see :meth:`__init__`
 
 		:return:
 			instance of :class:`MultiPointData`
 		"""
-		return cls.from_wkt(geom.ExportToWkt())
+		return cls.from_wkt(geom.ExportToWkt(), values=values, labels=labels,
+							style_params=style_params)
 
 	def get_centroid(self):
 		"""
@@ -382,10 +499,12 @@ class MultiPointData(BasemapData):
 		if sorted_indexes != None:
 			self.lons = np.array(self.lons)[sorted_indexes]
 			self.lats = np.array(self.lats)[sorted_indexes]
+			for key in self.style_params:
+				self.style_params[key] = np.array(self.style_params[key])[sorted_indexes]
 		return sorted_indexes
 
 
-class LineData(BasemapData):
+class LineData(SingleData):
 	def __init__(self, lons, lats, value=None, label=""):
 		self.lons = lons
 		self.lats = lats
@@ -411,14 +530,19 @@ class LineData(BasemapData):
 							labels=[self.label])
 
 	@classmethod
-	def from_wkt(cls, wkt):
-		ls = shapely.geometry.LineString(shapely.wkt.loads(wkt))
+	def from_shapely(cls, ls, value=None, label=""):
+		assert ls.geom_type == "LineString"
 		lons, lats = zip(*ls.coords)
-		return LineData(lons, lats)
+		return LineData(lons, lats, value=value, label=label)
 
 	@classmethod
-	def from_ogr(cls, geom):
-		return cls.from_wkt(geom.ExportToWkt())
+	def from_wkt(cls, wkt, value=None, label=""):
+		ls = shapely.geometry.LineString(shapely.wkt.loads(wkt))
+		return cls.from_shapely(ls, value=value, label=label)
+
+	@classmethod
+	def from_ogr(cls, geom, value=None, label=""):
+		return cls.from_wkt(geom.ExportToWkt(), value=value, label=label)
 
 	def get_midpoint(self):
 		return self.get_point_at_fraction_of_length(0.5)
@@ -437,8 +561,8 @@ class LineData(BasemapData):
 		# TODO: should we check if first point == last point?
 		return PolygonData(self.lons, self.lats, value=self.value, label=self.label)
 
-
-class MultiLineData(BasemapData):
+# TODO: style_params in all methods of MultiLineData and MultiPolygonData!
+class MultiLineData(MultiData):
 	def __init__(self, lons, lats, values=[], labels=[]):
 		if lons:
 			assert isinstance(lons[0], (list, tuple, np.ndarray)), "lons items must be sequences"
@@ -459,24 +583,9 @@ class MultiLineData(BasemapData):
 	def __getitem__(self, index):
 		lons = self.lons[index]
 		lats = self.lats[index]
-		if isinstance(self.values, dict):
-			value = {}
-			value_keys = self.values.keys()
-			for key in value_keys:
-				try:
-					value[key] = self.values[key][i]
-				except:
-					value[key] = None
-		else:
-			try:
-				value = self.values[index]
-			except:
-				value = None
-		try:
-			label = self.labels[index]
-		except:
-			label = ""
-		return LineData(lons, lats, value, label)
+		value = self._get_value_at_index(index)
+		label = self._get_label_at_index(index)
+		return LineData(lons, lats, value=value, label=label)
 
 	def append(self, line):
 		if isinstance(line, LineData):
@@ -498,21 +607,26 @@ class MultiLineData(BasemapData):
 		return self.to_shapely().wkt
 
 	@classmethod
-	def from_wkt(cls, wkt):
-		mls = shapely.geometry.MultiLineString(shapely.wkt.loads(wkt))
+	def from_shapely(cls, mls, values=[], labels=[]):
+		assert mls.geom_type == "MultiLineString"
 		lons, lats =  [], []
 		for ls in mls:
 			x, y = zip(*ls.coords)
 			lons.append(x)
 			lats.append(y)
-		return MultiLineData(lons, lats)
+		return MultiLineData(lons, lats, values=values, labels=labels)
 
 	@classmethod
-	def from_ogr(cls, geom):
-		return cls.from_wkt(geom.ExportToWkt())
+	def from_wkt(cls, wkt, values=[], labels=[]):
+		mls = shapely.geometry.MultiLineString(shapely.wkt.loads(wkt))
+		return cls.from_shapely(mls, values=values, labels=labels)
+
+	@classmethod
+	def from_ogr(cls, geom, values=[], labels=[]):
+		return cls.from_wkt(geom.ExportToWkt(), values=values, labels=labels)
 
 
-class PolygonData(BasemapData):
+class PolygonData(SingleData):
 	def __init__(self, lons, lats, interior_lons=[], interior_lats=[], value=None, label=""):
 		"""
 		lons, lats: lists
@@ -607,7 +721,7 @@ class PolygonData(BasemapData):
 			return False
 
 
-class MultiPolygonData(BasemapData):
+class MultiPolygonData(MultiData):
 	def __init__(self, lons, lats, interior_lons=[], interior_lats=[], values=[], labels=[]):
 		"""
 		lons, lats: 2-D lists
@@ -638,24 +752,10 @@ class MultiPolygonData(BasemapData):
 			interior_lats = self.interior_lats[index]
 		except:
 			interior_lats = []
-		if isinstance(self.values, dict):
-			value = {}
-			value_keys = self.values.keys()
-			for key in value_keys:
-				try:
-					value[key] = self.values[key][i]
-				except:
-					value[key] = None
-		else:
-			try:
-				value = self.values[index]
-			except:
-				value = None
-		try:
-			label = self.labels[index]
-		except:
-			label = ""
-		return PolygonData(lons, lats, interior_lons, interior_lats, value, label)
+		value = self._get_value_at_index(index)
+		label = self._get_label_at_index(index)
+		return PolygonData(lons, lats, interior_lons, interior_lats,
+						value=value, label=label)
 
 	def append(self, polygon):
 		assert isinstance(polygon, PolygonData)
@@ -699,12 +799,8 @@ class MultiPolygonData(BasemapData):
 		return self.to_shapely().wkt
 
 	@classmethod
-	def from_wkt(cls, wkt):
-		try:
-			mpg = shapely.geometry.MultiPolygon(shapely.wkt.loads(wkt))
-		except:
-			print wkt
-			raise
+	def from_shapely(cls, mpg, values=[], labels=[]):
+		assert mpg.geom_type == "MultiPolygon"
 		exterior_lons, exterior_lats = [], []
 		interior_lons, interior_lats = [], []
 		for pg in mpg:
@@ -718,15 +814,17 @@ class MultiPolygonData(BasemapData):
 				pg_interior_lats.append(lats)
 			interior_lons.append(pg_interior_lons)
 			interior_lats.append(pg_interior_lats)
-		return MultiPolygonData(exterior_lons, exterior_lats, interior_lons, interior_lats)
+		return MultiPolygonData(exterior_lons, exterior_lats, interior_lons,
+							interior_lats, values=values, labels=labels)
 
 	@classmethod
-	def from_ogr(cls, geom):
-		return cls.from_wkt(geom.ExportToWkt())
+	def from_wkt(cls, wkt, values=[], labels=[]):
+		mpg = shapely.geometry.MultiPolygon(shapely.wkt.loads(wkt))
+		return cls.from_shapely(mpg, values=values, labels=labels)
 
 	@classmethod
-	def from_shapely(cls, shape):
-		return self.from_wkt(shape.wkt)
+	def from_ogr(cls, geom, values=[], labels=[]):
+		return cls.from_wkt(geom.ExportToWkt(), values=values, labels=labels)
 
 	def clip_to_polygon(self, polygon):
 		shape = self.to_shapely()
@@ -743,14 +841,12 @@ class MultiPolygonData(BasemapData):
 class FocmecData(MultiPointData):
 	"""
 	"""
-	# TODO: Add possibility to plot mechanism at different location
-	# (different coordinates or offset?)
 	def __init__(self, lons, lats, sdr, values=[], labels=[], offsets=[]):
 		super(FocmecData, self).__init__(lons, lats, values, labels)
 		self.sdr = sdr
 		self.offsets = offsets
 
-	def argsort(self, value_key=None, ascending=True):
+	def sort(self, value_key=None, ascending=True):
 		"""
 		:param value_key:
 			str, name of value column to be used for sorting
@@ -763,9 +859,8 @@ class FocmecData(MultiPointData):
 		:return:
 			array with indexes representing sort order
 		"""
-		# TODO: not used for the moment
 		sorted_indexes = MultiPointData.sort(self, value_key=value_key, ascending=ascending)
-		#self.sdr = np.array(self.sdr)[sorted_indexes]
+		self.sdr = np.array(self.sdr)[sorted_indexes]
 		return sorted_indexes
 
 
@@ -813,7 +908,7 @@ class GreatCircleData(MultiPointData):
 		return (self.lons[i*2], self.lats[i*2], self.lons[i*2+1], self.lats[i*2+1])
 
 
-class TextData(BasemapData):
+class TextData(MultiData):
 	"""
 	Class representing text data.
 
@@ -825,10 +920,11 @@ class TextData(BasemapData):
 		list of strings, labels to be plotted
 	"""
 	# TODO: add offsets, rotations?
-	def __init__(self, lons, lats, labels):
+	def __init__(self, lons, lats, labels, style_params={}):
 		self.lons = lons
 		self.lats = lats
 		self.labels = labels
+		self.style_params = style_params
 
 	def append(self, pt_data):
 		"""
@@ -840,6 +936,7 @@ class TextData(BasemapData):
 		self.lons.append(pt_data.lon)
 		self.lats.append(pt_data.lat)
 		self.labels.append(pt_data.label or "")
+		self._append_to_multi_values(self.style_params, pt_data.style_params)
 
 
 class MaskData(BasemapData):
