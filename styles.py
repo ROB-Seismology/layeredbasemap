@@ -64,16 +64,20 @@ class BasemapStyle(object):
 		"""
 		return self.from_dict(self.to_dict())
 
-	def copy_from(self, other):
+	def update(self, other):
 		"""
-		Copy properties from another style.
+		Update properties from another style.
 
 		:param other:
 			instance of :class:`BasemapStyle` or derived class
+			or dict
 		"""
 		for attr in dir(self):
 			if not attr.startswith('__') and not callable(getattr(self, attr)):
-				val = getattr(other, attr, None)
+				if isinstance(other, dict):
+					val = other.get(attr, None)
+				else:
+					val = getattr(other, attr, None)
 				if not val is None:
 					setattr(self, attr, val)
 
