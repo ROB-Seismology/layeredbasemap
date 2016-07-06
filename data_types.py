@@ -38,6 +38,25 @@ class SingleData(BasemapData):
 			values = [value]
 		return values
 
+	def get_overriding_style(self, default_style):
+		"""
+		Override given style with information in :prop:`style_params`
+
+		:param default_style:
+			instance of :class:`BasemapStyle` or a derived class
+
+		:return:
+			instance of :class:`BasemapStyle` or a derived class
+		"""
+		if self.style_params:
+			style = default_style.copy()
+			## Remove style params that are None
+			style_params = {k:v for (k,v) in self.style_params.items() if v is not None}
+			style.update(style_params)
+		else:
+			style = default_style
+		return style
+
 
 class MultiData(BasemapData):
 	@staticmethod
@@ -69,7 +88,7 @@ class MultiData(BasemapData):
 		"""
 		if isinstance(values, dict):
 			for key in values.keys():
-				if isinstance(value, dict):
+				if isinstance(value, dict) and value.has_key(key):
 					values[key].append(value[key])
 				else:
 					values[key].append(None)
@@ -129,10 +148,32 @@ class MultiData(BasemapData):
 		style_params = {}
 		for key in self.style_params.keys():
 			try:
-				style_params[key] = self.style_params[key][index]
+				value = self.style_params[key][index]
 			except:
-				style_params[key] = None
+				value = None
+			if value is not None:
+				style_params[key] = value
 		return style_params
+
+
+	def get_overriding_style(self, default_style, index):
+		"""
+		Override given style with information in :prop:`style_params`
+
+		:param default_style:
+			instance of :class:`BasemapStyle` or a derived class
+		:param index:
+			int, index of single-data object
+
+		:return:
+			instance of :class:`BasemapStyle` or a derived class
+		"""
+		if self.style_params:
+			style = default_style.copy()
+			style.update(self._get_style_params_at_index(index))
+		else:
+			style = default_style
+		return style
 
 
 class BuiltinData(BasemapData):
@@ -173,6 +214,11 @@ class PointData(SingleData):
 	:param style_params:
 		dict, mapping style parameters to a value. These values will
 		override the overall layer style.
+		Note: style parameter keys correspond to any single-valued
+		property of a given style or text-style properties of the
+		label style in the given style, if present, as there is no overlap
+		in property names between PointStyle, LineStyle and PolygonStyle
+		on the one hand and TextStyle on the other hand.
 		(default: {})
 	"""
 	def __init__(self, lon, lat, value=None, label="", style_params={}):
@@ -293,6 +339,11 @@ class MultiPointData(MultiData):
 	:param style_params:
 		dict, mapping style parameters to a list of values. These values
 		will override the overall layer style.
+		Note: style parameter keys correspond to any single-valued
+		property of a given style or text-style properties of the
+		label style in the given style, if present, as there is no overlap
+		in property names between PointStyle, LineStyle and PolygonStyle
+		on the one hand and TextStyle on the other hand.
 		(default: {})
 	"""
 	def __init__(self, lons, lats, values=[], labels=[], style_params={}):
@@ -908,7 +959,7 @@ class GreatCircleData(MultiPointData):
 		return (self.lons[i*2], self.lats[i*2], self.lons[i*2+1], self.lats[i*2+1])
 
 
-class TextData(MultiData):
+class MultiTextData(MultiData):
 	"""
 	Class representing text data.
 
