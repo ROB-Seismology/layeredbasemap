@@ -365,11 +365,7 @@ class LayeredBasemap:
 		#x, y = self.map_from_display_coordinates(display_x, display_y)
 		x, y = self.map(text_points.lons, text_points.lats)
 		for i, label in enumerate(text_points.labels):
-			if text_points.style_params:
-				style = text_style.copy()
-				style.update(text_points._get_style_params_at_index(i))
-			else:
-				style = text_style
+			style = text_points.get_overriding_style(text_style, i)
 			label = style.get_text(label)
 
 			if isinstance(label, str):
@@ -877,25 +873,15 @@ class LayeredBasemap:
 			if grid_style.color_gradient == "discontinuous" and grid_style.pixelated == False:
 				cs = self.map.contourf(xc, yc, grid_data.values, levels=grid_style.contour_levels, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, extend="both", alpha=alpha, zorder=self.zorder)
 			else:
-				## Necessary for pcolor, but not for pcolormesh??
-				#dlon = grid_data.lons[0,1] - grid_data.lons[0,0]
-				#dlat = grid_data.lats[1,0] - grid_data.lats[0,0]
-				#nlons, nlats = grid_data.values.shape
-				#corner_lons = np.zeros((nlons+1, nlats+1))
-				#corner_lats = np.zeros((nlons+1, nlats+1))
-				#corner_lons[:-1,:-1] = grid_data.lons - dlon
-				#corner_lons[:-1,-1] = grid_data.lons[:,-1] + dlon
-				#corner_lons[-1,:] = corner_lons[-2,:]
-				#corner_lats[:-1,:-1] = grid_data.lats - dlat
-				#corner_lats[-1,:-1] = grid_data.lats[-1,:] + dlat
-				#corner_lats[:,-1] = corner_lats[:,-2]
-				#corner_x, corner_y = self.map(corner_lons, corner_lats)
 				shading = {True: 'flat', False: 'gouraud'}[grid_style.pixelated]
 				if shading == 'gouraud':
 					## Data must have same size as X and Y
 					x, y = xc, yc
 				else:
 					## Length of X and Y should be one more than data size
+					x, y = xe, ye
+				if alpha < 1:
+					## pcolor needs edge coordinates, pcolormesh needs center coordinates
 					x, y = xe, ye
 				if grid_style.hillshade_style:
 					## Source: http://rnovitsky.blogspot.com.es/2010/04/using-hillshade-image-as-intensity.html
@@ -920,22 +906,38 @@ class LayeredBasemap:
 					rgba[:,:,:3] = np.minimum(1., (2 * d * rgb + (rgb*rgb) * (1 - 2 * d)))
 					## From http://stackoverflow.com/questions/29232439/plotting-an-irregularly-spaced-rgb-image-in-python
 					color_tuple = rgba.reshape((rgba.shape[0]*rgba.shape[1], rgba.shape[2]))
-					cs = self.map.pcolormesh(x, y, data, facecolor=color_tuple, shading=shading, linewidth=0, rasterized=True, zorder=self.zorder)
+					## pcolormesh is more efficient than pcolor, but if alpha
+					## is less than zero, it produces ugly gridlines that cannot
+					## be removed.
+					if alpha == 1:
+						cs = self.map.pcolormesh(x, y, data, facecolor=color_tuple, shading=shading, linewidth=0, rasterized=True, alpha=1, zorder=self.zorder)
+					else:
+						#print("Warning: Due to a bug in matplotlib, gridlines are visible when alpha < 1!")
+						cs = self.map.pcolor(x, y, data, facecolor=color_tuple, shading=shading, linewidth=0, rasterized=True, alpha=alpha, zorder=self.zorder)
 					## This removes default cmap coloring, but colorbar crashes
 					cs.set_array(None)
+					## Note: nothing helps to remove the gridlines
+					#cs.set_rasterized(True)
+					#cs.set_edgecolor("face")
+					#cs.set_edgecolor('none')
+					#cs.set_linewidth(0)
+					#cs._is_stroked = False
+					## Set alpha of quadmesh faces
+					#for i in cs.get_facecolors():
+					#	i[3] = alpha
+					#for i in cs.get_edgecolors():
+					#	i = [1,1,1,0]
+						#i[3] = 0
 					## Use scalarmappable as cs for colorbar, vmin and vmax must be set
 					grid_style.color_map_theme.vmin = vmin or data.min()
 					grid_style.color_map_theme.vmax = vmax or data.max()
 					cs = grid_style.color_map_theme.to_scalar_mappable()
 				else:
-					cs = self.map.pcolormesh(x, y, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, linewidth=0, rasterized=True, alpha=alpha, zorder=self.zorder)
-				if alpha < 1:
-					print("Warning: Due to a bug in matplotlib, gridlines are visible when alpha < 1!")
-					## Note: nothing helps to remove the gridlines
-					#cs.set_rasterized(True)
-					#cs.set_edgecolor("face")
-					#cs.set_edgecolor('none')
-					#cs._is_stroked = False
+					if alpha == 1:
+						cs = self.map.pcolormesh(x, y, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, linewidth=0, rasterized=True, alpha=1, zorder=self.zorder)
+					else:
+						cs = self.map.pcolor(x, y, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, linewidth=0, rasterized=True, alpha=alpha, zorder=self.zorder)
+
 			self.zorder += 1
 
 		elif grid_style.hillshade_style:
@@ -945,9 +947,12 @@ class LayeredBasemap:
 				x, y = xc, yc
 			else:
 				x, y = xe, ye
-			## Note: do not use variable name 'cmap' !
+			## Note: do not use variable name 'cmap' here!
 			hillshade_cmap = grid_style.hillshade_style.color_map
-			self.map.pcolormesh(x, y, grid_data.values, cmap=hillshade_cmap, shading=shading, alpha=alpha, zorder=self.zorder)
+			if alpha == 1:
+				self.map.pcolormesh(x, y, grid_data.values, cmap=hillshade_cmap, shading=shading, alpha=1, zorder=self.zorder)
+			else:
+				self.map.pcolormesh(x, y, grid_data.values, cmap=hillshade_cmap, shading=shading, alpha=alpha, zorder=self.zorder)
 			self.zorder += 1
 
 		if grid_style.line_style:
@@ -1038,6 +1043,13 @@ class LayeredBasemap:
 		if style.tick_labels:
 			cbar.set_ticklabels(style.tick_labels)
 		cbar.ax.tick_params(labelsize=style.tick_label_size)
+		## Hack to get rid of grid lines if style.alpha is less than 1
+		if len(cbar.solids.get_edgecolors()) < 20:
+			cbar.solids.set_edgecolor("face")
+		else:
+			cbar.solids.set_edgecolor("none")
+		#for i in cbar.solids.get_edgecolors():
+		#	i[3] = style.alpha
 
 	def draw_continents(self, continent_style):
 		if hasattr(continent_style, "bg_color"):
@@ -1312,7 +1324,7 @@ class LayeredBasemap:
 					self.draw_shadedrelief(layer.style)
 				if layer.data.feature == "etopo":
 					self.draw_etopo(layer.style)
-			elif isinstance(layer.data, TextData):
+			elif isinstance(layer.data, MultiTextData):
 				self._draw_texts(layer.data, layer.style)
 			elif isinstance(layer.data, FocmecData):
 				self.draw_focmecs(layer.data, layer.style)
