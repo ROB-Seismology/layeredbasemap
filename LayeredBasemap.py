@@ -595,7 +595,7 @@ class LayeredBasemap:
 			# See http://stackoverflow.com/questions/18780198/how-to-rotate-matplotlib-annotation-to-match-a-line
 			# Add possibility to anchor label at start, end, middle or fraction of line length
 			# and obtain line orientation for that anchor point for auto-rotation
-			#label_points = TextData([], [], labels=[])
+			#label_points = MultiTextData([], [], labels=[])
 			if isinstance(line_style.label_anchor, (str, unicode)):
 				label_anchor = {"start": 0., "middle": 0.5, "end": 1.}.get(line_style.label_anchor, 0.5)
 			else:
@@ -603,7 +603,7 @@ class LayeredBasemap:
 			for line in line_data:
 				if line.label:
 					pt = line.get_point_at_fraction_of_length(label_anchor)
-					lp = TextData([pt.lon], [pt.lat], labels=[line.label])
+					lp = MultiTextData([pt.lon], [pt.lat], labels=[line.label])
 					#label_points.lons.append(lp.lon)
 					#label_points.lats.append(lp.lat)
 					#label_points.labels.append(line.label)
