@@ -67,6 +67,8 @@ class BasemapStyle(object):
 	def update(self, other):
 		"""
 		Update properties from another style.
+		Properties (or keys) in the other style that are not
+		properties of the current class are ignored.
 
 		:param other:
 			instance of :class:`BasemapStyle` or derived class
@@ -90,6 +92,7 @@ class FontStyle(BasemapStyle):
 	:param font_family:
 		string, font family or font name
 		("serif" | "sans-serif" | "cursive" | "fantasy" | "monospace")
+		or the name of a TrueType font in system font path (e.g. Calibri)
 		(default: "sans-serif")
 	:param font_style:
 		string, font style ("normal" | "italic" | "oblique")
@@ -121,11 +124,25 @@ class FontStyle(BasemapStyle):
 		self.font_weight = font_weight
 		self.font_size = font_size
 
-	def get_font_prop(self):
+	def to_font_props(self):
 		"""
 		Return instance of :class:`FontProperties`
 		"""
-		fp = matplotlib.font_manager.FontProperties(family=self.font_family, style=self.font_style, variant=self.font_variant, stretch=self.font_stretch, weight=self.font_weight, size=self.font_size)
+		d = {}
+		d['family'] = self.font_family
+		d['style'] = self.font_style
+		d['variant'] = self.font_variant
+		d['stretch'] = self.font_stretch
+		d['weight'] = self.font_weight
+		d['size'] = self.font_size
+
+		if not self.font_family in ("serif", "sans-serif", "cursive", "fantasy", "monospace"):
+			fp = matplotlib.font_manager.FontProperties(**d)
+			fname = matplotlib.font_manager.findfont(fp)
+		else:
+			fname = None
+		d['fname'] = fname
+		fp = matplotlib.font_manager.FontProperties(**d)
 		return fp
 
 
@@ -193,12 +210,13 @@ class TextStyle(FontStyle):
 		and which can be passed to the text and annotate functions
 		"""
 		d = {}
-		d["family"] = self.font_family
-		d["size"] = self.font_size
-		d["weight"] = self.font_weight
-		d["style"] = self.font_style
-		d["stretch"] = self.font_stretch
-		d["variant"] = self.font_variant
+		#d["family"] = self.font_family
+		#d["size"] = self.font_size
+		#d["weight"] = self.font_weight
+		#d["style"] = self.font_style
+		#d["stretch"] = self.font_stretch
+		#d["variant"] = self.font_variant
+		d["fontproperties"] = self.to_font_props()
 		d["color"] = self.color
 		d["backgroundcolor"] = self.background_color
 		d["linespacing"] = self.line_spacing
@@ -660,7 +678,8 @@ class PolygonStyle(BasemapStyle):
 		Note: repeat pattern format to increase density, e.g. "//"
 		or "..."
 	:param hatch_color:
-		matplotlib color spec
+		matplotlib color spec, color of hatch pattern.
+		Only used if :prop:`line_color` is not set.
 		(default: 'k')
 	:param label_style:
 		instance of :class:`TextStyle`. If None, no labels will be plotted
@@ -753,11 +772,12 @@ class PolygonStyle(BasemapStyle):
 		d["ec"] = self.line_color
 		d["fc"] = self.fill_color
 		d["hatch"] = self.fill_hatch
-		if not self.hatch_color in (None, "None", "none"):
-			## override ec
-			d["ec"] = self.hatch_color
-			if self.line_color in (None, "None", "none"):
-				d["lw"] = 0
+		if self.fill_hatch:
+			if not self.hatch_color in (None, "None", "none"):
+				## override ec
+				d["ec"] = self.hatch_color
+				if self.line_color in (None, "None", "none"):
+					d["lw"] = 0
 		d["alpha"] = self.alpha
 		return d
 
@@ -767,7 +787,7 @@ class FocmecStyle(BasemapStyle):
 	Style defining how focal mechanisms are plotted in Basemap
 
 	:param size:
-		int, size of beach ball in points
+		int, size (width) of beach ball in pixels @ 120 dpi
 	:param line_width:
 		Float, line width, or instance of :class:`ThematicStyle`
 		(default: 1)
@@ -974,7 +994,8 @@ class ThematicStyleIndividual(ThematicStyle):
 
 	:param values:
 		list or array of floats or strings, data values for which style
-		values are defined.
+		values are defined, or lists grouping data values
+		Values should of course be unique
 	:param styles:
 		list of style values (numbers or matplotlib colors) corresponding
 		to given data values
@@ -1024,7 +1045,11 @@ class ThematicStyleIndividual(ThematicStyle):
 		self.styles = styles
 		self.style_dict = {}
 		for value, style in zip(self.values, self.styles):
-			self.style_dict[value] = style
+			if isinstance(value, (list, tuple)):
+				for val in value:
+					self.style_dict[val] = style
+			else:
+				self.style_dict[value] = style
 
 	def set_styles_from_colormap(self, color_map):
 		N = len(self.values)
@@ -1757,7 +1782,7 @@ class LegendStyle(BasemapStyle):
 		## Note: frame_color, fill_color and frame_width are passed differently!
 		d = {}
 		d["loc"] = self.location
-		d["prop"] = self.label_style.get_font_prop()
+		d["prop"] = self.label_style.to_font_props()
 		d["markerscale"] = self.marker_scale
 		d["frameon"] = self.frame_on
 		d["fancybox"] = self.fancy_box
@@ -1906,6 +1931,8 @@ class GraticuleStyle(BasemapStyle):
 		Float in the range 0 - 1, opacity (default: 1.)
 	"""
 	# TODO: check label_offset units
+	# TODO: add parameter to control plotting of meridian labels left and right
+	# and parallel labels top and bottom (something like annot_strict)
 	def __init__(self, line_style=LineStyle(dash_pattern=[1,1]), label_style=TextStyle(), annot_axes="SE",
 				annot_style="", annot_format='%g', label_offset=(None, None), lat_max=80,
 				alpha=1.):
