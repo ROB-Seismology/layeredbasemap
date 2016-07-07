@@ -178,6 +178,8 @@ class LayeredBasemap:
 	## Drawing primitives
 
 	def _draw_points(self, points, style, legend_label="_nolegend_", thematic_legend_artists=[], thematic_legend_labels=[]):
+		## Note: overriding style params not implemented (except for labels)
+		## because we plot all points in one function call!
 		x, y = self.map(points.lons, points.lats)
 		if not style.is_thematic():
 			#self.map.plot(x, y, ls="None", lw=0, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
@@ -286,21 +288,24 @@ class LayeredBasemap:
 					l = matplotlib.lines.Line2D([0], [0], lw=0, **ntl.to_kwargs())
 					thematic_legend_artists.append(l)
 
-	def _draw_line(self, line, style, legend_label="_nolegend_"):
+	def _draw_line(self, line, line_style, legend_label="_nolegend_"):
 		x, y = self.map(line.lons, line.lats)
+		style = line.get_overriding_style(line_style)
 		#self.map.plot(x, y, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
 		l, = self.map.plot(x, y, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
 		if legend_label and legend_label != "_nolegend_":
 			self.legend_artists.append(l)
 			self.legend_labels.append(legend_label)
 
-	def _draw_fronts(self, line, style, legend_label="_nolegend_"):
+	def _draw_fronts(self, line, line_style, legend_label="_nolegend_"):
 		"""
-		:param style:
+		:param line_style:
 			instance of :class:`LineStyle`
 		"""
 		from frontline import draw_frontline
+
 		x, y = self.map(line.lons, line.lats)
+		style = line.get_overriding_style(line_style)
 		style_dict = {}
 		style_dict["line_style"] = style.line_pattern
 		style_dict["line_color"] = style.line_color
@@ -316,13 +321,15 @@ class LayeredBasemap:
 			self.legend_labels.append(legend_label)
 			self.legend_handler_map[dummy_artist] = lh
 
-	def _draw_polygon(self, polygon, style, legend_label="_nolegend_"):
-		if isinstance(style, LineStyle):
-			self._draw_line(polygon, style, legend_label)
-		if style.fill_color in (None, "None", "none"):
+	def _draw_polygon(self, polygon, polygon_style, legend_label="_nolegend_"):
+		if isinstance(polygon_style, LineStyle):
+			self._draw_line(polygon, polygon_style, legend_label)
+		if polygon_style.fill_color in (None, "None", "none"):
 			fill = 0
 		else:
 			fill = 1
+
+		style = polygon.get_overriding_style(polygon_style)
 
 		if len(polygon.interior_lons) == 0:
 			## Simple polygon
@@ -355,14 +362,13 @@ class LayeredBasemap:
 				self.legend_labels.append(legend_label)
 
 	def _draw_texts(self, text_points, text_style):
-		## Note: labels must have same rotation
-		# TODO: mechanism for individual offsets (in text_points), overriding offset
-		# in style
 		## Compute offset in map units (not needed for annotate method)
 		#display_x, display_y = self.lonlat_to_display_coordinates(text_points.lons, text_points.lats)
 		#display_x = np.array(display_x) + style.offset[0]
 		#display_y = np.array(display_y) + style.offset[1]
 		#x, y = self.map_from_display_coordinates(display_x, display_y)
+		if isinstance(text_points, TextData):
+			text_points = text_points.to_multi_text()
 		x, y = self.map(text_points.lons, text_points.lats)
 		for i, label in enumerate(text_points.labels):
 			style = text_points.get_overriding_style(text_style, i)
@@ -441,6 +447,7 @@ class LayeredBasemap:
 					centroids.lons.append(centroid.lon)
 					centroids.lats.append(centroid.lat)
 					centroids.labels.append(pg.label)
+			centroids.style_params = polygon_data.style_params
 			self._draw_texts(centroids, polygon_style.label_style)
 			self.zorder += 1
 
@@ -603,10 +610,11 @@ class LayeredBasemap:
 			for line in line_data:
 				if line.label:
 					pt = line.get_point_at_fraction_of_length(label_anchor)
-					lp = MultiTextData([pt.lon], [pt.lat], labels=[line.label])
+					lp = TextData(pt.lon, pt.lat, label=line.label)
 					#label_points.lons.append(lp.lon)
 					#label_points.lats.append(lp.lat)
 					#label_points.labels.append(line.label)
+					lp.style_params = line.style_params
 					if line_style.label_style.rotation == "auto":
 						label_style = line_style.label_style.copy()
 						## Set rotation
@@ -716,6 +724,7 @@ class LayeredBasemap:
 					tl_labels.extend(legend_labels)
 
 	def draw_composite_layer(self, point_data=[], point_style=None, line_data=[], line_style=None, polygon_data=[], polygon_style=None, text_data=[], text_style=None, legend_label={"points": "_nolegend_", "lines": "_nolegend_", "polygons": "_nolegend_"}):
+		#print len(point_data), len(line_data), len(polygon_data)
 		if polygon_data and len(polygon_data) > 0 and (polygon_style or line_style):
 			if not polygon_style:
 				polygon_style = line_style.to_polygon_style()
@@ -840,7 +849,7 @@ class LayeredBasemap:
 		# Is this the case for contourf as well?? No!
 		from cm.norm import PiecewiseLinearNorm
 
-		## Projected center and edge coordinates
+		## Projected center and edge coordinates of grid cells
 		xc, yc = self.map(grid_data.center_lons, grid_data.center_lats)
 		xe, ye = self.map(grid_data.edge_lons, grid_data.edge_lats)
 
@@ -888,11 +897,12 @@ class LayeredBasemap:
 					# TODO: there is also a hillshade function in matplotlib
 					# TODO: find a way to add hillshade from another grid
 					# (e.g., to add topographic shading to ground-motion map)
+					data = grid_data.values
 					azimuth = grid_style.hillshade_style.azimuth
 					elevation_angle = grid_style.hillshade_style.elevation_angle
 					scale = grid_style.hillshade_style.scale
+
 					hillshade = grid_data.calc_hillshade(azimuth, elevation_angle, scale)
-					data = grid_data.values
 					#ny, nx = xe.shape
 					## Get RGB of normalized data based on cmap
 					#data_min, data_max = data.min(), data.max()
@@ -904,16 +914,32 @@ class LayeredBasemap:
 					d = d.reshape(rgb.shape)
 					## Simulate illumination based on pegtop algorithm
 					rgba[:,:,:3] = np.minimum(1., (2 * d * rgb + (rgb*rgb) * (1 - 2 * d)))
+
+					## Hillshade in matplotlib, doesn't work yet
+					"""
+					from matplotlib.colors import LightSource
+					ls = LightSource(azdeg=azimuth, altdeg=elevation_angle)
+					dx = x[1,0] - x[0,0]
+					dy = y[0,1] - y[0,0]
+					#rgba = ls.shade(data, cmap=cmap_obj, blend_mode="overlay",
+					#				vert_exag=scale, dx=dx, dy=dy)
+					rgba = ls.shade(data, cmap=cmap_obj)
+					"""
+
 					## From http://stackoverflow.com/questions/29232439/plotting-an-irregularly-spaced-rgb-image-in-python
 					color_tuple = rgba.reshape((rgba.shape[0]*rgba.shape[1], rgba.shape[2]))
+
 					## pcolormesh is more efficient than pcolor, but if alpha
 					## is less than zero, it produces ugly gridlines that cannot
 					## be removed.
 					if alpha == 1:
-						cs = self.map.pcolormesh(x, y, data, facecolor=color_tuple, shading=shading, linewidth=0, rasterized=True, alpha=1, zorder=self.zorder)
+						## Note: omit alpha parameter or else nodata grid cells
+						## will be opaque!
+						cs = self.map.pcolormesh(x, y, data, facecolor=color_tuple, shading=shading, linewidth=0, rasterized=True, zorder=self.zorder)
 					else:
 						#print("Warning: Due to a bug in matplotlib, gridlines are visible when alpha < 1!")
 						cs = self.map.pcolor(x, y, data, facecolor=color_tuple, shading=shading, linewidth=0, rasterized=True, alpha=alpha, zorder=self.zorder)
+
 					## This removes default cmap coloring, but colorbar crashes
 					cs.set_array(None)
 					## Note: nothing helps to remove the gridlines
@@ -929,12 +955,14 @@ class LayeredBasemap:
 					#	i = [1,1,1,0]
 						#i[3] = 0
 					## Use scalarmappable as cs for colorbar, vmin and vmax must be set
-					grid_style.color_map_theme.vmin = vmin or data.min()
-					grid_style.color_map_theme.vmax = vmax or data.max()
+					grid_style.color_map_theme.vmin = (vmin if vmin is not None else data.min())
+					grid_style.color_map_theme.vmax = (vmax if vmax is not None else data.max())
 					cs = grid_style.color_map_theme.to_scalar_mappable()
 				else:
 					if alpha == 1:
-						cs = self.map.pcolormesh(x, y, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, linewidth=0, rasterized=True, alpha=1, zorder=self.zorder)
+						## Note: omit alpha parameter or else nodata grid cells
+						## will be opaque!
+						cs = self.map.pcolormesh(x, y, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, linewidth=0, rasterized=True, zorder=self.zorder)
 					else:
 						cs = self.map.pcolor(x, y, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, linewidth=0, rasterized=True, alpha=alpha, zorder=self.zorder)
 
@@ -950,9 +978,11 @@ class LayeredBasemap:
 			## Note: do not use variable name 'cmap' here!
 			hillshade_cmap = grid_style.hillshade_style.color_map
 			if alpha == 1:
-				self.map.pcolormesh(x, y, grid_data.values, cmap=hillshade_cmap, shading=shading, alpha=1, zorder=self.zorder)
+				## Note: omit alpha parameter or else nodata grid cells
+				## will be opaque!
+				self.map.pcolormesh(x, y, grid_data.values, cmap=hillshade_cmap, shading=shading, zorder=self.zorder)
 			else:
-				self.map.pcolormesh(x, y, grid_data.values, cmap=hillshade_cmap, shading=shading, alpha=alpha, zorder=self.zorder)
+				self.map.pcolor(x, y, grid_data.values, cmap=hillshade_cmap, shading=shading, alpha=alpha, zorder=self.zorder)
 			self.zorder += 1
 
 		if grid_style.line_style:
@@ -1111,10 +1141,14 @@ class LayeredBasemap:
 		## Determine conversion factor between display coordinates
 		## and map coordinates for beachball size
 		x0, y0 = self.map(self.lon_0, self.lat_0)
+		#num_points = 10.
+		#num_pixels = num_points * self.dpi
+		num_pixels = 100.
 		display_x0, display_y0 = self.map_to_display_coordinates([x0], [y0])
-		display_x1 = display_x0[0] + 100
+		display_x1 = display_x0[0] + num_pixels
 		x1, y1 = self.map_from_display_coordinates([display_x1], display_y0)
-		conv_factor = float(x1[0] - x0) * self.dpi / 120 / 100
+		conv_factor = float(x1[0] - x0) / num_pixels
+		#conv_factor = float(x1[0] - x0) * self.dpi / 120 / num_pixels / num_points
 
 		## Thematic mapping
 		if isinstance(focmec_style.size, ThematicStyle):
@@ -1134,8 +1168,8 @@ class LayeredBasemap:
 		else:
 			fill_colors = [focmec_style.fill_color] * len(focmec_data)
 
-		if focmec_data.offsets or focmec_style.offset:
-			offsets = focmec_data.offsets or [focmec_style.offset] * len(focmec_data)
+		if focmec_data.style_params.has_key('offset') or focmec_style.offset:
+			offsets = focmec_data.style_params.get('offset') or [focmec_style.offset] * len(focmec_data)
 			offsets = np.array(offsets)
 			## Compute offset in map units
 			if offsets.dtype == np.int32:
@@ -1162,8 +1196,10 @@ class LayeredBasemap:
 		else:
 			x, y = self.map(focmec_data.lons, focmec_data.lats)
 		for i in range(len(focmec_data)):
-			width = sizes[i] * conv_factor
+			## Convert width in pixels to width in map units, normalized to 120 dpi
+			width = sizes[i] * conv_factor * self.dpi / 120.
 			style = FocmecStyle(size=width, line_width=line_widths[i], line_color=line_colors[i], fill_color=fill_colors[i], bg_color=focmec_style.bg_color, alpha=focmec_style.alpha)
+			style = focmec_data.get_overriding_style(style, i)
 			b = Beach(focmec_data.sdr[i], xy=(x[i], y[i]), **style.to_kwargs())
 			b.set_zorder(self.zorder)
 			self.ax.add_collection(b)
@@ -1385,7 +1421,7 @@ class LayeredBasemap:
 				title_style = thematic_legend.style.title_style
 
 				tl = self.ax.legend(thematic_legend.artists, thematic_legend.labels, **thematic_legend.style.to_kwargs())
-				tl.set_title(title, prop=title_style.get_font_prop())
+				tl.set_title(title, prop=title_style.to_font_props())
 				## Align title to center...
 				ha = getattr(title_style, 'horizontal_alignment', 'center')
 				if ha != 'left':
@@ -1414,10 +1450,10 @@ class LayeredBasemap:
 				title = title.decode('iso-8859-1')
 			title_style = self.legend_style.title_style
 
-			#ml = self.ax.legend(loc=loc+1, prop=label_style.get_font_prop(), markerscale=marker_scale, frameon=frame_on, fancybox=fancy_box, shadow=shadow, ncol=ncol, borderpad=border_pad, labelspacing=label_spacing, handlelength=handle_length, handleheight=handle_height, handletextpad=handle_text_pad, borderaxespad=border_axes_pad, columnspacing=column_spacing, numpoints=numpoints)
+			#ml = self.ax.legend(loc=loc+1, prop=label_style.to_font_props(), markerscale=marker_scale, frameon=frame_on, fancybox=fancy_box, shadow=shadow, ncol=ncol, borderpad=border_pad, labelspacing=label_spacing, handlelength=handle_length, handleheight=handle_height, handletextpad=handle_text_pad, borderaxespad=border_axes_pad, columnspacing=column_spacing, numpoints=numpoints)
 			ml = self.ax.legend(self.legend_artists, self.legend_labels, handler_map=self.legend_handler_map, **self.legend_style.to_kwargs())
 			if ml:
-				ml.set_title(title, prop=title_style.get_font_prop())
+				ml.set_title(title, prop=title_style.to_font_props())
 				## Align title to center...
 				ha = getattr(title_style, 'horizontal_alignment', 'center')
 				if ha != 'left':
@@ -1454,15 +1490,19 @@ class LayeredBasemap:
 			#else:
 			#	labelstyle = ""
 			if self.dlon != None:
+				meridian_style = self.graticule_style.copy()
+				meridian_style.annot_axes = meridian_style.annot_axes.replace('W', '').replace('E', '')
 				first_meridian = np.ceil(self.region[0] / self.dlon) * self.dlon
 				last_meridian = np.floor(self.region[1] / self.dlon) * self.dlon + self.dlon
 				meridians = np.arange(first_meridian, last_meridian, self.dlon)
-				self.map.drawmeridians(meridians, zorder=self.zorder, **self.graticule_style.to_kwargs())
+				self.map.drawmeridians(meridians, zorder=self.zorder, **meridian_style.to_kwargs())
 			if self.dlat != None:
+				parallel_style = self.graticule_style.copy()
+				parallel_style.annot_axes = parallel_style.annot_axes.replace('N', '').replace('S', '')
 				first_parallel = np.ceil(self.region[2] / self.dlat) * self.dlat
 				last_parallel = np.floor(self.region[3] / self.dlat) * self.dlat + self.dlat
 				parallels = np.arange(first_parallel, last_parallel, self.dlat)
-				self.map.drawparallels(parallels, zorder=self.zorder, **self.graticule_style.to_kwargs())
+				self.map.drawparallels(parallels, zorder=self.zorder, **parallel_style.to_kwargs())
 			self.zorder += 1
 
 	def draw_scalebar(self):
