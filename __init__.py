@@ -32,7 +32,7 @@ from data_types import (BuiltinData, PointData, MultiPointData, LineData, MultiL
 						PolygonData, MultiPolygonData, FocmecData, CircleData, MaskData,
 						CompositeData, GridData, MeshGridData, UnstructuredGridData,
 						GdalRasterData, GisData, GreatCircleData, ImageData, WMSData,
-						WCSData, MeshGridVectorData, MultiTextData)
+						WCSData, MeshGridVectorData, TextData, MultiTextData)
 
 import cm
 reload(cm)
