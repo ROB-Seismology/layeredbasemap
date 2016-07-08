@@ -1561,7 +1561,7 @@ class GdalRasterData(MeshGridData):
 
 		## Open output format driver, see gdal_translate --formats for list
 		driver = gdal.GetDriverByName(format)
-		if driver and driver.GetMetaData().get(gdal.DCAP_CREATE) == 'YES':
+		if driver and driver.GetMetadata().get(gdal.DCAP_CREATE) == 'YES':
 			## Open existing dataset
 			src_ds = gdal.Open(self.filespec, gdal.GA_ReadOnly)
 
