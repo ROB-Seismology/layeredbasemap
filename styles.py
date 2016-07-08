@@ -181,6 +181,11 @@ class TextStyle(FontStyle):
 		(default: "center")
 	:param offset:
 		tuple, horizontal and vertical offset in points (default: (0, 0))
+	:param offset_coords:
+		str, coordinate type for :prop:`offset`:
+		"figure points", "figure pixels", "figure fraction", "axes points",
+		"axes pixels", "axes fraction", "data", "offset points" or "polar"
+		(default: "offset points")
 	:param clip_on:
 		bool, whether or not text should be clipped to the axes bounding box
 		(default: True)
@@ -190,7 +195,7 @@ class TextStyle(FontStyle):
 	:param alpha:
 		Float in the range 0 - 1, opacity (default: 1.)
 	"""
-	def __init__(self, font_family="sans-serif", font_style="normal", font_variant="normal", font_stretch="normal", font_weight="normal", font_size=12, color='k', background_color="None", line_spacing=1.25, rotation=0, horizontal_alignment="center", vertical_alignment="center", multi_alignment="center", offset=(0,0), clip_on=True, text_filter=None, alpha=1.):
+	def __init__(self, font_family="sans-serif", font_style="normal", font_variant="normal", font_stretch="normal", font_weight="normal", font_size=12, color='k', background_color="None", line_spacing=1.25, rotation=0, horizontal_alignment="center", vertical_alignment="center", multi_alignment="center", offset=(0,0), offset_coords="offset points", clip_on=True, text_filter=None, alpha=1.):
 		super(TextStyle, self).__init__(font_family, font_style, font_variant, font_stretch, font_weight, font_size)
 		self.color = color
 		self.background_color = background_color
@@ -200,6 +205,7 @@ class TextStyle(FontStyle):
 		self.vertical_alignment = vertical_alignment
 		self.multi_alignment = multi_alignment
 		self.offset = offset
+		self.offset_coords = offset_coords
 		self.clip_on = clip_on
 		self.text_filter = text_filter
 		self.alpha = alpha

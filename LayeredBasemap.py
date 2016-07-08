@@ -379,7 +379,9 @@ class LayeredBasemap:
 			#self.ax.text(x[i], y[i], label, zorder=self.zorder, **style.to_kwargs())
 			if style.offset:
 				xytext = style.offset
-				textcoords = "offset points"
+				textcoords = style.offset_coords
+				if textcoords != 'offset points':
+					x[i], y[i] = 0, 0
 			else:
 				xytext = None
 				textcoords = "data"
