@@ -362,6 +362,11 @@ class LayeredBasemap:
 				self.legend_labels.append(legend_label)
 
 	def _draw_texts(self, text_points, text_style):
+		"""
+		:param text_points:
+			instance of :class:`TextData`, :class:`MultiTextData`,
+			instance of :class:`PointData`, :class:`MultiPointData`
+		"""
 		## Compute offset in map units (not needed for annotate method)
 		#display_x, display_y = self.lonlat_to_display_coordinates(text_points.lons, text_points.lats)
 		#display_x = np.array(display_x) + style.offset[0]
@@ -369,22 +374,43 @@ class LayeredBasemap:
 		#x, y = self.map_from_display_coordinates(display_x, display_y)
 		if isinstance(text_points, TextData):
 			text_points = text_points.to_multi_text()
-		x, y = self.map(text_points.lons, text_points.lats)
+		elif isinstance(text_points, PointData):
+			text_points = text_points.to_multi_point()
+
+		coord_frame = getattr(text_points, "coord_frame", "geographic")
+		if coord_frame == "geographic":
+			x, y = self.map(text_points.lons, text_points.lats)
+			handle_offset = "apply"
+		elif coord_frame == "data":
+			x, y = text_points.lons, text_points.lats
+			handle_offset = "ignore"
+		else:
+			x, y = np.zeros(len(text_points)), np.zeros(len(text_points))
+			handle_offset = "replace"
+
 		for i, label in enumerate(text_points.labels):
 			style = text_points.get_overriding_style(text_style, i)
 			label = style.get_text(label)
-
 			if isinstance(label, str):
 				label = label.decode('iso-8859-1')
 			#self.ax.text(x[i], y[i], label, zorder=self.zorder, **style.to_kwargs())
-			if style.offset:
-				xytext = style.offset
-				textcoords = style.offset_coords
-				if textcoords != 'offset points':
-					x[i], y[i] = 0, 0
-			else:
-				xytext = None
+
+			if handle_offset == "ignore":
+				xytext = (x[i], y[i])
 				textcoords = "data"
+			elif handle_offset == "replace":
+				xytext = (text_points.lons[i], text_points.lats[i])
+				textcoords = coord_frame
+			else:
+				if not style.offset in ((0, 0), None):
+					xytext = style.offset
+					textcoords = style.offset_coord_frame
+					if textcoords != 'offset points':
+						x[i], y[i] = 0, 0
+				else:
+					#print("%s, %s, %s" % (x[i], y[i], label))
+					xytext = None
+					textcoords = "data"
 			self.ax.annotate(label, (x[i], y[i]), xytext=xytext, textcoords=textcoords, zorder=self.zorder, axes=self.ax, clip_on=style.clip_on, **style.to_kwargs())
 
 	def draw_polygon_layer(self, polygon_data, polygon_style, legend_label="_nolegend_"):
@@ -1170,19 +1196,29 @@ class LayeredBasemap:
 		else:
 			fill_colors = [focmec_style.fill_color] * len(focmec_data)
 
+		## Handle offset
 		if focmec_data.style_params.has_key('offset') or focmec_style.offset:
 			offsets = focmec_data.style_params.get('offset') or [focmec_style.offset] * len(focmec_data)
 			offsets = np.array(offsets)
+			offset_coord_frame = focmec_style.coord_frame
 			## Compute offset in map units
-			if offsets.dtype == np.int32:
+			if offset_coord_frame == "offset points":
 				## Offset in points
+				# TODO: this should probably be pixels instead of points
 				display_x, display_y = self.lonlat_to_display_coordinates(focmec_data.lons, focmec_data.lats)
 				display_x = np.array(display_x) + offsets[:,0]
 				display_y = np.array(display_y) + offsets[:,1]
 				x, y = self.map_from_display_coordinates(display_x, display_y)
-			else:
+			elif offset_coord_frame == "geographic":
 				## Offsets correspond to lon, lat coordinates
 				x, y = self.map(offsets[:,0], offsets[:,1])
+				#for (lon, lat) in zip(x, y):
+				#	print "%s, %s" % (lon, lat)
+			elif offset_coord_frame == "data":
+				## Offsets correspond to data
+				x, y = offsets[:,0], offsets[:,1]
+			else:
+				raise Exception("offset_coord_frame %s not supported!" % offset_coord_frame)
 
 			## Draw lines between focmec and its original position
 			x0, y0 = self.map(focmec_data.lons, focmec_data.lats)
@@ -1194,9 +1230,11 @@ class LayeredBasemap:
 					self.ax.annotate("", (x0[i], y0[i]), xytext=(x[i], y[i]),
 							textcoords="data", arrowprops=arrowprops,
 							zorder=self.zorder, axes=self.ax)
-
 		else:
+			## No offset specified
 			x, y = self.map(focmec_data.lons, focmec_data.lats)
+
+		## Draw focal mechanisms
 		for i in range(len(focmec_data)):
 			## Convert width in pixels to width in map units, normalized to 120 dpi
 			width = sizes[i] * conv_factor * self.dpi / 120.
