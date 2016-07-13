@@ -38,7 +38,7 @@ class BasemapStyle(object):
 		"""
 		d = {}
 		for attr in dir(self):
-			if not attr.startswith('__') and not callable(getattr(self, attr)):
+			if attr == "text_filter" or (not attr.startswith('__') and not callable(getattr(self, attr))):
 				d[attr] = getattr(self, attr, None)
 		return d
 
