@@ -1871,19 +1871,16 @@ class GisData(BasemapData):
 		## Note: it is absolutely necessary to initialize all empty lists
 		## explicitly, otherwise unexpected things may happen in subsequent
 		## calls of this method!
-		point_data = MultiPointData([], [], values=[], labels=[],
-				style_params=self.style_params.get('points') or self.style_params)
+		point_data = MultiPointData([], [], values=[], labels=[])
 		point_data.values = {}
 		for colname in point_value_colnames:
 			point_data.values[colname] = []
-		line_data = MultiLineData([], [], values=[], labels=[],
-				style_params=self.style_params.get('lines') or self.style_params)
+		line_data = MultiLineData([], [], values=[], labels=[])
 		line_data.values = {}
 		for colname in line_value_colnames:
 			line_data.values[colname] = []
 		polygon_data = MultiPolygonData([], [], interior_lons=[], interior_lats=[],
-				values=[], labels=[],
-				style_params=self.style_params.get('polygons') or self.style_params)
+				values=[], labels=[])
 		polygon_data.values = {}
 		for colname in polygon_value_colnames:
 			polygon_data.values[colname] = []
@@ -1945,6 +1942,11 @@ class GisData(BasemapData):
 						polygon.label = label
 						polygon.value = {k: rec[k] for k in polygon_value_colnames if k in rec}
 						polygon_data.append(polygon)
+
+		## Set style_params at end to avoid errors when appending data
+		point_data.style_params = self.style_params.get('points') or self.style_params
+		line_data.style_params = self.style_params.get('lines') or self.style_params
+		polygon_data.style_params = self.style_params.get('polygons') or self.style_params
 
 		## Append joined attributes
 		for attrib_name in self.joined_attributes.keys():
