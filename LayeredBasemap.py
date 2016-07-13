@@ -389,8 +389,8 @@ class LayeredBasemap:
 			handle_offset = "replace"
 
 		for i, label in enumerate(text_points.labels):
+			label = text_style.get_text(label)
 			style = text_points.get_overriding_style(text_style, i)
-			label = style.get_text(label)
 			if isinstance(label, str):
 				label = label.decode('iso-8859-1')
 			#self.ax.text(x[i], y[i], label, zorder=self.zorder, **style.to_kwargs())
