@@ -831,6 +831,7 @@ class FocmecStyle(BasemapStyle):
 		self.fill_color = fill_color
 		self.bg_color = bg_color
 		self.offset = offset
+		self.offset_coord_frame = offset_coord_frame
 		self.alpha = alpha
 		self.thematic_legend_style = thematic_legend_style
 

@@ -408,7 +408,7 @@ class LayeredBasemap:
 					if textcoords != 'offset points':
 						x[i], y[i] = 0, 0
 				else:
-					#print("%s, %s, %s" % (x[i], y[i], label))
+					print('data.append(lbm.TextData(%.0f, %.0f, label="%s"))' % (x[i], y[i], label))
 					xytext = None
 					textcoords = "data"
 			self.ax.annotate(label, (x[i], y[i]), xytext=xytext, textcoords=textcoords, zorder=self.zorder, axes=self.ax, clip_on=style.clip_on, **style.to_kwargs())
@@ -1200,7 +1200,7 @@ class LayeredBasemap:
 		if focmec_data.style_params.has_key('offset') or focmec_style.offset:
 			offsets = focmec_data.style_params.get('offset') or [focmec_style.offset] * len(focmec_data)
 			offsets = np.array(offsets)
-			offset_coord_frame = focmec_style.coord_frame
+			offset_coord_frame = focmec_style.offset_coord_frame
 			## Compute offset in map units
 			if offset_coord_frame == "offset points":
 				## Offset in points
