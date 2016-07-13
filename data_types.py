@@ -1820,6 +1820,17 @@ class GisData(BasemapData):
 		self.style_params = style_params or {}
 		self.convert_closed_lines = convert_closed_lines
 
+	def get_attributes(self):
+		"""
+		Read GIS attributes (column names).
+
+		:return:
+			list of strings
+		"""
+		from mapping.geo.readGIS import read_GIS_file_attributes
+
+		return read_GIS_file_attributes(self.filespec)
+
 	def get_data(self, point_value_colnames=None, line_value_colnames=None,
 					polygon_value_colnames=None):
 		"""
@@ -1838,10 +1849,10 @@ class GisData(BasemapData):
 		:return:
 			(MultiPointData, MultiLineData, MultiPolygonData) tuple
 		"""
-		from mapping.geo.readGIS import read_GIS_file, read_GIS_file_attributes
+		from mapping.geo.readGIS import read_GIS_file
 
 		if None in (point_value_colnames, line_value_colnames, polygon_value_colnames):
-			colnames = read_GIS_file_attributes(self.filespec)
+			colnames = self.get_attributes()
 		if point_value_colnames is None:
 			point_value_colnames = set(colnames)
 		if line_value_colnames is None:
@@ -1910,10 +1921,11 @@ class GisData(BasemapData):
 						pt.value = {k: rec[k] for k in point_value_colnames if k in rec}
 						point_data.append(pt)
 				elif geom_type == "LINESTRING":
-					line = LineData.from_ogr(geom)
-					line.label = label
-					line.value = {k: rec[k] for k in line_value_colnames if k in rec}
-					line_data.append(line)
+					if geom.GetPointCount() > 1:
+						line = LineData.from_ogr(geom)
+						line.label = label
+						line.value = {k: rec[k] for k in line_value_colnames if k in rec}
+						line_data.append(line)
 				elif geom_type == "MULTILINESTRING":
 					multi_line = MultiLineData.from_ogr(geom)
 					for line in multi_line:
