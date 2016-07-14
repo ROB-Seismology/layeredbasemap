@@ -7,6 +7,7 @@ import datetime
 
 import numpy as np
 import matplotlib
+import mpl_toolkits.basemap
 from mpl_toolkits.basemap import Basemap
 import pylab
 import shapely
@@ -146,14 +147,19 @@ class LayeredBasemap:
 		else:
 			width, height = self.extent
 
-		if "EPSG:" in self.projection:
-			projection = None
-			epsg = int(self.projection.split("EPSG:")[1])
-		else:
-			projection = self.projection
-			epsg = None
+		if mpl_toolkits.basemap.__version__ != '1.0.2':
+			if "EPSG:" in self.projection:
+				projection = None
+				epsg = int(self.projection.split("EPSG:")[1])
+			else:
+				projection = self.projection
+				epsg = None
 
-		map = Basemap(projection=projection, epsg=epsg, resolution=self.resolution, llcrnrlon=llcrnrlon, llcrnrlat=llcrnrlat, urcrnrlon=urcrnrlon, urcrnrlat=urcrnrlat, lon_0=lon_0, lat_0=lat_0, width=width, height=height, ax=ax, **self.proj_args)
+			map = Basemap(projection=projection, epsg=epsg, resolution=self.resolution, llcrnrlon=llcrnrlon, llcrnrlat=llcrnrlat, urcrnrlon=urcrnrlon, urcrnrlat=urcrnrlat, lon_0=lon_0, lat_0=lat_0, width=width, height=height, ax=ax, **self.proj_args)
+		else:
+			## Basemap version on Ubuntu 12.04 does not support epsg parameter
+			map = Basemap(projection=projection, resolution=self.resolution, llcrnrlon=llcrnrlon, llcrnrlat=llcrnrlat, urcrnrlon=urcrnrlon, urcrnrlat=urcrnrlat, lon_0=lon_0, lat_0=lat_0, width=width, height=height, ax=ax, **self.proj_args)
+
 		self.region = (map.llcrnrlon, map.urcrnrlon, map.llcrnrlat, map.urcrnrlat)
 		self.is_drawn = False
 		return map
@@ -1624,6 +1630,11 @@ class LayeredBasemap:
 		return srs.ExportToWkt()
 
 	def plot(self, fig_filespec=None, fig_width=0, dpi=None):
+		"""
+		:param fig_filespec:
+			str, full path to output file or None (plot on screen)
+			or "hold" (do not show plot)
+		"""
 		#fig = pylab.figure()
 		#subplot = fig.draw_subplot(111)
 		#subplot.set_axes(self.ax)
@@ -1637,7 +1648,9 @@ class LayeredBasemap:
 				self.fig.set_dpi(dpi)
 		if not self.is_drawn:
 			self.draw()
-		if fig_filespec:
+		if fig_filespec == "hold":
+			return
+		elif fig_filespec:
 			pylab.savefig(fig_filespec, dpi=dpi)
 			pylab.clf()
 		else:
