@@ -1116,6 +1116,9 @@ class LayeredBasemap:
 		#for i in cbar.solids.get_edgecolors():
 		#	i[3] = style.alpha
 
+		# TODO: implement plotting of colorbar inside map.
+		# See: http://stackoverflow.com/questions/18211967/position-colorbar-inside-figure
+
 	def draw_continents(self, continent_style):
 		if hasattr(continent_style, "bg_color"):
 			## Draw oceans as map background

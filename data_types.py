@@ -600,6 +600,9 @@ class LineData(SingleData):
 		return cls.from_wkt(geom.ExportToWkt(), value=value, label=label,
 								style_params=style_params)
 
+	def get_length(self):
+		return self.to_shapely().length
+
 	def get_midpoint(self):
 		return self.get_point_at_fraction_of_length(0.5)
 
