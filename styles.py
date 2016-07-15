@@ -1022,6 +1022,7 @@ class ThematicStyleIndividual(ThematicStyle):
 	"""
 	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True, colorbar_style=None):
 		super(ThematicStyleIndividual, self).__init__(value_key, add_legend, colorbar_style)
+		assert len(values) == len(styles)
 		self.values = values
 		if styles[:12] == "random_color":
 			if ',' in styles:
@@ -1512,11 +1513,11 @@ class ColorbarStyle(BasemapStyle):
 	:param label_size:
 		int, font size of colorbar label (default: 14)
 	:param tick_label_size:
-		int, font size of colorbar tick labels (default: 12)
+		int, font size of colorbar tick labels (default: 10)
 	:param alpha:
 		Float in the range 0 - 1, opacity (default: 1.)
 	"""
-	def __init__(self, title="", location="bottom", size='5%', pad='10%', extend="neither", spacing="uniform", ticks=None, tick_labels=None, format="%s", drawedges=False, label_size=14, tick_label_size=12, alpha=1.):
+	def __init__(self, title="", location="bottom", size='5%', pad='10%', extend="neither", spacing="uniform", ticks=None, tick_labels=None, format="%s", drawedges=False, label_size=14, tick_label_size=10, alpha=1.):
 		self.title = title
 		self.location = location
 		self.size = size
