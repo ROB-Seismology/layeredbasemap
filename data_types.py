@@ -1940,7 +1940,18 @@ class GisData(BasemapData):
 						polygon.value = {k: rec[k] for k in polygon_value_colnames if k in rec}
 						polygon_data.append(polygon)
 				elif geom_type == "MULTIPOLYGON":
-					multi_polygon = MultiPolygonData.from_ogr(geom)
+					try:
+						multi_polygon = MultiPolygonData.from_ogr(geom)
+					except:
+						## Keep only the first polygon
+						multi_polygon = []
+						for p in range(geom.GetGeometryCount()):
+							try:
+								polygon = PolygonData.from_ogr(geom.GetGeometryRef(p))
+							except:
+								print("Warning: Omitting part #%d of multipolygon" % p)
+							else:
+								multi_polygon.append(polygon)
 					for polygon in multi_polygon:
 						polygon.label = label
 						polygon.value = {k: rec[k] for k in polygon_value_colnames if k in rec}
