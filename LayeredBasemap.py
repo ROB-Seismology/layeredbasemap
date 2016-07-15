@@ -510,11 +510,14 @@ class LayeredBasemap:
 					# np.digitize(np.array(list(set(polygon_style.fill_color.apply_value_key(polygon_data.values)))), np.array(polygon_style.fill_color.values))
 					used_colors = []
 					for color in fill_colors:
-						color = tuple(color)
+						if isinstance(color, (list, np.ndarray)):
+							color = tuple(color)
 						if not color in used_colors:
 							used_colors.append(color)
 					for color, label in zip(polygon_style.fill_color.styles,
 											polygon_style.fill_color.labels):
+						if isinstance(color, (list, np.ndarray)):
+							color = tuple(color)
 						if color in used_colors:
 							## Keep only colors that are actually used
 							ntl = polygon_style.get_non_thematic_style()
@@ -1118,6 +1121,8 @@ class LayeredBasemap:
 
 		# TODO: implement plotting of colorbar inside map.
 		# See: http://stackoverflow.com/questions/18211967/position-colorbar-inside-figure
+
+		# TODO: implement full label_style for both colorbar title and ticks
 
 	def draw_continents(self, continent_style):
 		if hasattr(continent_style, "bg_color"):
