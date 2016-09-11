@@ -655,7 +655,8 @@ class LineStyle(BasemapStyle):
 		if self.dash_pattern:
 			d["dashes"] = self.dash_pattern
 		else:
-			d["dashes"] = (None, None)
+			pass
+			#d["dashes"] = (None, None)
 		d["alpha"] = self.alpha
 		return d
 
