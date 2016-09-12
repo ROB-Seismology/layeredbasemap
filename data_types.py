@@ -79,7 +79,7 @@ class MultiData(BasemapData):
 		if isinstance(values1, dict):
 			for key in values1.keys():
 				if isinstance(values2, dict):
-					values1[key].extend(values2[key, []])
+					values1[key].extend(values2[key] or [])
 		else:
 			values1.extend(values2)
 

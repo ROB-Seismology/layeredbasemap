@@ -645,7 +645,6 @@ class LineStyle(BasemapStyle):
 		and which can be passed to the fill function or PolygonPatch object
 		"""
 		d = {}
-		d["ls"] = self.line_pattern
 		d["lw"] = self.line_width
 		d["color"] = self.line_color
 		d["solid_capstyle"] = self.solid_capstyle
@@ -655,7 +654,7 @@ class LineStyle(BasemapStyle):
 		if self.dash_pattern:
 			d["dashes"] = self.dash_pattern
 		else:
-			pass
+			d["ls"] = self.line_pattern
 			#d["dashes"] = (None, None)
 		d["alpha"] = self.alpha
 		return d
