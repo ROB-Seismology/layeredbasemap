@@ -1687,7 +1687,8 @@ class LayeredBasemap:
 			self.draw()
 		self.fig.canvas.draw()
 		subplot = self.fig.add_subplot(111)
-		subplot.set_axes(self.ax)
+		#subplot.set_axes(self.ax)
+		subplot.axes = self.ax
 
 		lons = [self.llcrnrlon, self.urcrnrlon]
 		lats = [self.llcrnrlat, self.urcrnrlat]
