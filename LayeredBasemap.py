@@ -62,7 +62,7 @@ class ThematicLegend:
 
 
 class LayeredBasemap:
-	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), extent=(None, None), graticule_interval=(None, None), resolution="i", title_style=DefaultTitleTextStyle, legend_style=LegendStyle(), scalebar_style=None, border_style=MapBorderStyle(), graticule_style=GraticuleStyle(), ax=None, figsize=(8,6), dpi=120, **proj_args):
+	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), extent=(None, None), graticule_interval=(None, None), resolution="i", title_style=DefaultTitleTextStyle, legend_style=LegendStyle(), scalebar_style=None, border_style=MapBorderStyle(), graticule_style=GraticuleStyle(), ax=None, cax=None, figsize=(8,6), dpi=120, **proj_args):
 		self.layers = layers
 		self.title = title
 		self.region = region
@@ -87,6 +87,7 @@ class LayeredBasemap:
 		else:
 			self.ax = ax
 			self.fig = pylab.gcf()
+		self.cax = cax
 		self.thematic_legends = []
 		self.legend_artists = []
 		self.legend_labels = []
@@ -1105,7 +1106,19 @@ class LayeredBasemap:
 		"""
 		# TODO: limit ticks to interval between norm.vmin and norm.vmax,
 		# but then we need to pass norm as well...
-		cbar = self.map.colorbar(sm, ax=self.ax, fig=self.fig, **style.to_kwargs())
+		if self.cax == "fig":
+			cbar = self.map.colorbar(sm, ax=None, fig=self.fig, **style.to_kwargs())
+		elif self.cax:
+			if style.location in ("top", "bottom"):
+				orientation = "horizontal"
+			else:
+				orientation = "vertical"
+			cbar = pylab.colorbar(sm, ax=None, cax=self.cax, orientation=orientation,
+						extend=style.extend, spacing=style.spacing,
+						ticks=style.ticks, format=style.format, drawedges=style.drawedges,
+						alpha=style.alpha)
+		else:
+			cbar = self.map.colorbar(sm, ax=self.ax, fig=self.fig, **style.to_kwargs())
 		# TODO: do set_label and set_ticklabels accept font kwargs?
 		cbar.set_label(style.title, size=style.label_size)
 		if style.tick_labels:
@@ -1826,6 +1839,18 @@ class LayeredBasemap:
 			int, layer index
 		"""
 		return self.get_layer_names().index(layer_name)
+
+	def get_layer_by_name(self, layer_name):
+		"""
+		Fetch layer with given name
+
+		:param layer_name:
+			str, layer name
+
+		:return:
+			instance of :class:`MapLayer`
+		"""
+		return self.layers[self.get_named_layer_index(layer_name)]
 
 
 
