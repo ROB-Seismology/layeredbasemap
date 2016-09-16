@@ -224,6 +224,8 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 			ax.plot(marker_x, marker_y, linestyle='None', marker=marker, markersize=marker_size, mec=marker_edge_color, mfc=marker_face_color, mew=marker_edge_width, alpha=marker_alpha, zorder=zorder)
 
 		def legend_artist(self, legend, orig_handle, fontsize, handlebox):
+			## Note: In matplotlib versions 1.3.X and maybe also 1.4.X,
+			## the 'self' property needs to be removed...
 			# TODO: marker_alternate_sides!
 			marker = (marker_num_sides, marker_shape_code, marker_angle)
 			x0, y0 = handlebox.xdescent, handlebox.ydescent
@@ -243,9 +245,9 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 		if mpl.__version__ <= "1.3.1":
 			legend_handler = legend_artist
 		else:
+			#legend_handler = type('FrontlineLegendHandler',  (), {'legend_artist': classmethod(legend_artist)})()
 			legend_handler = FrontlineLegendHandler()
 			legend_handler.legend_artist = MethodType(legend_artist, legend_handler, FrontlineLegendHandler)
-			#legend_handler = type('FrontlineLegendHandler',  (), {'legend_artist': classmethod(legend_artist)})()
 
 	## Patches
 	elif marker_shape in ["arc", "arrow", "ellipse", "rectangle"] or isinstance(marker_shape, mpl.patches.Patch):
