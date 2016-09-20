@@ -185,7 +185,8 @@ class LayeredBasemap:
 
 	## Drawing primitives
 
-	def _draw_points(self, points, style, legend_label="_nolegend_", thematic_legend_artists=[], thematic_legend_labels=[]):
+	def _draw_points(self, points, style, legend_label="_nolegend_", legend_name="main",
+					thematic_legend_artists=[], thematic_legend_labels=[]):
 		## Note: overriding style params not implemented (except for labels)
 		## because we plot all points in one function call!
 		x, y = self.map(points.lons, points.lats)
@@ -193,8 +194,9 @@ class LayeredBasemap:
 			#self.map.plot(x, y, ls="None", lw=0, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
 			pt, = self.map.plot(x, y, ls="None", lw=0, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
 			if legend_label and legend_label != "_nolegend_":
-				self.legend_artists.append(pt)
-				self.legend_labels.append(legend_label)
+				tl_artists, tl_labels = self.get_thematic_legend_artists_and_labels(legend_name)
+				tl_artists.append(pt)
+				tl_labels.append(legend_label)
 		else:
 			## Thematic style, use scatter method
 			if isinstance(style.size, ThematicStyle):
@@ -296,16 +298,19 @@ class LayeredBasemap:
 					l = matplotlib.lines.Line2D([0], [0], lw=0, **ntl.to_kwargs())
 					thematic_legend_artists.append(l)
 
-	def _draw_line(self, line, line_style, legend_label="_nolegend_"):
+	def _draw_line(self, line, line_style, legend_label="_nolegend_",
+					legend_name="main"):
 		x, y = self.map(line.lons, line.lats)
 		style = line.get_overriding_style(line_style)
 		#self.map.plot(x, y, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
 		l, = self.map.plot(x, y, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
 		if legend_label and legend_label != "_nolegend_":
-			self.legend_artists.append(l)
-			self.legend_labels.append(legend_label)
+			tl_artists, tl_labels = self.get_thematic_legend_artists_and_labels(legend_name)
+			tl_artists.append(l)
+			tl_labels.append(legend_label)
 
-	def _draw_fronts(self, line, line_style, legend_label="_nolegend_"):
+	def _draw_fronts(self, line, line_style, legend_label="_nolegend_",
+					legend_name="main"):
 		"""
 		:param line_style:
 			instance of :class:`LineStyle`
@@ -325,11 +330,13 @@ class LayeredBasemap:
 		if legend_label and legend_label != "_nolegend_":
 			## Note: doesn't work in matplotlib 1.3.1
 			dummy_artist = type('DummyArtist', (), {})()
-			self.legend_artists.append(dummy_artist)
-			self.legend_labels.append(legend_label)
+			tl_artists, tl_labels = self.get_thematic_legend_artists_and_labels(legend_name)
+			tl_artists.append(dummy_artist)
+			tl_labels.append(legend_label)
 			self.legend_handler_map[dummy_artist] = lh
 
-	def _draw_polygon(self, polygon, polygon_style, legend_label="_nolegend_"):
+	def _draw_polygon(self, polygon, polygon_style, legend_label="_nolegend_",
+					legend_name="main"):
 		if isinstance(polygon_style, LineStyle):
 			self._draw_line(polygon, polygon_style, legend_label)
 		if polygon_style.fill_color in (None, "None", "none"):
@@ -345,8 +352,9 @@ class LayeredBasemap:
 			#self.ax.fill(x, y, fill=fill, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
 			patch, = self.ax.fill(x, y, fill=fill, zorder=self.zorder, axes=self.ax, **style.to_kwargs())
 			if legend_label and legend_label != "_nolegend_":
-				self.legend_artists.append(patch)
-				self.legend_labels.append(legend_label)
+				tl_artists, tl_labels = self.get_thematic_legend_artists_and_labels(legend_name)
+				tl_artists.append(patch)
+				tl_labels.append(legend_label)
 		else:
 			## Complex polygon with holes
 			proj_polygon = self.get_projected_polygon(polygon)
@@ -366,8 +374,9 @@ class LayeredBasemap:
 				patch.set_zorder(self.zorder)
 				self.ax.add_patch(patch)
 			if legend_label and legend_label != "_nolegend_":
-				self.legend_artists.append(patch)
-				self.legend_labels.append(legend_label)
+				tl_artists, tl_labels = self.get_thematic_legend_artists_and_labels(legend_name)
+				tl_artists.append(patch)
+				tl_labels.append(legend_label)
 
 	def _draw_texts(self, text_points, text_style):
 		"""
@@ -459,6 +468,10 @@ class LayeredBasemap:
 		else:
 			fill_hatches = [polygon_style.fill_hatch] * num_polygons
 
+		if isinstance(polygon_style.thematic_legend_style, (str, unicode)):
+			legend_name = polygon_style.thematic_legend_style
+		else:
+			legend_name = "main"
 		for i, polygon in enumerate(polygon_data):
 			if polygon_style.is_thematic():
 				legend_label = "_nolegend_"
@@ -473,7 +486,7 @@ class LayeredBasemap:
 			style.fill_color = fill_colors[i]
 			style.fill_hatch = fill_hatches[i]
 			style.label_style = None
-			self._draw_polygon(polygon, style, legend_label)
+			self._draw_polygon(polygon, style, legend_label, legend_name=legend_name)
 		self.zorder += 1
 		if polygon_data.labels and polygon_style.label_style:
 			centroids = MultiPointData([], [], labels=[])
@@ -605,6 +618,10 @@ class LayeredBasemap:
 			# TODO: more efficient use of iterators ?
 			line_colors = [line_style.line_color] * num_lines
 
+		if isinstance(line_style.thematic_legend_style, (str, unicode)):
+			legend_name = line_style.thematic_legend_style
+		else:
+			legend_name = "main"
 		for i, line in enumerate(line_data):
 			if line_style.is_thematic():
 				legend_label = "_nolegend_"
@@ -626,13 +643,13 @@ class LayeredBasemap:
 					style.front_style.line_color = style.line_color
 				if style.front_style.fill_color is None:
 					style.front_style.fill_color = style.line_color
-				self._draw_fronts(line, style, legend_label)
+				self._draw_fronts(line, style, legend_label, legend_name=legend_name)
 				# TODO: lines with frontstyle in legend (or thematic legend)
 				#handle, label = ax.get_legend_handles_labels()
 				#handles = handle+p_handle
 				#labels = label+p_label
 			else:
-				self._draw_line(line, style, legend_label)
+				self._draw_line(line, style, legend_label, legend_name=legend_name)
 		self.zorder += 1
 
 		## Labels
@@ -727,7 +744,11 @@ class LayeredBasemap:
 		if isinstance(point_data, PointData):
 			point_data = point_data.to_multi_point()
 		if not isinstance(point_style.shape, ThematicStyle):
-			self._draw_points(point_data, point_style, legend_label, thematic_legend_artists=legend_artists, thematic_legend_labels=legend_labels)
+			if isinstance(point_style.thematic_legend_style, (str, unicode)):
+				legend_name = point_style.thematic_legend_style
+			else:
+				legend_name = "main"
+			self._draw_points(point_data, point_style, legend_label, legend_name=legend_name, thematic_legend_artists=legend_artists, thematic_legend_labels=legend_labels)
 		else:
 			## scatter does not support different markers, so we have to do this separately
 			data_marker_shapes = np.array(point_style.shape(point_data.values))
@@ -737,7 +758,7 @@ class LayeredBasemap:
 				marker_shape_points = MultiPointData.from_points(point_list)
 				marker_shape_style = PointStyle(shape=marker_shape, size=point_style.size, line_width=point_style.line_width, line_color=point_style.line_color, fill_color=point_style.fill_color, label_style=point_style.label_style, alpha=point_style.alpha, thematic_legend_style=point_style.thematic_legend_style)
 				#legend_label = "_nolegend_"
-				self._draw_points(marker_shape_points, marker_shape_style, legend_label, thematic_legend_artists=legend_artists, thematic_legend_labels=legend_labels)
+				self._draw_points(marker_shape_points, marker_shape_style, legend_label, legend_name="", thematic_legend_artists=legend_artists, thematic_legend_labels=legend_labels)
 				## Thematic legend
 				ntl_style = point_style.get_non_thematic_style()
 				ntl_style.shape = marker_shape
@@ -1488,7 +1509,7 @@ class LayeredBasemap:
 					title = title.decode('iso-8859-1')
 				title_style = thematic_legend.style.title_style
 
-				tl = self.ax.legend(thematic_legend.artists, thematic_legend.labels, **thematic_legend.style.to_kwargs())
+				tl = self.ax.legend(thematic_legend.artists, thematic_legend.labels, handler_map=self.legend_handler_map, **thematic_legend.style.to_kwargs())
 				tl.set_title(title, prop=title_style.to_font_props())
 				## Align title to center...
 				ha = getattr(title_style, 'horizontal_alignment', 'center')
