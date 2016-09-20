@@ -1245,6 +1245,17 @@ class MeshGridData(GridData):
 
 		return shade
 
+	def to_gdal(self):
+		# TODO
+		driver = gdal.GetDriverByName('MEM')
+		ds = driver.Create('', 255, 255, 1, gdal.GDT_Int32)
+		#ds = driver.Create('out_file.tiff', 255, 255, 1, gdal.GDT_Int32)
+		proj = osr.SpatialReference()
+		proj.SetWellKnownGeogCS("EPSG:4326")
+		ds.SetProjection(proj.ExportToWkt())
+		geotransform = (1, 0.1, 0, 40, 0, 0.1)
+		ds.SetGeoTransform(geotransform)
+
 
 class GdalRasterData(MeshGridData):
 	"""
@@ -1623,6 +1634,24 @@ class MeshGridVectorData(BasemapData):
 		grdy = GdalRasterData(vy_filespec, band_nr=band_nr, down_sampling=down_sampling)
 		return MeshGridVectorData(grdx, grdy)
 
+	@classmethod
+	def from_azimuths(self, lons, lats, azimuths):
+		"""
+		Construct from meshed azimuth array
+
+		:param lons:
+			2-D array, meshed longitudes
+		:param lats:
+			2-D array, meshed latitudes
+		:param azimuths:
+			2-D array, meshed azimuths
+
+		:return:
+			instance of :class:`MeshGridVectorData`
+		"""
+		vx = MeshGridData(lons, lats, np.sin(np.radians(azimuths)))
+		vy = MeshGridData(lons, lats, np.cos(np.radians(azimuths)))
+		return MeshGridVectorData(vx, vy)
 
 class WCSData(GdalRasterData):
 	"""
