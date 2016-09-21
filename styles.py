@@ -226,7 +226,7 @@ class TextStyle(FontStyle):
 		#d["variant"] = self.font_variant
 		d["fontproperties"] = self.to_font_props()
 		d["color"] = self.color
-		d["backgroundcolor"] = self.background_color
+		#d["backgroundcolor"] = self.background_color
 		d["linespacing"] = self.line_spacing
 		d["rotation"] = self.rotation
 		d["ha"] = self.horizontal_alignment
@@ -234,7 +234,9 @@ class TextStyle(FontStyle):
 		d["multialignment"] = self.multi_alignment
 		d["alpha"] = self.alpha
 		# TODO: fully implement bbox parameters
-		#d["bbox"] = {"pad": 0}
+		# boxstyles: circle, darrow, larrow, rarrow, round, round4, roundtooth, sawtooth, square
+		d["bbox"] = dict(facecolor=self.background_color, edgecolor='none', pad=2, lw=0)
+		#bbox=dict(facecolor='none', edgecolor='black', boxstyle='round,pad=1')
 		return d
 
 	def get_text(self, text):
