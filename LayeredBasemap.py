@@ -244,7 +244,7 @@ class LayeredBasemap:
 
 			if not (isinstance(style.line_color, ThematicStyle) or isinstance(style.fill_color, ThematicStyle)):
 				cmap, norm, vmin, vmax = None, None, None, None
-				colors = []
+				colors = None
 
 			cs = self.map.scatter(x, y, marker=style.shape, s=np.power(sizes, 2), c=colors, linewidths=line_widths, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, label=legend_label, alpha=style.alpha, zorder=self.zorder, axes=self.ax, **extra_kwargs)
 
