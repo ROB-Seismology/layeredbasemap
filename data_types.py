@@ -1080,10 +1080,11 @@ class CompositeData(BasemapData):
 
 
 class GridData(BasemapData):
-	def __init__(self, lons, lats, values):
+	def __init__(self, lons, lats, values, unit=""):
 		self.lons = np.asarray(lons)
 		self.lats = np.asarray(lats)
 		self.values = np.asarray(values)
+		self.unit = unit
 
 
 class UnstructuredGridData(GridData):
@@ -1096,11 +1097,14 @@ class UnstructuredGridData(GridData):
 		1-D array of latitudes
 	:param values:
 		1-D array of values
+	:param unit:
+		str, measurement unit of values
+		(default: "")
 	"""
-	def __int__(self, lons, lats, values):
+	def __int__(self, lons, lats, values, unit=""):
 		if lons.ndim != 1 or lats.ndim != 1 or values.ndim != 1:
 			raise ValueError("lons, lats, and values should be 1-dimensional")
-		super(UnstructuredGridData, self).__init__(lons, lats, values)
+		super(UnstructuredGridData, self).__init__(lons, lats, values, unit)
 
 	def lonmin(self):
 		"""
@@ -1172,8 +1176,10 @@ class MeshGridData(GridData):
 		2-D array
 	:param values:
 		2-D array
+	:param unit:
+		str
 	"""
-	def __init__(self, lons, lats, values):
+	def __init__(self, lons, lats, values, unit=""):
 		if lons.ndim != 2 or lats.ndim != 2 or values.ndim != 2:
 			raise ValueError("lons, lats, and values should be 2-dimensional")
 		## Not sure the following is really necessary
@@ -1181,7 +1187,7 @@ class MeshGridData(GridData):
 		dlat = np.diff(lats)
 		if not np.allclose(dlon, dlon[0]) or not np.allclose(dlat, dlat[0]):
 			raise ValueError("Grid spacing must be uniform")
-		super(MeshGridData, self).__init__(lons, lats, values)
+		super(MeshGridData, self).__init__(lons, lats, values, unit)
 
 		# TODO: need to make functions for these using source srs
 		# (in which grid is rectangular)
@@ -1272,8 +1278,14 @@ class GdalRasterData(MeshGridData):
 		float, factor for downsampling, i.e. to divide number of columns and
 		rows with
 		(default: 1., no downsampling)
+	:param nodata_value:
+		float, value indicating absence of data
+		(default: None)
+	:param unit:
+		str, measurement unit of gridded values
+		(default: "")
 	"""
-	def __init__(self, filespec, band_nr=1, down_sampling=1., nodata_value=None):
+	def __init__(self, filespec, band_nr=1, down_sampling=1., nodata_value=None, unit=""):
 		self.filespec = filespec
 		self.band_nr = band_nr
 		self.read_grid_info()
@@ -1283,6 +1295,8 @@ class GdalRasterData(MeshGridData):
 		self._center_lats = None
 		self.set_down_sampling(down_sampling)
 		self.nodata_value = nodata_value
+		# TODO: get unit from raster?
+		self.unit = unit
 
 	# TODO: raster subdatasets
 	#subdatasets = dataset.GetSubDatasets()
@@ -1610,12 +1624,13 @@ class MeshGridVectorData(BasemapData):
 	:param grdy:
 		instance of :class:`MeshGridData`, vector Y-component
 	"""
-	def __init__(self, grdx, grdy):
+	def __init__(self, grdx, grdy, unit=""):
 		self.grdx = grdx
 		self.grdy = grdy
+		self.unit = unit
 
 	@classmethod
-	def from_vx_filespec(self, vx_filespec, band_nr=1, down_sampling=1.):
+	def from_vx_filespec(self, vx_filespec, band_nr=1, down_sampling=1., nodata_value=None, unit=""):
 		"""
 		Set from GDAL filespec corresponding to X component,
 		assuming it follows '.vx'/'.vy' naming convention
@@ -1630,12 +1645,13 @@ class MeshGridVectorData(BasemapData):
 			instance of :class:`MeshGridVectorData`
 		"""
 		vy_filespec = vx_filespec.replace('.vx', '.vy')
-		grdx = GdalRasterData(vx_filespec, band_nr=band_nr, down_sampling=down_sampling)
-		grdy = GdalRasterData(vy_filespec, band_nr=band_nr, down_sampling=down_sampling)
-		return MeshGridVectorData(grdx, grdy)
+		grdx = GdalRasterData(vx_filespec, band_nr=band_nr, down_sampling=down_sampling, nodata_value=nodata_value)
+		grdy = GdalRasterData(vy_filespec, band_nr=band_nr, down_sampling=down_sampling, nodata_value=nodata_value)
+		return MeshGridVectorData(grdx, grdy, unit=unit)
+		# TODO: nodata_value?
 
 	@classmethod
-	def from_azimuths(self, lons, lats, azimuths):
+	def from_azimuths(self, lons, lats, azimuths, unit=""):
 		"""
 		Construct from meshed azimuth array
 
@@ -1651,7 +1667,8 @@ class MeshGridVectorData(BasemapData):
 		"""
 		vx = MeshGridData(lons, lats, np.sin(np.radians(azimuths)))
 		vy = MeshGridData(lons, lats, np.cos(np.radians(azimuths)))
-		return MeshGridVectorData(vx, vy)
+		return MeshGridVectorData(vx, vy, unit=unit)
+
 
 class WCSData(GdalRasterData):
 	"""
