@@ -746,8 +746,9 @@ class LayeredBasemap:
 		if not isinstance(point_style.shape, ThematicStyle):
 			if isinstance(point_style.thematic_legend_style, (str, unicode)):
 				legend_name = point_style.thematic_legend_style
+				#legend_artists, legend_labels = self.get_thematic_legend_artists_and_labels(legend_name)
 			else:
-				legend_name = "main"
+				legend_name = ""
 			self._draw_points(point_data, point_style, legend_label, legend_name=legend_name, thematic_legend_artists=legend_artists, thematic_legend_labels=legend_labels)
 		else:
 			## scatter does not support different markers, so we have to do this separately
@@ -1104,7 +1105,7 @@ class LayeredBasemap:
 		self.ax.imshow(img_ar, extent=extent, zorder=self.zorder, alpha=image_style.alpha)
 		self.zorder += 1
 
-	def draw_grid_vector_layer(self, vector_data, vector_style):
+	def draw_grid_vector_layer(self, vector_data, vector_style, legend_label=""):
 		# TODO: thematic legend with size of vector! (pylab.quiverkey)
 		try:
 			x, y = vector_data.grdx.get_mesh_coordinates("center")
@@ -1112,13 +1113,20 @@ class LayeredBasemap:
 			x, y = vector_data.grdx.lons, vector_data.grdx.lats
 		u, v = vector_data.grdx.values, vector_data.grdy.values
 		Q = self.map.quiver(x, y, u, v, latlon=True, zorder=self.zorder, **vector_style.to_kwargs())
-		if isinstance(vector_style.thematic_legend_style, LegendStyle):
+		if vector_style.thematic_legend_style:
 			# TODO: find mechanism to pass arrow scale and label
 			length = 1
 			qk = pylab.quiverkey(Q, -1, -1, length, label="", coordinates='axes', labelpos='E')
-			label = "%s" % length
-			thematic_legend = ThematicLegend([qk], [label], vector_style.thematic_legend_style)
-			self.thematic_legends.append(thematic_legend)
+			label = "%s (%s %s)" % (legend_label, length, vector_data.unit)
+
+			if isinstance(vector_style.thematic_legend_style, (str, unicode)):
+				legend_name = vector_style.thematic_legend_style
+				legend_artists, legend_labels = self.get_thematic_legend_artists_and_labels(legend_name)
+				legend_artists.append(qk)
+				legend_labels.append(label)
+			else:
+				thematic_legend = ThematicLegend([qk], [label], vector_style.thematic_legend_style)
+				self.thematic_legends.append(thematic_legend)
 		self.zorder == 1
 
 	def draw_colorbar(self, sm, style):
@@ -1482,7 +1490,7 @@ class LayeredBasemap:
 					legend_label = layer.legend_label
 				self.draw_composite_layer(point_data=point_data, point_style=point_style, line_data=line_data, line_style=line_style, polygon_data=polygon_data, polygon_style=polygon_style, text_data=text_data, text_style=text_style, legend_label=legend_label)
 			elif isinstance(layer.data, MeshGridVectorData):
-				self.draw_grid_vector_layer(layer.data, layer.style)
+				self.draw_grid_vector_layer(layer.data, layer.style, layer.legend_label)
 			elif isinstance(layer.data, GridData):
 				if isinstance(layer.style, GridStyle):
 					self.draw_grid_layer(layer.data, layer.style, layer.legend_label)
