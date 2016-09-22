@@ -1379,6 +1379,7 @@ class MeshGridData(GridData):
 		band.WriteArray(self.values)
 		band.SetNoDataValue(nodata_value)
 		band.ComputeStatistics(False)
+		band.SetUnitType(self.unit)
 		band.FlushCache()
 
 		return GdalRasterData(out_filespec)
@@ -1416,8 +1417,10 @@ class GdalRasterData(MeshGridData):
 		self._center_lats = None
 		self.set_down_sampling(down_sampling)
 		self.nodata_value = nodata_value
-		# TODO: get unit from raster?
-		self.unit = unit
+		if unit is None:
+			self.unit = self.read_band_unit_type(self.band_nr)
+		else:
+			self.unit = unit
 
 	# TODO: raster subdatasets
 	#subdatasets = dataset.GetSubDatasets()
@@ -1591,6 +1594,21 @@ class GdalRasterData(MeshGridData):
 		else:
 			return self.read_image_array()
 
+	def read_band_unit_type(self, band_nr):
+		"""
+		Read unit type for a given raster band
+
+		:param band_nr:
+			int, raster band number (one-based)
+
+		:return:
+			str, unit type
+		"""
+		import gdal
+		ds = gdal.Open(self.filespec, gdal.GA_ReadOnly)
+		band = ds.GetRasterBand(band_nr)
+		return band.GetUnitType()
+
 	def read_band(self, band_nr):
 		"""
 		Read a particular raster band
@@ -1614,6 +1632,7 @@ class GdalRasterData(MeshGridData):
 		#values[values == nodata] = np.nan
 		if nodata != None:
 			values = np.ma.array(values, mask=np.isclose(values, nodata))
+
 		ds = None
 
 		return values
