@@ -1113,20 +1113,31 @@ class LayeredBasemap:
 			x, y = vector_data.grdx.lons, vector_data.grdx.lats
 		u, v = vector_data.grdx.values, vector_data.grdy.values
 		Q = self.map.quiver(x, y, u, v, latlon=True, zorder=self.zorder, **vector_style.to_kwargs())
-		if vector_style.thematic_legend_style:
+		legend_style = vector_style.thematic_legend_style
+		if isinstance(legend_style, LegendStyle):
 			# TODO: find mechanism to pass arrow scale and label
 			length = 1
-			qk = pylab.quiverkey(Q, -1, -1, length, label="", coordinates='axes', labelpos='E')
 			label = "%s (%s %s)" % (legend_label, length, vector_data.unit)
+			#qk = pylab.quiverkey(Q, -1,-1, length, label='', coordinates='axes', labelpos='E')
+			#qk._init()
+			qk = pylab.quiverkey(Q, 0.5, 0.05, length, label=label, coordinates='axes',
+							labelpos='E', labelsep=0.1, fontproperties=legend_style.label_style.to_font_props_dict())
+			qk.text.set_backgroundcolor(legend_style.fill_color)
+			#qk.Q.set_zorder()
 
+			# Legend does not support QuiverKey object...
+			"""
 			if isinstance(vector_style.thematic_legend_style, (str, unicode)):
 				legend_name = vector_style.thematic_legend_style
+				qk._init()
 				legend_artists, legend_labels = self.get_thematic_legend_artists_and_labels(legend_name)
-				legend_artists.append(qk)
+				legend_artists.append(qk.Q)
 				legend_labels.append(label)
 			else:
-				thematic_legend = ThematicLegend([qk], [label], vector_style.thematic_legend_style)
+				thematic_legend = ThematicLegend([qk.Q], [label], vector_style.thematic_legend_style)
 				self.thematic_legends.append(thematic_legend)
+			"""
+
 		self.zorder == 1
 
 	def draw_colorbar(self, sm, style):
