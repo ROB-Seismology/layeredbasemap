@@ -1179,6 +1179,7 @@ class MeshGridData(GridData):
 	:param unit:
 		str
 	"""
+	# TODO: add nodata_value (np.nan only works for float arrays!)
 	def __init__(self, lons, lats, values, unit=""):
 		if lons.ndim != 2 or lats.ndim != 2 or values.ndim != 2:
 			raise ValueError("lons, lats, and values should be 2-dimensional")
@@ -1201,6 +1202,14 @@ class MeshGridData(GridData):
 	@property
 	def dlat(self):
 		return self.center_lats[1,0] - self.center_lats[0,0]
+
+	@property
+	def lon0(self):
+		return self.center_lons[0,0]
+
+	@property
+	def lat0(self):
+		return self.center_lats[0,0]
 
 	@property
 	def num_cols(self):
@@ -1251,16 +1260,128 @@ class MeshGridData(GridData):
 
 		return shade
 
-	def to_gdal(self):
-		# TODO
-		driver = gdal.GetDriverByName('MEM')
-		ds = driver.Create('', 255, 255, 1, gdal.GDT_Int32)
-		#ds = driver.Create('out_file.tiff', 255, 255, 1, gdal.GDT_Int32)
-		proj = osr.SpatialReference()
-		proj.SetWellKnownGeogCS("EPSG:4326")
-		ds.SetProjection(proj.ExportToWkt())
-		geotransform = (1, 0.1, 0, 40, 0, 0.1)
-		ds.SetGeoTransform(geotransform)
+	@classmethod
+	def from_XYZ(cls, xyz_filespec, sep=',', num_header_lines=1, comment_char='#'):
+		"""
+		Create meshed grid from potentially unsorted XYZ file
+
+		:param xyz_filespec:
+			str, full path to XYZ file
+		:param sep:
+			char, character separating X, Y, Z values
+			(default: ',')
+		:param num_header_lines:
+			int, number of header lines to skip
+			(default: 1)
+		:param comment_char:
+			char, character indicating comment line
+			(default: '#')
+
+		:return:
+			instance of :class:`MeshGridData`
+		"""
+		lons, lats, values = [], [], []
+		for l, line in enumerate(open(xyz_filespec)):
+			if l >= num_header_lines and line[0] != comment_char:
+				lon, lat, val = map(float, line.split(';'))
+				lons.append(lon)
+				lats.append(lat)
+				values.append(val)
+
+		grd_lons = sorted(np.unique(lons))
+		grd_lats = sorted(np.unique(lats))
+		mesh_lons, mesh_lats = np.meshgrid(grd_lons, grd_lats)
+		mesh_values = np.zeros_like(mesh_lons)
+		mesh_values[:] = np.nan
+
+		lon0, lat0 = grd_lons[0], grd_lats[0]
+		dlon = float(grd_lons[1] - grd_lons[0])
+		dlat = float(grd_lats[1] - grd_lats[0])
+		for i in range(len(values)):
+			lon_idx = round(int((lons[i] - lon0) / dlon))
+			lat_idx = round(int((lats[i] - lat0) / dlat))
+			#[lon_idx] = np.argwhere(grd_lons == lons[i])
+			#[lat_idx] = np.argwhere(grd_lats == lats[i])
+			mesh_values[lat_idx, lon_idx] = values[i]
+
+		return cls(mesh_lons, mesh_lats, mesh_values)
+
+	def get_gdal_geotransform(self):
+		"""
+		Construct GDAL geotransform
+		See http://lists.osgeo.org/pipermail/gdal-dev/2011-July/029449.html
+
+		:return:
+			6-element array
+		"""
+		## Note: for rotated grids
+		#geotransform[0] = corner lon
+		#geotransform[1] = cos(alpha)*(scaling)
+		#geotransform[2] = -sin(alpha)*(scaling)
+		#geotransform[3] = corner lat
+		#geotransform[4] = sin(alpha)*(scaling)
+		#geotransform[5] = cos(alpha)*(scaling)
+		## where scaling maps pixel space to lat/lon space
+		## and alpha denotes rotation to the East in radians
+
+		geotransform = np.zeros(6, dtype='d')
+		geotransform[0] = self.lon0 - self.dlon * 0.5	# top-left X
+		geotransform[1] = self.dlon					# w-e pixel resolution
+		geotransform[2] = 0							# rotation, 0 for north-up
+		geotransform[3] = self.lat0 - self.dlat * 0.5	# top-left Y
+		geotransform[4] = 0							# rotation, 0 for north-up
+		geotransform[5] = self.dlat					# n-s pixel resolution
+		return geotransform
+
+	def export_gdal(self, driver_name, out_filespec, proj_info="EPSG:4326",
+					nodata_value=np.nan):
+		"""
+		:param driver_name:
+			str, name of driver supported by GDAL
+		:param out_filespec:
+			str, full path to output file
+		:param proj_info:
+			int (EPSG code), str (EPSG string or WKT) or osr SpatialReference
+			object
+			(default: "EPSG:4326" (= WGS84)
+		"""
+		import osr, gdal
+		from mapping.geo.coordtrans import get_epsg_srs, wgs84, transform_coordinates
+
+		driver = gdal.GetDriverByName(driver_name)
+		num_bands = 1
+		dtype = self.values.dtype.type
+		gdal_data_type = {
+			np.byte: gdal.GDT_Byte,
+			np.int8: gdal.GDT_Byte,
+			np.int16: gdal.GDT_Int16,
+			np.int32: gdal.GDT_Int32,
+			np.float16: gdal.GDT_Float32,
+			np.float32: gdal.GDT_Float32,
+			np.float64: gdal.GDT_Float64,
+			np.uint16: gdal.GDT_UInt16,
+			np.uint32: gdal.GDT_UInt16}[dtype]
+		ds = driver.Create(out_filespec, self.num_cols, self.num_rows, num_bands, gdal_data_type)
+		ds.SetGeoTransform(self.get_gdal_geotransform())
+
+		if isinstance(proj_info, int):
+			wkt = get_epsg_srs(proj_info).ExportToWkt()
+		elif isinstance(proj_info, (str, unicode)):
+			if proj_info[:4].upper() == "EPSG":
+				wkt = get_epsg_srs(proj_info).ExportToWkt()
+			else:
+				wkt = proj_info
+		elif isinstance(proj_info, osr.SpatialReference):
+			wkt = proj_info.ExportToWkt()
+		ds.SetProjection(wkt)
+
+		band = ds.GetRasterBand(1)
+		band.WriteArray(self.values)
+		band.SetNoDataValue(nodata_value)
+		band.ComputeStatistics(False)
+		band.FlushCache()
+
+		return GdalRasterData(out_filespec)
 
 
 class GdalRasterData(MeshGridData):
