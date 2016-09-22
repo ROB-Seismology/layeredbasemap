@@ -124,9 +124,10 @@ class FontStyle(BasemapStyle):
 		self.font_weight = font_weight
 		self.font_size = font_size
 
-	def to_font_props(self):
+	def to_font_props_dict(self):
 		"""
-		Return instance of :class:`FontProperties`
+		Return dictionary with keyword arguments accepted by mpl's
+		FontProperties initializer
 		"""
 		d = {}
 		d['family'] = self.font_family
@@ -142,7 +143,13 @@ class FontStyle(BasemapStyle):
 		else:
 			fname = None
 		d['fname'] = fname
-		fp = matplotlib.font_manager.FontProperties(**d)
+		return d
+
+	def to_font_props(self):
+		"""
+		Return instance of :class:`FontProperties`
+		"""
+		fp = matplotlib.font_manager.FontProperties(**self.to_font_props_dict())
 		return fp
 
 
@@ -179,6 +186,21 @@ class TextStyle(FontStyle):
 		String, how multiple lines of text will be aligned
 		("left" | "right" | "center")
 		(default: "center")
+	:param border_color:
+		matplotlib color spec, line color of surrounding box
+		(default: "None")
+	:param border_width:
+		float, line width of surrounding box
+		(default: 0.5)
+	:param border_pad:
+		float, padding between text and surrounding box (in fraction of
+		font size)
+		(default: 0.2)
+	:param border_shape:
+		str, shape of surrounding box. Available shapes:
+		circle, darrow, larrow, rarrow, round, round4, roundtooth,
+		sawtooth, square
+		(default: "square")
 	:param offset:
 		tuple, horizontal and vertical offset in points (default: (0, 0))
 	:param offset_coord_frame:
@@ -197,7 +219,29 @@ class TextStyle(FontStyle):
 	:param alpha:
 		Float in the range 0 - 1, opacity (default: 1.)
 	"""
-	def __init__(self, font_family="sans-serif", font_style="normal", font_variant="normal", font_stretch="normal", font_weight="normal", font_size=12, color='k', background_color="None", line_spacing=1.25, rotation=0, horizontal_alignment="center", vertical_alignment="center", multi_alignment="center", offset=(0,0), offset_coord_frame="offset points", clip_on=True, text_filter=None, alpha=1.):
+	def __init__(self,
+				font_family="sans-serif",
+				font_style="normal",
+				font_variant="normal",
+				font_stretch="normal",
+				font_weight="normal",
+				font_size=12,
+				color='k',
+				background_color="None",
+				line_spacing=1.25,
+				rotation=0,
+				horizontal_alignment="center",
+				vertical_alignment="center",
+				multi_alignment="center",
+				border_color="None",
+				border_width=0.5,
+				border_pad=0.2,
+				border_shape="square",
+				offset=(0,0),
+				offset_coord_frame="offset points",
+				clip_on=True,
+				text_filter=None,
+				alpha=1.):
 		super(TextStyle, self).__init__(font_family, font_style, font_variant, font_stretch, font_weight, font_size)
 		self.color = color
 		self.background_color = background_color
@@ -206,6 +250,10 @@ class TextStyle(FontStyle):
 		self.horizontal_alignment = horizontal_alignment
 		self.vertical_alignment = vertical_alignment
 		self.multi_alignment = multi_alignment
+		self.border_color = border_color
+		self.border_width = border_width
+		self.border_pad = border_pad
+		self.border_shape = border_shape
 		self.offset = offset
 		self.offset_coord_frame = offset_coord_frame
 		self.clip_on = clip_on
@@ -233,9 +281,9 @@ class TextStyle(FontStyle):
 		d["va"] = self.vertical_alignment
 		d["multialignment"] = self.multi_alignment
 		d["alpha"] = self.alpha
-		# TODO: fully implement bbox parameters
-		# boxstyles: circle, darrow, larrow, rarrow, round, round4, roundtooth, sawtooth, square
-		d["bbox"] = dict(facecolor=self.background_color, edgecolor='none', pad=2, lw=0)
+		d["bbox"] = dict(facecolor=self.background_color, lw=self.border_width,
+						edgecolor=self.border_color,
+						boxstyle="%s, pad=%s" % (self.border_shape, self.border_pad))
 		#bbox=dict(facecolor='none', edgecolor='black', boxstyle='round,pad=1')
 		return d
 
