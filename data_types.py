@@ -1261,7 +1261,8 @@ class MeshGridData(GridData):
 		return shade
 
 	@classmethod
-	def from_XYZ(cls, xyz_filespec, sep=',', num_header_lines=1, comment_char='#'):
+	def from_XYZ(cls, xyz_filespec, sep=',', num_header_lines=1, comment_char='#',
+				dtype=np.float64):
 		"""
 		Create meshed grid from potentially unsorted XYZ file
 
@@ -1283,10 +1284,10 @@ class MeshGridData(GridData):
 		lons, lats, values = [], [], []
 		for l, line in enumerate(open(xyz_filespec)):
 			if l >= num_header_lines and line[0] != comment_char:
-				lon, lat, val = map(float, line.split(';'))
-				lons.append(lon)
-				lats.append(lat)
-				values.append(val)
+				lon, lat, val = line.split(';')
+				lons.append(float(lon))
+				lats.append(float(lat))
+				values.append(dtype(val))
 
 		grd_lons = sorted(np.unique(lons))
 		grd_lats = sorted(np.unique(lats))
