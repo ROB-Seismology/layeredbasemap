@@ -600,8 +600,25 @@ class LineData(SingleData):
 		return cls.from_wkt(geom.ExportToWkt(), value=value, label=label,
 								style_params=style_params)
 
-	def get_length(self):
+	def get_incremental_distance(self):
+		from mapping.geo.geodetic import spherical_distance
+		lons, lats = np.array(self.lons), np.array(self.lats)
+		lons1, lats1 = lons[:-1], lats[:-1]
+		lons2, lats2 = lons[1:], lats[1:]
+		cum_len = spherical_distance(lons1, lats1, lons2, lats2)
+		return np.hstack(([0], cum_len))
+
+	def get_cumulative_distance(self):
+		return np.cumsum(self.get_incremental_distance())
+
+	def get_length_degrees(self):
+		"""
+		Returns length in degrees
+		"""
 		return self.to_shapely().length
+
+	def get_length(self):
+		return self.get_cumulative_distance()[-1]
 
 	def get_midpoint(self):
 		return self.get_point_at_fraction_of_length(0.5)
@@ -615,6 +632,19 @@ class LineData(SingleData):
 	def get_centroid(self):
 		centroid = self.to_shapely().centroid
 		return PointData(centroid.x, centroid.y)
+
+	def get_nearest_index_at_fraction_of_length(self, fraction):
+		cum_len = self.get_cumulative_distance()
+		cum_len /= cum_len[-1]
+		return np.argmin(np.abs(cum_len - fraction))
+
+	def get_point_at_index(self, idx):
+		lon = self.lons[idx]
+		lat = self.lats[idx]
+		value = self.value
+		style_params = self.style_params
+		label = self.label
+		return PointData(lon, lat, value=value, label=label, style_params=style_params)
 
 	def to_polygon(self):
 		# TODO: should we check if first point == last point?
