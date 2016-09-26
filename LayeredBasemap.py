@@ -676,13 +676,12 @@ class LayeredBasemap:
 						## Set rotation
 						## Note: doesn't play nicely with horizontal and vertical
 						## text alignment...
-						if label_anchor < 0.95:
-							pt2 = line.get_point_at_fraction_of_length(label_anchor + 0.25)
-						else:
-							pt2 = line.get_point_at_fraction_of_length(label_anchor - 0.25)
-						display_x, display_y = self.lonlat_to_display_coordinates([pt.lon, pt2.lon], [pt.lat, pt2.lat])
-						[dx], [dy] = np.diff(display_y), np.diff(display_x)
-						label_style.rotation = np.degrees(np.arctan(dy/dx))
+						idx = line.get_nearest_index_at_fraction_of_length(label_anchor)
+						pt1 = line.get_point_at_index(max(0, idx-1))
+						pt2 = line.get_point_at_index(min(len(line.lons)-1, idx+1))
+						display_x, display_y = self.lonlat_to_display_coordinates([pt1.lon, pt2.lon], [pt1.lat, pt2.lat])
+						[dx], [dy] = np.diff(display_x), np.diff(display_y)
+						label_style.rotation = np.degrees(np.arctan2(float(dy), float(dx)))
 					else:
 						label_style = line_style.label_style
 					self._draw_texts(lp, label_style)
@@ -876,7 +875,7 @@ class LayeredBasemap:
 			radius = circle_data.radii[i]
 			lons, lats = [], []
 			for azimuth in np.arange(0., 361., circle_data.azimuthal_resolution):
-				lon, lat = geodetic.get_point_at(center, radius, azimuth)
+				lon, lat = geodetic.spherical_point_at(center[0], center[1], radius, azimuth)
 				lons.append(lon)
 				lats.append(lat)
 			circles.append(PolygonData(lons, lats))
