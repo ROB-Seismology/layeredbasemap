@@ -646,6 +646,16 @@ class LineData(SingleData):
 		label = self.label
 		return PointData(lon, lat, value=value, label=label, style_params=style_params)
 
+	def get_intersection(self, line2):
+		pt = self.to_shapely().intersection(line2.to_shapely())
+		if pt:
+			return PointData.from_shapely(pt)
+
+	def get_nearest_index_to_point(self, pt):
+		import mapping.geo.geometric as geometric
+		distances = geometric.spherical_distance(pt.lon, pt.lat, self.lons, self.lats)
+		return np.argmin(distances)
+
 	def to_polygon(self):
 		# TODO: should we check if first point == last point?
 		return PolygonData(self.lons, self.lats, value=self.value,
