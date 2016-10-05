@@ -1144,7 +1144,7 @@ class ThematicStyleIndividual(ThematicStyle):
 		:return:
 			float or rgba array
 		"""
-		return [self.style_dict[val] for val in self.apply_value_key(values)]
+		return [self.style_dict.get(val) for val in self.apply_value_key(values)]
 
 	def to_colormap(self):
 		"""

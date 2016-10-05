@@ -1661,6 +1661,7 @@ class GdalRasterData(MeshGridData):
 			2-D array containing raster data values
 		"""
 		# TODO: ReadAsArray method also takes xoff, yoff, xsize, ysize params
+		# TODO: allow choosing between masking nodata values and replacing with NaNs
 		import gdal
 		ds = gdal.Open(self.filespec, gdal.GA_ReadOnly)
 		band = ds.GetRasterBand(band_nr)
@@ -1670,9 +1671,10 @@ class GdalRasterData(MeshGridData):
 			nodata = self.nodata_value
 		values = band.ReadAsArray(buf_xsize=self.ncols, buf_ysize=self.nrows)
 		## Mask nodata values
-		#values[values == nodata] = np.nan
+		#values[np.isclose(values, nodata)] = np.nan
 		if nodata != None:
 			values = np.ma.array(values, mask=np.isclose(values, nodata))
+			self.nodata_value = values.fill_value
 
 		ds = None
 
@@ -1707,6 +1709,14 @@ class GdalRasterData(MeshGridData):
 		return Image.fromarray(img_ar, 'RGBA')
 
 	def interpolate(self, xout, yout, checkbounds=False, masked=True, order=1):
+		"""
+		Note: masked values will be replaced with NaN values
+
+		:param order:
+			int, type of interpolation, 0=nearest neighbor, 1=bilinear,
+			3=cubic spline
+			(default: 1)
+		"""
 		## Check scipy.interpolate.Rbf for additional interpolation methods
 		from mpl_toolkits.basemap import interp
 
@@ -1726,6 +1736,8 @@ class GdalRasterData(MeshGridData):
 		if self.band_nr:
 			out_data = interp(values, xin, yin, xout, yout, checkbounds=checkbounds,
 								masked=masked, order=order)
+			if hasattr(out_data, 'mask'):
+				out_data = out_data.filled(np.nan)
 		else:
 			in_values = self.values
 			ny, nx = xout.shape
