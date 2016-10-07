@@ -3,7 +3,7 @@
 #
 
 import os
-
+import numpy as np
 
 
 def get_cmap(category, name):
@@ -191,3 +191,106 @@ def from_cpt_city(rel_path, override_bad_color=True):
 	with zipfile.ZipFile(zip_filespec) as zf:
 		cpt_fd = zf.open('cpt-city/' + rel_path)
 		return from_cpt(cpt_fd, override_bad_color=override_bad_color)
+
+
+def rgb_to_hls(rgb):
+	"""
+	Convert float rgb values (in the range [0, 1]), in a numpy array to
+	hls values.
+	"""
+	import colorsys
+
+	hls = np.zeros((len(rgb), 3))
+	for i in range(len(rgb)):
+		r, g, b = rgb[i]
+		hls[i] = colorsys.rgb_to_hls(r, g, b)
+	return hls
+
+
+def hls_to_rgb(hls):
+	"""
+	Convert float hls values (in the range [0, 1]), in a numpy array to
+	rgb values.
+	"""
+	import colorsys
+
+	rgb = np.zeros((len(hls), 3))
+	for i in range(len(hls)):
+		h, l, s = hls[i]
+		rgb[i] = colorsys.hls_to_rgb(h, l, s)
+	return rgb
+
+
+def adjust_cmap_luminosity(cmap, dlight, colorspace='HLS'):
+	"""
+	Adjust the lightness or luminosity value (in HLS space) of colormap.
+	In HLS, saturated colors have a luminosity of 0.5, in HSV 1.0
+
+	:param cmap:
+		matplotlib Colormap object
+	:param dlight:
+		float, luminosity value in range 0-1 to add or subtract
+		Positive values will make colors lighter, negative values darker
+	:param colorspace:
+		str, one of 'HSV' or 'HLS'
+		(default: 'HLS')
+
+	:return:
+		matplotlib ListedColormap object
+	"""
+	from matplotlib.colors import ListedColormap, rgb_to_hsv, hsv_to_rgb
+
+	## In HSL, saturated colors have lightness 0.5
+	## < 0.5 = darker, > 0.5 = lighter
+
+	rgba = cmap(np.arange(cmap.N))
+
+	if colorspace == 'HSV':
+		hsv = rgb_to_hsv(rgba[:, 0:3])
+		hsv[:, 2] += dlight
+		hsv[:, 2] = np.maximum(0, hsv[:, 2])
+		hsv[:, 2] = np.minimum(1, hsv[:, 2])
+		rgba[:, 0:3] = hsv_to_rgb(hsv)
+	elif colorspace == 'HLS':
+		hls = rgb_to_hls(rgba[:, 0:3])
+		hls[:, 1] += dlight
+		hls[:, 1] = np.maximum(0, hls[:, 1])
+		hls[:, 1] = np.minimum(1, hls[:, 1])
+		rgba[:, 0:3] = hls_to_rgb(hls)
+
+	return ListedColormap(rgba)
+
+
+def adjust_cmap_saturation(cmap, dsat, colorspace='HSV'):
+	"""
+	Adjust the saturation of colormap.
+
+	:param cmap:
+		matplotlib Colormap object
+	:param dsat:
+		float, delta saturation in range 0-1
+	:param colorspace:
+		str, one of 'HSV' or 'HLS'
+		(default: 'HSV')
+
+	:return:
+		matplotlib ListedColormap object
+	"""
+	from matplotlib.colors import ListedColormap, rgb_to_hsv, hsv_to_rgb
+
+	rgba = cmap(np.arange(cmap.N))
+
+	if colorspace == 'HSV':
+		hsv = rgb_to_hsv(rgba[:, 0:3])
+		hsv[:, 1] += dsat
+		hsv[:, 1] = np.maximum(0, hsv[:, 1])
+		hsv[:, 1] = np.minimum(1, hsv[:, 1])
+		rgba[:, 0:3] = hsv_to_rgb(hsv)
+	elif colorspace == 'HLS':
+		hls = rgb_to_hls(rgba[:, 0:3])
+		hls[:, 2] += dsat
+		hls[:, 2] = np.maximum(0, hls[:, 2])
+		hls[:, 2] = np.minimum(1, hls[:, 2])
+		rgba[:, 0:3] = hls_to_rgb(hls)
+
+	return ListedColormap(rgba)
