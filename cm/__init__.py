@@ -221,6 +221,45 @@ def hls_to_rgb(hls):
 	return rgb
 
 
+def scale_cmap_range(cmap, scale_factor):
+	"""
+	Scale colormap range by a fixed factor (RGB values are scaled with
+	respect to the center value of 0.5).
+	Note: no checking is performed to ensure that RGB values remain
+	within the range 0-1!
+
+	:param cmap:
+		matplotlib Colormap object
+	:param scale_factor:
+		float, scale factor
+	:return:
+		matplotlib ListedColormap object
+	"""
+	from matplotlib.colors import ListedColormap
+
+	rgba = cmap(np.arange(cmap.N))
+	rgba[:, 0:3] = (rgba[:, 0:3] - 0.5) * np.abs(scale_factor) + 0.5
+	return ListedColormap(rgba)
+
+
+def scale_cmap(cmap, scale_factor):
+	"""
+	Scale colormap RGB values by a fixed factor.
+	Note: no checking is performed to ensure that RGB values remain
+	within the range 0-1!
+
+	:param cmap:
+		matplotlib Colormap object
+	:param scale_factor:
+		float, scale factor
+	:return:
+		matplotlib ListedColormap object
+	"""
+	rgba = cmap(np.arange(cmap.N))
+	rgba[:, 0:3] *= np.abs(scale_factor)
+	return ListedColormap(rgba)
+
+
 def adjust_cmap_luminosity(cmap, dlight, colorspace='HLS'):
 	"""
 	Adjust the lightness or luminosity value (in HLS space) of colormap.
