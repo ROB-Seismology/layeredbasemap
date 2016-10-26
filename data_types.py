@@ -2044,6 +2044,8 @@ class GisData(BasemapData):
 		(default: None)
 	:param selection_dict:
 		dict, mapping column names to values; only matching records will be selected
+		Note: multiple values mapped to a column name will act as logical OR,
+		multiple keys will act as logical AND operator.
 	:param joined_attributes:
 		dict, mapping additional attribute names (not present in the GIS table)
 		to dictionaries containing two entries:
@@ -2130,7 +2132,9 @@ class GisData(BasemapData):
 		for rec in read_GIS_file(self.filespec):
 			selected = np.zeros(len(self.selection_dict.keys()))
 			for i, (selection_colname, selection_value) in enumerate(self.selection_dict.items()):
-				if rec[selection_colname] == selection_value or rec[selection_colname] in list(selection_value):
+				if rec[selection_colname] == selection_value:
+					selected[i] = 1
+				elif hasattr(selection_value, '__iter__') and rec[selection_colname] in selection_value:
 					selected[i] = 1
 				else:
 					selected[i] = 0
