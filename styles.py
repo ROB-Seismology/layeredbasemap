@@ -172,7 +172,7 @@ class TextStyle(FontStyle):
 		Float, line spacing (multiple of font size)
 		(default: 1.25)
 	:param rotation:
-		Float, angle in degrees, or string ("vertical" | "horizontal")
+		Float, angle in degrees, or string ("vertical" | "horizontal" | "auto")
 		(default: 0.)
 	:param horizontal_alignment:
 		string, where text will be horizontally aligned
