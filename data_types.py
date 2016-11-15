@@ -1221,6 +1221,8 @@ class MeshGridData(GridData):
 	"""
 	# TODO: add nodata_value (np.nan only works for float arrays!)
 	def __init__(self, lons, lats, values, unit=""):
+		from mapping.geo.coordtrans import wgs84
+
 		if lons.ndim != 2 or lats.ndim != 2 or values.ndim != 2:
 			raise ValueError("lons, lats, and values should be 2-dimensional")
 		## Not sure the following is really necessary
@@ -1235,6 +1237,9 @@ class MeshGridData(GridData):
 		self.center_lons = self.edge_lons = lons
 		self.center_lats = self.edge_lats = lats
 
+		## For compatibility with GdalRasterData
+		self.srs = wgs84
+
 	@property
 	def dlon(self):
 		return self.center_lons[0,1] - self.center_lons[0,0]
@@ -1248,8 +1253,16 @@ class MeshGridData(GridData):
 		return self.center_lons[0,0]
 
 	@property
+	def lon1(self):
+		return self.center_lons[0,-1]
+
+	@property
 	def lat0(self):
 		return self.center_lats[0,0]
+
+	@property
+	def lat1(self):
+		return self.center_lats[-1,0]
 
 	@property
 	def num_cols(self):
@@ -1271,8 +1284,67 @@ class MeshGridData(GridData):
 		masked_values = maskoceans(self.lons, self.lats, self.values, inlands=mask_lakes, resolution=resolution, grid=grid_spacing)
 		return MeshGridData(self.lons, self.lats, masked_values)
 
-	def reproject(self, source_srs, target_srs):
+	def reproject(self, target_srs):
 		pass
+
+	def interpolate(self, xout, yout, srs=None, checkbounds=False, masked=True,
+					order=1):
+		"""
+		Interpolate grid.
+		Note: masked values will be replaced with NaN values
+
+		:param xout:
+			array, X coordinates in native SRS or :param:`srs`
+		:param yout:
+			array, Y coordinates in native SRS or :param:`srs`
+		:param srs:
+			osr SpatialReference object, SRS of output coordinates
+			(default: None)
+		:param checkbounds:
+			bool, whether or not values of xout and yout are checked
+			to see that they are within the range of the grid. If True,
+			points falling outside the grid are masked if :param:`masked`
+			is True, else they are clipped to the boundary of the grid
+			(default: False)
+		:param masked:
+			bool, whether or not points outside the range of the grid
+			are masked
+			(default: True)
+		:param order:
+			int, type of interpolation, 0=nearest neighbor, 1=bilinear,
+			3=cubic spline
+			(default: 1)
+
+		:return:
+			array, interpolated grid values
+		"""
+		## Check scipy.interpolate.Rbf for additional interpolation methods
+		from mpl_toolkits.basemap import interp
+		from mapping.geo.coordtrans import transform_mesh_coordinates, wgs84
+
+		## xin, yin must be linearly increasing
+		values = self.values
+		if self.lon0 < self.lon1:
+			xin = np.linspace(self.lon0, self.lon1, self.ncols)
+		else:
+			xin = np.linspace(self.lon1, self.lon0, self.ncols)
+			values = values[:,::-1]
+		if self.lat0 < self.lat1:
+			yin = np.linspace(self.lat0, self.lat1, self.nrows)
+		else:
+			yin = np.linspace(self.lat1, self.lat0, self.nrows)
+			values = values[::-1,:]
+
+		## Transform output coordinates to lon/lat coordinates if necessary
+		if srs and srs != self.srs:
+			xout, yout = transform_mesh_coordinates(self.srs, wgs84, xout, yout)
+
+		out_data = interp(values, xin, yin, xout, yout, checkbounds=checkbounds,
+							masked=masked, order=order)
+		if hasattr(out_data, 'mask'):
+			out_data = out_data.filled(np.nan)
+
+		return out_data
 
 	def calc_hillshade(self, azimuth, elevation_angle, scale=1.):
 		"""
@@ -1286,6 +1358,8 @@ class MeshGridData(GridData):
 		:param scale:
 			float, multiplication factor to apply (default: 1.)
 		"""
+		# TODO: replace with matplotlib hillshade and correctly implement
+		# vertical exaggeration
 		az = np.radians(azimuth)
 		elev = np.radians(elevation_angle)
 		data = self.values
@@ -1708,17 +1782,40 @@ class GdalRasterData(MeshGridData):
 		img_ar = self.read_image_array()
 		return Image.fromarray(img_ar, 'RGBA')
 
-	def interpolate(self, xout, yout, checkbounds=False, masked=True, order=1):
+	def interpolate(self, xout, yout, srs=None, checkbounds=False, masked=True,
+					order=1):
 		"""
+		Interpolate grid.
 		Note: masked values will be replaced with NaN values
 
+		:param xout:
+			array, X coordinates in native SRS or :param:`srs`
+		:param yout:
+			array, Y coordinates in native SRS or :param:`srs`
+		:param srs:
+			osr SpatialReference object, SRS of output coordinates
+			(default: None)
+		:param checkbounds:
+			bool, whether or not values of xout and yout are checked
+			to see that they are within the range of the grid. If True,
+			points falling outside the grid are masked if :param:`masked`
+			is True, else they are clipped to the boundary of the grid
+			(default: False)
+		:param masked:
+			bool, whether or not points outside the range of the grid
+			are masked
+			(default: True)
 		:param order:
 			int, type of interpolation, 0=nearest neighbor, 1=bilinear,
 			3=cubic spline
 			(default: 1)
+
+		:return:
+			array, interpolated grid values
 		"""
 		## Check scipy.interpolate.Rbf for additional interpolation methods
 		from mpl_toolkits.basemap import interp
+		from mapping.geo.coordtrans import transform_mesh_coordinates
 
 		## xin, yin must be linearly increasing
 		values = self.values
@@ -1733,12 +1830,18 @@ class GdalRasterData(MeshGridData):
 			yin = np.linspace(self.y1, self.y0, self.nrows)
 			values = values[::-1,:]
 
+		## Transform output coordinates to native grid coordinates if necessary
+		if srs and srs != self.srs:
+			xout, yout = transform_mesh_coordinates(srs, self.srs, xout, yout)
+
 		if self.band_nr:
+			## Single band
 			out_data = interp(values, xin, yin, xout, yout, checkbounds=checkbounds,
 								masked=masked, order=order)
 			if hasattr(out_data, 'mask'):
 				out_data = out_data.filled(np.nan)
 		else:
+			## RGB image
 			in_values = self.values
 			ny, nx = xout.shape
 			num_channels = in_values.shape[0]
@@ -1758,11 +1861,14 @@ class GdalRasterData(MeshGridData):
 
 		return out_data
 
-	def interpolate_grid(self, xout, yout, checkbounds=False, masked=True, order=1):
-		values = self.interpolate(xout, yout, checkbounds=checkbounds, masked=masked, order=order)
+	def interpolate_grid(self, xout, yout, srs=None, checkbounds=False, masked=True, order=1):
+		values = self.interpolate(xout, yout, srs=srs, checkbounds=checkbounds, masked=masked, order=order)
 		return MeshGridData(xout, yout, values)
 
 	def cross_section(self, (x0, y0), (x1, y1), num_points=100):
+		"""
+		Native coordinates!
+		"""
 		X = np.linspace(x0, x1, num_points)
 		Y = np.linspace(y0, y1, num_points)
 		## TODO: distances in km (take into account lon-lat rasters)
@@ -1940,6 +2046,19 @@ class WCSData(GdalRasterData):
 		if verbose:
 			print sorted(wcs.contents.keys())
 		return wcs
+
+	@property
+	def srs(self):
+		"""
+		Native Spatial Reference System
+		"""
+		from mapping.geo.coordtrans import get_epsg_srs
+
+		coverage = self.wcs[self.layer_name]
+		crs = coverage.supportedCRS[0]
+		if crs.authority == 'EPSG':
+			srs = get_epsg_srs(crs.getcode())
+		return srs
 
 	def get_coverage_info(self, layer_name):
 		"""
