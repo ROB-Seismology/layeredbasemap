@@ -923,6 +923,22 @@ class LayeredBasemap:
 		else:
 			cmap = None
 
+		## Compute hillshading intensity
+		hillshade = None
+		hillshade_style = grid_style.hillshade_style
+		if hillshade_style:
+			azimuth = hillshade_style.azimuth
+			elevation_angle = hillshade_style.elevation_angle
+			scale = hillshade_style.scale
+			if not hillshade_style.elevation_grid:
+				hillshade = grid_data.calc_hillshade(azimuth, elevation_angle, scale)
+			else:
+				elevation_grid = hillshade_style.elevation_grid
+				lons, lats = grid_data.get_mesh_coordinates("center")
+				elevation_grid = elevation_grid.interpolate_grid(lons, lats, srs=grid_data.srs)
+				hillshade = elevation_grid.calc_hillshade(azimuth, elevation_angle, scale)
+				del elevation_grid
+
 		## Note: vmin and vmax will control range shown in colorbar
 		## However, this doesn't work if color_gradient is continuous
 		## and norm is a matplotlib.colors.Normalize instance
@@ -958,27 +974,34 @@ class LayeredBasemap:
 					# TODO: find a way to add hillshade from another grid
 					# (e.g., to add topographic shading to ground-motion map)
 					data = grid_data.values
-					azimuth = grid_style.hillshade_style.azimuth
-					elevation_angle = grid_style.hillshade_style.elevation_angle
-					scale = grid_style.hillshade_style.scale
-
-					hillshade = grid_data.calc_hillshade(azimuth, elevation_angle, scale)
 					#ny, nx = xe.shape
 					## Get RGB of normalized data based on cmap
 					#data_min, data_max = data.min(), data.max()
 					#rgba = cmap_obj((data - data_min) / float(data_max - data_min))
 					rgba = grid_style.color_map_theme(data)
+
+					## Blend colormapped values with hillshading
 					rgb = rgba[:,:,:3]
-					## Form an RGB eqvivalent of shade
-					d = hillshade.repeat(3)
-					d = d.reshape(rgb.shape)
-					## Simulate illumination based on pegtop algorithm
-					rgba[:,:,:3] = np.minimum(1., (2 * d * rgb + (rgb*rgb) * (1 - 2 * d)))
+					if hillshade_style.blend_mode == "pegtop":
+						## Form an RGB eqvivalent of shade
+						d = hillshade.repeat(3)
+						d = d.reshape(rgb.shape)
+						## Simulate illumination based on pegtop algorithm
+						rgba[:,:,:3] = np.minimum(1., (2 * d * rgb + (rgb*rgb) * (1 - 2 * d)))
+					elif hillshade_style.blend_mode in ("hsv", "overlay", "soft"):
+						from matplotlib.colors import LightSource
+						ls = LightSource(azdeg=azimuth, altdeg=elevation_angle)
+						hillshade = hillshade.reshape(hillshade.shape + (1,))
+						if hillshade_style.blend_mode == "hsv":
+							rgba[:,:,:3] = ls.blend_hsv(rgb, hillshade)
+						elif hillshade_style.blend_mode == "overlay":
+							rgba[:,:,:3] = ls.blend_overlay(rgb, hillshade)
+						elif hillshade_style.blend_mode == "soft":
+							## This should be similar to pegtop
+							rgba[:,:,:3] = ls.blend_soft_light(rgb, hillshade)
 
 					## Hillshade in matplotlib, doesn't work yet
 					"""
-					from matplotlib.colors import LightSource
-					ls = LightSource(azdeg=azimuth, altdeg=elevation_angle)
 					dx = x[1,0] - x[0,0]
 					dy = y[0,1] - y[0,0]
 					#rgba = ls.shade(data, cmap=cmap_obj, blend_mode="overlay",
@@ -1037,12 +1060,12 @@ class LayeredBasemap:
 				x, y = xe, ye
 			## Note: do not use variable name 'cmap' here!
 			hillshade_cmap = grid_style.hillshade_style.color_map
-			if alpha == 1:
+			#if grid_style.alpha == 1:
 				## Note: omit alpha parameter or else nodata grid cells
 				## will be opaque!
-				self.map.pcolormesh(x, y, grid_data.values, cmap=hillshade_cmap, shading=shading, zorder=self.zorder)
-			else:
-				self.map.pcolor(x, y, grid_data.values, cmap=hillshade_cmap, shading=shading, alpha=alpha, zorder=self.zorder)
+			self.map.pcolormesh(x, y, hillshade, cmap=hillshade_cmap, shading=shading, zorder=self.zorder)
+			#else:
+			#	self.map.pcolor(x, y, hillshade, cmap=hillshade_cmap, shading=shading, alpha=alpha, zorder=self.zorder)
 			self.zorder += 1
 
 		if grid_style.line_style:
