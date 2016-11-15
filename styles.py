@@ -1684,13 +1684,27 @@ class HillshadeStyle(BasemapStyle):
 	:param scale:
 		float, multiplication factor to apply (default: 1.)
 	:param color_map:
-		string or matplotlib colormap (default: "gray")
+		string or matplotlib colormap to be used if only hillshade
+		map is plotted
+		(default: "gray")
+	:param blend_mode:
+		str, type of blending used to combine colormapped data values
+		with illumination intensity, one of "pegtop", "hsv", "overlay"
+		or "soft"
+		(default: "pegtop")
+	:param elevation_grid:
+		instance of :class:`MeshGridData`
+		alternative grid to get hillshading from
+		(default: None)
 	"""
-	def __init__(self, azimuth, elevation_angle, scale=1., color_map="gray"):
+	def __init__(self, azimuth, elevation_angle, scale=1., color_map="gray",
+				blend_mode="pegtop", elevation_grid=None):
 		self.azimuth = azimuth
 		self.elevation_angle = elevation_angle
 		self.scale = scale
 		self.color_map = color_map
+		self.blend_mode = blend_mode
+		self.elevation_grid = elevation_grid
 
 
 class VectorStyle(BasemapStyle):
