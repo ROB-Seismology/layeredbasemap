@@ -1219,6 +1219,9 @@ class MeshGridData(GridData):
 	:param unit:
 		str
 	"""
+	# TODO: add srs parameter and define similar properties as GdalRasterData
+	# e.g.: x0, x1, dx instead of lon0, lon1, dlon
+	# TODO: correctly implement edge_lons, edge_lats!
 	# TODO: add nodata_value (np.nan only works for float arrays!)
 	def __init__(self, lons, lats, values, unit=""):
 		from mapping.geo.coordtrans import wgs84
@@ -1349,7 +1352,6 @@ class MeshGridData(GridData):
 	def calc_hillshade(self, azimuth, elevation_angle, scale=1.):
 		"""
 		Compute hillshading
-		Source: http://rnovitsky.blogspot.com.es/2010/04/using-hillshade-image-as-intensity.html
 
 		:param azimuth:
 			float, azimuth of light source in degrees
@@ -1358,11 +1360,12 @@ class MeshGridData(GridData):
 		:param scale:
 			float, multiplication factor to apply (default: 1.)
 		"""
-		# TODO: replace with matplotlib hillshade and correctly implement
-		# vertical exaggeration
+
+		"""
+		## Source: http://rnovitsky.blogspot.com.es/2010/04/using-hillshade-image-as-intensity.html
 		az = np.radians(azimuth)
 		elev = np.radians(elevation_angle)
-		data = self.values
+		data = self.values[::-1]
 
 		## Gradient in x and y directions
 		dx, dy = np.gradient(data * float(scale))
@@ -1370,7 +1373,17 @@ class MeshGridData(GridData):
 		aspect = np.arctan2(dx, dy)
 		shade = np.sin(elev) * np.sin(slope) + np.cos(elev) * np.cos(slope) * np.cos(-az - aspect - 0.5*np.pi)
 		## Normalize
-		shade = (shade - shade.min())/(shade.max() - shade.min())
+		shade = (shade - np.nanmin(shade))/(np.nanmax(shade) - np.nanmin(shade))
+		shade = shade[::-1]
+		"""
+
+		from matplotlib.colors import LightSource
+		ls = LightSource(azimuth, elevation_angle)
+		# TODO: look into vertical exaggeration with true dx and dy
+		shade = ls.hillshade(self.values, dx=np.sign(self.dx), dy=-np.sign(self.dy))
+
+		## Eliminate nan values, they result in black when blended
+		shade[np.isnan(shade)] = 0.5
 
 		return shade
 
@@ -1521,21 +1534,37 @@ class GdalRasterData(MeshGridData):
 	:param unit:
 		str, measurement unit of gridded values
 		(default: "")
+	:param bbox:
+		list or tuple of floats: (llx, lly, urx, ury) in native coordinates
+		(default: [], will use bounding box of dataset)
+	:param region:
+		list or tuple of floats: (lonmin, lonmax, latmin, latmax)
+		that will be used to determine bbox
+		(default: [])
 	"""
-	def __init__(self, filespec, band_nr=1, down_sampling=1., nodata_value=None, unit=""):
+	def __init__(self, filespec, band_nr=1, down_sampling=1., nodata_value=None,
+				unit="", bbox=[], region=[]):
 		self.filespec = filespec
 		self.band_nr = band_nr
 		self.read_grid_info()
-		self._edge_lons = None
-		self._edge_lats = None
-		self._center_lons = None
-		self._center_lats = None
-		self.set_down_sampling(down_sampling)
+		self.set_down_sampling(max(1, down_sampling))
 		self.nodata_value = nodata_value
 		if unit is None:
 			self.unit = self.read_band_unit_type(self.band_nr)
 		else:
 			self.unit = unit
+
+		if region:
+			bbox = self.get_bbox_from_region(region)
+		if not bbox:
+			bbox = self.get_native_bbox()
+		self.apply_bbox(bbox)
+
+		## Store these when first computed to avoid computing more than once
+		self._edge_lons = None
+		self._edge_lats = None
+		self._center_lons = None
+		self._center_lats = None
 
 	# TODO: raster subdatasets
 	#subdatasets = dataset.GetSubDatasets()
@@ -1556,21 +1585,6 @@ class GdalRasterData(MeshGridData):
 	def get_subdataset(self, subdataset_name):
 		return GdalRasterData(subdataset_name)
 
-	def set_down_sampling(self, down_sampling):
-		self.down_sampling = float(down_sampling)
-		if down_sampling != 1.:
-			self.x0 = self.x0 / down_sampling * down_sampling
-			self.x1 = self.x1  / down_sampling * down_sampling
-			self.y0 = self.y0 / down_sampling * down_sampling
-			self.y1 = self.y1 / down_sampling * down_sampling
-			self.dx *= down_sampling
-			self.dy *= down_sampling
-			self.ncols = int(abs((self.x0 - self.x1) / self.dx)) + 1
-			self.nrows = int(abs((self.y0 - self.y1) / self.dy)) + 1
-
-			# TODO: make sure x0, x1, y0, y1 are multiples of dx,
-			# and set xoff and yoff accordingly in read_band
-
 	## Following methods are based on:
 	## http://stackoverflow.com/questions/20488765/plot-gdal-raster-using-matplotlib-basemap
 
@@ -1581,13 +1595,13 @@ class GdalRasterData(MeshGridData):
 		The following properties are set:
 		- :prop:`srs`: instance of class osr.SpatialReference
 		- :prop:`num_bands`: int, number of raster bands
-		- :prop:`ncols`, :prop:`nrows`: int, number of raster columns
-			and rows
-		- :prop:`dx`, :prop:`dy`: int, cell size in X and Y direction
+		- :prop:`_ncols`, :prop:`_nrows`: int, number of raster columns
+			and rows in native grid extent
+		- :prop:`_dx`, :prop:`_dy`: int, cell size in X and Y direction
 			in the native spatial reference system
-		- :prop:`x0`, :prop:`x1`: float, extent in X direction in
+		- :prop:`_x0`, :prop:`_x1`: float, extent in X direction in
 			the native spatial reference system (center of grid cells)
-		- :prop:`y0`, :prop:`y1`: float, extent in Y direction in
+		- :prop:`_y0`, :prop:`_y1`: float, extent in Y direction in
 			the native spatial reference system (center of grid cells)
 		"""
 		import gdal, osr
@@ -1604,21 +1618,141 @@ class GdalRasterData(MeshGridData):
 
 		gt = ds.GetGeoTransform()
 		# TODO: support rotated grids
-		self.ncols, self.nrows = ds.RasterXSize, ds.RasterYSize
-		self.dx, self.dy = gt[1], gt[5]
+		self._ncols, self._nrows = ds.RasterXSize, ds.RasterYSize
+		self._dx, self._dy = gt[1], gt[5]
 		## (x0, y0) and (x1, y1) now correspond to cell centers
-		self.x0 = gt[0] + self.dx * 0.5
-		self.x1 = gt[0] + (self.dx * self.ncols) - self.dx * 0.5
+		self._x0 = gt[0] + self._dx * 0.5
+		self._x1 = gt[0] + (self._dx * self._ncols) - self._dx * 0.5
 		#if self.dx < 0:
 			#xmin, xmax = xmax, xmin
 			#self.dx = -self.dx
-		self.y0 = gt[3] + self.dy * 0.5
-		self.y1 = gt[3] + (self.dy * self.nrows) - self.dy * 0.5
+		self._y0 = gt[3] + self._dy * 0.5
+		self._y1 = gt[3] + (self._dy * self._nrows) - self._dy * 0.5
 		#if self.dy < 0:
 		#ymin, ymax = ymax, ymin
 			#self.dy = -self.dy
 
 		ds = None
+
+	def set_down_sampling(self, down_sampling):
+		"""
+		The following properties are set:
+		- :prop:`down_sampling`: float, downsampling factor
+		- :prop:`dx`, :prop:`dy`: int, cell size in X and Y direction
+			in the native spatial reference system
+		"""
+		self.down_sampling = float(down_sampling)
+		#self.x0 = self._x0 / down_sampling * down_sampling
+		#self.x1 = self._x1 / down_sampling * down_sampling
+		#self.y0 = self._y0 / down_sampling * down_sampling
+		#self.y1 = self._y1 / down_sampling * down_sampling
+		self.dx = self._dx * down_sampling
+		self.dy = self._dy * down_sampling
+		#self.ncols = int(abs((self.x0 - self.x1) / self.dx)) + 1
+		#self.nrows = int(abs((self.y0 - self.y1) / self.dy)) + 1
+
+	def get_native_bbox(self):
+		return (self._x0, self._y0, self._x1, self._y1)
+
+	def get_bbox(self):
+		return (self.x0, self.y0, self.x1, self.y1)
+
+	def adjust_bbox(self, bbox):
+		"""
+		Make sure bbox has same order as native bbox
+		"""
+		x0, y0, x1, y1 = bbox
+		if np.sign(x0 - x1) != np.sign(self._x0 - self._x1):
+			x0, x1 = x1, x0
+		if np.sign(y0 - y1) != np.sign(self._y0 - self._y1):
+			y0, y1 = y1, y0
+		return (x0, y0, x1, y1)
+
+	def align_bbox(self, bbox):
+		"""
+		Note: bbox must already be adjusted!
+		Align x0 to native dx, (x1-x0) to dx
+		"""
+		x0, y0, x1, y1 = bbox
+		if self._x1 > self._x0:
+			x0 = max(self._x0, np.floor(x0 / self._dx) * self._dx)
+			nx = min(np.ceil((x1 - x0) / self.dx), np.floor((self._x1 - x0) / self.dx))
+			x1 = x0 + nx * self.dx
+		else:
+			x0 = min(self._x0, np.ceil(x0 / self._dx) * self._dx)
+			nx = max(np.floor((x0 - x1) / self.dx), np.ceil((x0 - self._x1) / self.dx))
+			x1 = x0 - nx * self.dx
+
+		if self._y1 > self._y0:
+			y0 = max(self._y0, np.floor(y0 / self._dy) * self._dy)
+			ny = min(np.ceil((y1 - y0) / self.dy), np.floor((self._y1 - y0) / self.dy))
+			y1 = y0 + ny * self.dy
+		else:
+			y0 = min(self._y0, np.ceil(y0 / self._dy) * self._dy)
+			ny = max(np.floor((y0 - y1) / self.dy), np.ceil((y0 - self._y1) / self.dy))
+			y1 = y0 - ny * self.dy
+
+		return (x0, y0, x1, y1)
+
+	def apply_bbox(self, bbox):
+		"""
+		Apply bounding box
+
+		The following properties are set:
+		- :prop:`ncols`, :prop:`nrows`: int, number of raster columns
+			and rows in native grid extent
+		- :prop:`x0`, :prop:`x1`: float, extent in X direction in
+			the native spatial reference system (center of grid cells)
+		- :prop:`y0`, :prop:`y1`: float, extent in Y direction in
+			the native spatial reference system (center of grid cells)
+		"""
+		bbox = self.align_bbox(self.adjust_bbox(bbox))
+		self.x0, self.y0, self.x1, self.y1 = bbox
+		self.ncols = int(abs((self.x0 - self.x1) / self.dx)) + 1
+		self.nrows = int(abs((self.y0 - self.y1) / self.dy)) + 1
+
+	def get_bbox_from_region(self, region, margin_fraction=1./20):
+		from mapping.geo.coordtrans import wgs84, transform_coordinates
+
+		srs = self.srs
+
+		lonmin, lonmax, latmin, latmax = region
+		lon_margin = (lonmax - lonmin) * margin_fraction
+		lat_margin = (latmax - latmin) * margin_fraction
+		coords_in = np.array([(lonmin-lon_margin, latmin-lat_margin),
+					(lonmax+lon_margin, latmax+lat_margin)])
+		if srs.ExportToWkt() == wgs84.ExportToWkt():
+			coords = coords_in
+		else:
+			coords = transform_coordinates(wgs84, srs, coords_in)
+
+		bbox = (list(np.floor(coords[0] / self._dx) * self._dx) +
+				list(np.ceil(coords[1] / self._dy) * self._dy))
+		return bbox
+
+	def _get_x_index(self, x):
+		"""
+		Compute index of x coordinate in native X range
+
+		:param x:
+			float, X coordinate
+
+		:return:
+			int, index
+		"""
+		return int(round((x - self._x0) / self._dx))
+
+	def _get_y_index(self, y):
+		"""
+		Compute index of y coordinate in native Y range
+
+		:param y:
+			float, Y coordinate
+
+		:return:
+			int, index
+		"""
+		return int(round((y - self._y0) / self._dy))
 
 	@property
 	def xmin(self):
@@ -1734,7 +1868,6 @@ class GdalRasterData(MeshGridData):
 		:return:
 			2-D array containing raster data values
 		"""
-		# TODO: ReadAsArray method also takes xoff, yoff, xsize, ysize params
 		# TODO: allow choosing between masking nodata values and replacing with NaNs
 		import gdal
 		ds = gdal.Open(self.filespec, gdal.GA_ReadOnly)
@@ -1743,7 +1876,16 @@ class GdalRasterData(MeshGridData):
 			nodata = band.GetNoDataValue()
 		else:
 			nodata = self.nodata_value
-		values = band.ReadAsArray(buf_xsize=self.ncols, buf_ysize=self.nrows)
+
+		xoff = self._get_x_index(self.x0)
+		yoff = self._get_y_index(self.y0)
+		buf_xsize = self.num_cols
+		buf_ysize = self.num_rows
+		win_xsize = int(self.num_cols * self.down_sampling)
+		win_ysize = int(self.num_rows * self.down_sampling)
+
+		values = band.ReadAsArray(xoff=xoff, yoff=yoff, win_xsize=win_xsize,
+				win_ysize=win_ysize, buf_xsize=buf_xsize, buf_ysize=buf_ysize)
 		## Mask nodata values
 		#values[np.isclose(values, nodata)] = np.nan
 		if nodata != None:
@@ -1761,6 +1903,7 @@ class GdalRasterData(MeshGridData):
 		:return:
 			3-D (RGB[A], Y, X) float array
 		"""
+		# TODO: implement xoff, yoff, etc. as in read_band method
 		import gdal
 		ds = gdal.Open(self.filespec, gdal.GA_ReadOnly)
 		#import matplotlib.image as mpimg
@@ -1831,7 +1974,7 @@ class GdalRasterData(MeshGridData):
 			values = values[::-1,:]
 
 		## Transform output coordinates to native grid coordinates if necessary
-		if srs and srs != self.srs:
+		if srs and srs.ExportToWkt() != self.srs.ExportToWkt():
 			xout, yout = transform_mesh_coordinates(srs, self.srs, xout, yout)
 
 		if self.band_nr:
@@ -1975,8 +2118,13 @@ class WCSData(GdalRasterData):
 		str, base URL of WCS server
 	:param layer_name:
 		str, name of requested dataset on WCS server
+	:param down_sampling:
+		float > 1, factor for downsampling, i.e. to divide number of columns and
+		rows with
+		(default: 1., no downsampling)
 	:param resolution:
-		float or tuple of floats: resolution in units of dataset's CRS
+		float or tuple of floats, resolution in units of dataset's SRS
+		(default: None)
 	:param band_nr:
 		int,  raster band number (one-based). If 0 or None, data
 		will be read as truecolor (RGB) image
@@ -1995,37 +2143,46 @@ class WCSData(GdalRasterData):
 		bool, whether or not to print information
 		(default: True)
 	"""
-	def __init__(self, url, layer_name, resolution, band_nr=1, bbox=[], region=[],
+	def __init__(self, url, layer_name, down_sampling=1, resolution=None, band_nr=1, bbox=[], region=[],
 				wcs_version='1.0.0', verbose=True):
 		self.url = url
 		self.layer_name = layer_name
-		if isinstance(resolution, (int, float)):
-			self.resolution = (resolution, resolution)
-		else:
-			self.resolution = resolution
-		self.resolution = np.asarray(self.resolution)
 
 		## Query server for some information
 		self.wcs_version = wcs_version
 		self.wcs = self.init_wcs(verbose=verbose)
 
+		if resolution:
+			dx, dy = self.get_native_cellsize()
+			if isinstance(resolution, (int, float)):
+				resolution = (resolution, resolution)
+				down_sampling = min(resolution[0] / dx, resolution[1] / dy)
+		self.down_sampling = max(1, down_sampling)
+		self.band_nr = band_nr
+
+		## Set bounding box
 		if region:
-			self.bbox = self.get_bbox_from_region(self.layer_name, region)
-		else:
-			self.bbox = bbox
+			bbox = self.get_bbox_from_region(region)
+		elif not bbox:
+			bbox = self.get_native_bbox()
+		self.bbox = self.add_margin_to_bbox(bbox)
 
 		## Read coverage
-		import tempfile, urllib
+		import urllib
 
 		response = self.get_coverage(self.layer_name)
 		if verbose:
 			print urllib.unquote(response.geturl())
+
+		#import tempfile
 		#fd = tempfile.NamedTemporaryFile(suffix=".tif")
 		#fd.write(response.read())
 		#fd.close()
-		#super(WCSData, self).__init__(fd.name, band_nr=band_nr)
+		#super(WCSData, self).__init__(fd.name, band_nr=band_nr, down_sampling=1)
+
 		try:
-			super(WCSData, self).__init__(response.geturl(), band_nr=band_nr)
+			super(WCSData, self).__init__(response.geturl(), band_nr=band_nr,
+									down_sampling=1)
 		except:
 			print response.read()
 			raise
@@ -2047,19 +2204,6 @@ class WCSData(GdalRasterData):
 			print sorted(wcs.contents.keys())
 		return wcs
 
-	@property
-	def srs(self):
-		"""
-		Native Spatial Reference System
-		"""
-		from mapping.geo.coordtrans import get_epsg_srs
-
-		coverage = self.wcs[self.layer_name]
-		crs = coverage.supportedCRS[0]
-		if crs.authority == 'EPSG':
-			srs = get_epsg_srs(crs.getcode())
-		return srs
-
 	def get_coverage_info(self, layer_name):
 		"""
 		Get coordinate system and bounding box for a particular coverage
@@ -2068,22 +2212,68 @@ class WCSData(GdalRasterData):
 			str, name of requested dataset on WCS server
 
 		:return:
-			(crs, bbox) tuple
+			(crs, bbox, (dx, dy)) tuple
 		"""
 		coverage = self.wcs[layer_name]
 		crs = coverage.supportedCRS[0]
 		bbox = coverage.boundingboxes[0]['bbox']
-		return (crs, bbox)
+		dx = np.abs(float(coverage.grid.offsetvectors[0][0]))
+		dy = np.abs(float(coverage.grid.offsetvectors[1][1]))
+		return (crs, bbox, (dx, dy))
 
-	def get_bbox_from_region(self, layer_name, region):
+	def get_crs(self):
+		coverage = self.wcs[self.layer_name]
+		crs = coverage.supportedCRS[0]
+		return crs
+
+	def get_native_srs(self):
 		"""
-		Get bounding box in native coordinates for a particular coverage
-		from region in geographic coordinates
+		Read native Spatial Reference System
 
-		:param layer_name:
-			str, name of requested dataset on WCS server
+		:return:
+			osr SpatialReference object
+		"""
+		from mapping.geo.coordtrans import get_epsg_srs
+
+		crs = self.get_crs()
+		if crs.authority == 'EPSG':
+			srs = get_epsg_srs(crs.getcode())
+			return srs
+
+	def get_native_cellsize(self):
+		"""
+		Read native cellsize
+
+		:return:
+			(dx, dy) tuple
+		"""
+		coverage = self.wcs[self.layer_name]
+		dx = np.abs(float(coverage.grid.offsetvectors[0][0]))
+		dy = np.abs(float(coverage.grid.offsetvectors[1][1]))
+		return (dx, dy)
+
+	def get_native_bbox(self):
+		"""
+		Read native bounding box
+
+		:return:
+			(llx, lly, urx, ury) tuple in native coordinates
+		"""
+		coverage = self.wcs[self.layer_name]
+		bbox = coverage.boundingboxes[0]['bbox']
+		return bbox
+
+	def get_bbox_from_region(self, region, margin_fraction=1./20):
+		"""
+		Get bounding box in native coordinates from region in geographic
+		coordinates
+
 		:param region:
 			list or tuple of floats: (lonmin, lonmax, latmin, latmax)
+		:param margin_fraction:
+			float, fraction of map range to add to region extent to
+			ensure extracted grid covers entire region
+			(default: 1./20)
 
 		:return:
 			list or tuple of floats: (llx, lly, urx, ury)
@@ -2091,21 +2281,41 @@ class WCSData(GdalRasterData):
 		"""
 		from mapping.geo.coordtrans import get_epsg_srs, wgs84, transform_coordinates
 
-		crs, _bbox = self.get_coverage_info(layer_name)
-		if crs.authority == 'EPSG':
-			srs = get_epsg_srs(crs.getcode())
-		else:
+		srs = self.get_native_srs()
+		if not srs:
+			crs = self.get_crs()
 			raise Exception("CRS %s not supported!" % crs.getcode())
 
 		lonmin, lonmax, latmin, latmax = region
-		lon_margin = (lonmax - lonmin) / 20.
-		lat_margin = (latmax - latmin) / 20.
+		lon_margin = (lonmax - lonmin) * margin_fraction
+		lat_margin = (latmax - latmin) * margin_fraction
 		coords_in = [(lonmin-lon_margin, latmin-lat_margin),
 					(lonmax+lon_margin, latmax+lat_margin)]
 		coords = transform_coordinates(wgs84, srs, coords_in)
-		bbox = (list(np.floor(coords[0] / self.resolution) * self.resolution) +
-				list(np.ceil(coords[1] / self.resolution) * self.resolution))
+
+		resx, resy = self.resx, self.resy
+		bbox = (list(np.floor(coords[0] / resx) * resx) +
+				list(np.ceil(coords[1] / resy) * resy))
 		return bbox
+
+	def add_margin_to_bbox(self, bbox):
+		"""
+		Add margin of one cell spacing around bounding box
+
+		:param bbox:
+			(llx, lly, urx, ury) tuple
+
+		:return:
+			(llx, lly, urx, ury) tuple
+		"""
+		native_bbox = self.get_native_bbox()
+		resx, resy = self.resx, self.resy
+		llx, lly, urx, ury = bbox
+		llx = max(native_bbox[0], llx - resx)
+		urx = min(native_bbox[2], urx + resx)
+		lly = max(native_bbox[1], lly - resy)
+		ury = min(native_bbox[3], ury + resy)
+		return (llx, lly, urx, ury)
 
 	def get_coverage(self, layer_name):
 		"""
@@ -2118,22 +2328,52 @@ class WCSData(GdalRasterData):
 			instance of :class:`owslib.util.ResponseWrapper`
 		"""
 		width, height = None, None
-		crs, _bbox = self.get_coverage_info(layer_name)
-		if not self.bbox:
-			bbox = _bbox
-		else:
-			bbox = self.bbox
+		crs = self.get_crs()
+
 		format = "GeoTIFF"
-		return self.wcs.getCoverage(identifier=layer_name, width=width, height=height,
-					resx=self.resx, resy=self.resy, bbox=bbox, format=format, crs=crs.getcode())
+		return self.wcs.getCoverage(identifier=self.layer_name, width=width,
+					height=height, resx=self.resx, resy=self.resy, bbox=self.bbox,
+					format=format, crs=crs.getcode())
+
+	def to_gdal_raster_data(self, verbose=True):
+		"""
+		Convert to GDAL raster
+
+		:param verbose:
+			bool, whether or not to print some information
+
+		:return:
+			instance of :class:`GdalRasterData`
+		"""
+		## Read coverage
+		import urllib
+
+		response = self.get_coverage(self.layer_name)
+		if verbose:
+			print urllib.unquote(response.geturl())
+
+		#import tempfile
+		#fd = tempfile.NamedTemporaryFile(suffix=".tif")
+		#fd.write(response.read())
+		#fd.close()
+		#super(WCSData, self).__init__(fd.name, band_nr=band_nr, down_sampling=1)
+
+		try:
+			data = GdalRasterData(response.geturl(), band_nr=self.band_nr,
+									down_sampling=1)
+		except:
+			print response.read()
+			raise
+		else:
+			return data
 
 	@property
 	def resx(self):
-		return self.resolution[0]
+		return self.get_native_cellsize()[0] * self.down_sampling
 
 	@property
 	def resy(self):
-		return self.resolution[1]
+		return self.get_native_cellsize()[1] * self.down_sampling
 
 
 class ImageData(BasemapData):
