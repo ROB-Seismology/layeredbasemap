@@ -1380,7 +1380,11 @@ class MeshGridData(GridData):
 		from matplotlib.colors import LightSource
 		ls = LightSource(azimuth, elevation_angle)
 		# TODO: look into vertical exaggeration with true dx and dy
-		shade = ls.hillshade(self.values, dx=np.sign(self.dx), dy=-np.sign(self.dy))
+
+		try:
+			shade = ls.hillshade(self.values, dx=np.sign(self.dx), dy=-np.sign(self.dy))
+		except:
+			shade = ls.hillshade(self.values, dx=np.sign(self.dlon), dy=-np.sign(self.dlat))
 
 		## Eliminate nan values, they result in black when blended
 		shade[np.isnan(shade)] = 0.5
