@@ -872,7 +872,7 @@ class LayeredBasemap:
 		circles = MultiPolygonData([], [], interior_lons=[], interior_lats=[], values=[], labels=[])
 		for i in range(len(circle_data)):
 			center = (circle_data.lons[i], circle_data.lats[i])
-			radius = circle_data.radii[i]
+			radius = circle_data.radii[i] * 1000
 			lons, lats = [], []
 			for azimuth in np.arange(0., 361., circle_data.azimuthal_resolution):
 				lon, lat = geodetic.spherical_point_at(center[0], center[1], radius, azimuth)
@@ -1047,7 +1047,7 @@ class LayeredBasemap:
 						## will be opaque!
 						cs = self.map.pcolormesh(x, y, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, linewidth=0, rasterized=True, zorder=self.zorder)
 					else:
-						cs = self.map.pcolor(x, y, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, linewidth=0, rasterized=True, alpha=alpha, zorder=self.zorder)
+						cs = self.map.pcolor(x, y, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, linewidth=0, rasterized=True, alpha=1, zorder=self.zorder)
 
 			self.zorder += 1
 
