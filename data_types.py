@@ -1237,11 +1237,26 @@ class MeshGridData(GridData):
 
 		# TODO: need to make functions for these using source srs
 		# (in which grid is rectangular)
-		self.center_lons = self.edge_lons = lons
-		self.center_lats = self.edge_lats = lats
+		self.center_lons = lons
+		self.center_lats = lats
+		self._edge_lons, self._edge_lats = None, None
 
 		## For compatibility with GdalRasterData
 		self.srs = wgs84
+
+	@property
+	def edge_lons(self):
+		if self._edge_lons is None:
+			lons = np.linspace(self.lon0 - self.dlon/2., self.lon1 + self.dlon/2., self.num_cols + 1)
+			lats = np.linspace(self.lat0 - self.dlat/2., self.lat1 + self.dlat/2., self.num_rows + 1)
+			self._edge_lons, self._edge_lats = np.meshgrid(lons, lats)
+		return self._edge_lons
+
+	@property
+	def edge_lats(self):
+		if self._edge_lats is None:
+			self._edge_lons
+		return self._edge_lats
 
 	@property
 	def dlon(self):

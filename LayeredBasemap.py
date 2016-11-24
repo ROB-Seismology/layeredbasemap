@@ -954,6 +954,7 @@ class LayeredBasemap:
 			if grid_style.color_gradient == "discontinuous":
 				if isinstance(norm, PiecewiseLinearNorm):
 					norm = norm.to_piecewise_constant_norm()
+					grid_style.color_map_theme.norm = norm
 
 			if grid_style.color_gradient == "discontinuous" and grid_style.pixelated == False:
 				cs = self.map.contourf(xc, yc, grid_data.values, levels=grid_style.contour_levels, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, extend="both", alpha=alpha, zorder=self.zorder)

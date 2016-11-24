@@ -20,7 +20,7 @@ def interpolate(xin, yin, xout):
 	## Numpy
 	## does not handle NaN correctly...
 	yout = np.interp(xout, xin, yin, left=yin[0], right=yin[-1])
-	yout[xout == np.nan] = np.nan
+	yout[np.isnan(xout)] = np.nan
 
 	return yout
 
@@ -85,7 +85,7 @@ class PiecewiseConstantNorm(matplotlib.colors.Normalize):
 		bin_indexes = np.digitize(value, self.breakpoints) - 1
 		bin_indexes = bin_indexes.clip(0, len(self.breakpoints)-1)
 		out_values = breakpoint_values[bin_indexes]
-		out_values[value == np.nan] = np.nan
+		out_values[np.isnan(value)] = np.nan
 		try:
 			mask = value.mask
 		except:
