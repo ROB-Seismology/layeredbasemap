@@ -2088,15 +2088,20 @@ class ImageStyle(BasemapStyle):
 		str, one of 'bottom', 'center' or 'top', vertical alignment with respect
 		to image position
 		(default: 'center')
+	:param on_top:
+		bool, whether or not to plot image on top of all other layers
+		(including graticule)
+		(default: False)
 	:param alpha:
 		Float in the range 0 - 1, opacity (default: 1.)
 	"""
 	def __init__(self, width=None, height=None, horizontal_alignment='center',
-				vertical_alignment='center', alpha=1.):
+				vertical_alignment='center', on_top=False, alpha=1.):
 		self.width = width
 		self.height = height
 		self.horizontal_alignment = horizontal_alignment
 		self.vertical_alignment = vertical_alignment
+		self.on_top = on_top
 		self.alpha = alpha
 
 

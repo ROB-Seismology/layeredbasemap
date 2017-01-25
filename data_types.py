@@ -787,6 +787,13 @@ class PolygonData(SingleData):
 		return cls.from_wkt(geom.ExportToWkt(), value=value, label=label,
 							style_params=style_params)
 
+	@classmethod
+	def from_bbox(cls, bbox, value=None, label="", style_params=None):
+		lon_min, lon_max, lat_min, lat_max = bbox
+		lons = [lon_min, lon_min, lon_max, lon_max, lon_min]
+		lats = [lat_min, lat_max, lat_max, lat_min, lat_min]
+		return PolygonData(lons, lats, value=value, label=label, style_params=style_params)
+
 	def get_centroid(self):
 		centroid = self.to_shapely().centroid
 		return PointData(centroid.x, centroid.y)
@@ -2405,12 +2412,17 @@ class ImageData(BasemapData):
 		float, longitude
 	:param lat:
 		float, latitude
+	:param coord_frame:
+		str, matplotlib coordinate frame for lons, lats:
+		"geographic", "data" or "display"
+		(default: "geographic")
 	"""
 	# TODO: should we also support display coordinates instead of lon, lat??
-	def __init__(self, filespec, lon, lat):
+	def __init__(self, filespec, lon, lat, coord_frame="geographic"):
 		self.filespec = filespec
 		self.lon = lon
 		self.lat = lat
+		self.coord_frame = coord_frame
 
 
 class GisData(BasemapData):

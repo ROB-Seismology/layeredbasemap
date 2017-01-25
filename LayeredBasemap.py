@@ -37,6 +37,8 @@ class MapLayer:
 		string, layer name
 		(default: "")
 	"""
+	# TODO: add zorder (default None) ?
+	# use in LayeredBasemap methods: zorder = layer.zorder or self.zorder
 	def __init__(self, data, style, legend_label="_nolegend_", name=""):
 		self.data = data
 		self.style = style
@@ -1106,7 +1108,15 @@ class LayeredBasemap:
 	def draw_image_layer(self, image_data, image_style):
 		img_ar = pylab.imread(image_data.filespec)
 		lon, lat = image_data.lon, image_data.lat
-		[x], [y] = self.lonlat_to_display_coordinates([lon], [lat])
+
+		if image_data.coord_frame == "geographic":
+			[x], [y] = self.lonlat_to_display_coordinates([lon], [lat])
+		elif image_data.coord_frame == "data":
+			[x], [y] = self.map_to_display_coordinates([lon], [lat])
+		else:
+			[llx], [lly] = self.lonlat_to_display_coordinates([self.llcrnrlon], [self.llcrnrlat])
+			x, y = llx + lon, lly + lat
+
 		width = image_style.width or img_ar.shape[1]
 		aspect = img_ar.shape[1] / float(img_ar.shape[0])
 		height = image_style.height or int(round(width / aspect))
@@ -1122,11 +1132,16 @@ class LayeredBasemap:
 			y0, y1 = int(round((y - height/2.))), int(round(y + height/2.))
 		elif image_style.vertical_alignment == 'bottom':
 			y0, y1 = y, y + height
+
 		X, Y = self.map_from_display_coordinates([x0,x1], [y0,y1])
 		extent = X + Y
 		## Note: self.map.imshow always plots image over entire map region!
-		self.ax.imshow(img_ar, extent=extent, zorder=self.zorder, alpha=image_style.alpha)
-		self.zorder += 1
+		if image_style.on_top:
+			zorder = 10000
+		else:
+			zorder = self.zorder
+			self.zorder += 1
+		self.ax.imshow(img_ar, extent=extent, zorder=zorder, alpha=image_style.alpha)
 
 	def draw_grid_vector_layer(self, vector_data, vector_style, legend_label=""):
 		# TODO: thematic legend with size of vector! (pylab.quiverkey)
