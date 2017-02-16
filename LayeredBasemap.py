@@ -427,7 +427,7 @@ class LayeredBasemap:
 					if textcoords != 'offset points':
 						x[i], y[i] = 0, 0
 				else:
-					print('data.append(lbm.TextData(%.0f, %.0f, label="%s"))' % (x[i], y[i], label))
+					#print('data.append(lbm.TextData(%.0f, %.0f, label="%s"))' % (x[i], y[i], label))
 					xytext = None
 					textcoords = "data"
 			self.ax.annotate(label, (x[i], y[i]), xytext=xytext, textcoords=textcoords, zorder=self.zorder, axes=self.ax, clip_on=style.clip_on, **style.to_kwargs())
