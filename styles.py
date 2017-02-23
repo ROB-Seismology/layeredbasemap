@@ -1084,7 +1084,7 @@ class ThematicStyleIndividual(ThematicStyle):
 			self.set_styles(styles)
 		elif isinstance(styles, (str, matplotlib.colors.Colormap)):
 			self.set_styles_from_colormap(styles)
-		if labels:
+		if not (labels is None or labels == []):
 			self.labels = labels
 		else:
 			self.labels = []
@@ -1222,7 +1222,7 @@ class ThematicStyleRanges(ThematicStyle):
 			self.set_styles(styles)
 		elif isinstance(styles, (str, matplotlib.colors.Colormap)):
 			self.set_styles_from_colormap(styles)
-		if labels:
+		if not (labels is None or labels == []):
 			self.labels = labels
 		else:
 			self.labels = []
@@ -1342,7 +1342,7 @@ class ThematicStyleGradient(ThematicStyle):
 		elif isinstance(styles, (str, matplotlib.colors.Colormap)):
 			self.set_styles_from_colormap(styles)
 		#TODO: assert len(values) = len(styles)
-		if labels:
+		if not (labels is None or labels == []):
 			self.labels = labels
 		else:
 			#self.labels = map(str, self.values)
