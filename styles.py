@@ -1072,17 +1072,17 @@ class ThematicStyleIndividual(ThematicStyle):
 	"""
 	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True, colorbar_style=None):
 		super(ThematicStyleIndividual, self).__init__(value_key, add_legend, colorbar_style)
-		assert len(values) == len(styles)
+		assert len(values) == len(styles) or isinstance(styles, (str, unicode, matplotlib.colors.Colormap))
 		self.values = values
-		if styles[:12] == "random_color":
+		if isinstance(styles, (list, tuple, np.ndarray)):
+			self.set_styles(styles)
+		elif styles[:12] == "random_color":
 			if ',' in styles:
 				random_seed = int(styles.split(',')[-1])
 			else:
 				random_seed = None
 			self.set_styles_from_random_colors(random_seed)
-		elif isinstance(styles, (list, tuple, np.ndarray)):
-			self.set_styles(styles)
-		elif isinstance(styles, (str, matplotlib.colors.Colormap)):
+		elif isinstance(styles, (str, unicode, matplotlib.colors.Colormap)):
 			self.set_styles_from_colormap(styles)
 		if not (labels is None or labels == []):
 			self.labels = labels
@@ -1331,15 +1331,15 @@ class ThematicStyleGradient(ThematicStyle):
 	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True, colorbar_style=None):
 		super(ThematicStyleGradient, self).__init__(value_key, add_legend, colorbar_style)
 		self.values = np.array(values, dtype='f')
-		if styles[:12] == "random_color":
+		if isinstance(styles, (list, tuple, np.ndarray)):
+			self.set_styles(styles)
+		elif styles[:12] == "random_color":
 			if ',' in styles:
 				random_seed = int(styles.split(',')[-1])
 			else:
 				random_seed = None
 			self.set_styles_from_random_colors(random_seed)
-		elif isinstance(styles, (list, tuple, np.ndarray)):
-			self.set_styles(styles)
-		elif isinstance(styles, (str, matplotlib.colors.Colormap)):
+		elif isinstance(styles, (str, unicode, matplotlib.colors.Colormap)):
 			self.set_styles_from_colormap(styles)
 		#TODO: assert len(values) = len(styles)
 		if not (labels is None or labels == []):
