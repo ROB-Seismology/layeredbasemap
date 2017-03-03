@@ -188,7 +188,7 @@ class LayeredBasemap:
 	## Drawing primitives
 
 	def _draw_points(self, points, style, legend_label="_nolegend_", legend_name="main",
-					thematic_legend_artists=[], thematic_legend_labels=[]):
+					thematic_legend_artists=[], thematic_legend_labels=[], nt_legend_name=""):
 		## Note: overriding style params not implemented (except for labels)
 		## because we plot all points in one function call!
 		x, y = self.map(points.lons, points.lats)
@@ -299,6 +299,12 @@ class LayeredBasemap:
 					ntl.line_width = line_width
 					l = matplotlib.lines.Line2D([0], [0], lw=0, **ntl.to_kwargs())
 					thematic_legend_artists.append(l)
+
+			if nt_legend_name and not legend_label in ("_nolabel", "None", "", None):
+				## Add also to main legend
+				tl_artists, tl_labels = self.get_thematic_legend_artists_and_labels(nt_legend_name)
+				tl_artists.append(cs)
+				tl_labels.append(legend_label)
 
 	def _draw_line(self, line, line_style, legend_label="_nolegend_",
 					legend_name="main"):
@@ -750,7 +756,19 @@ class LayeredBasemap:
 				#legend_artists, legend_labels = self.get_thematic_legend_artists_and_labels(legend_name)
 			else:
 				legend_name = ""
-			self._draw_points(point_data, point_style, legend_label, legend_name=legend_name, thematic_legend_artists=legend_artists, thematic_legend_labels=legend_labels)
+
+			## If style is thematic, provide option to also include layer in
+			## a non-thematic legend
+
+			# TODO: Maybe we should define thematic_legend_style in ThematicStyle
+			# and non-thematic legend_style in PointStyle etc. ??
+			if point_style.is_thematic() and not legend_label in ("_nolabel", "None", "", None):
+				nt_legend_name = "main"
+			else:
+				nt_legend_name = ""
+			self._draw_points(point_data, point_style, legend_label, legend_name=legend_name,
+							thematic_legend_artists=legend_artists, thematic_legend_labels=legend_labels,
+							nt_legend_name = nt_legend_name)
 		else:
 			## scatter does not support different markers, so we have to do this separately
 			data_marker_shapes = np.array(point_style.shape(point_data.values))
