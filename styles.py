@@ -280,7 +280,7 @@ class TextStyle(FontStyle):
 		d["ha"] = self.horizontal_alignment
 		d["va"] = self.vertical_alignment
 		d["multialignment"] = self.multi_alignment
-		d["alpha"] = self.alpha
+		d["alpha"] = {True: None, False: self.alpha}[self.alpha == 1]
 		d["bbox"] = dict(facecolor=self.background_color, lw=self.border_width,
 						edgecolor=self.border_color,
 						boxstyle="%s, pad=%s" % (self.border_shape, self.border_pad))
@@ -438,7 +438,7 @@ class PointStyle(BasemapStyle):
 		d["mfc"] = self.fill_color
 		d["mec"] = self.line_color
 		d["fillstyle"] = self.fill_style
-		d["alpha"] = self.alpha
+		d["alpha"] = {True: None, False: self.alpha}[self.alpha == 1]
 		return d
 
 
@@ -571,7 +571,7 @@ class FrontStyle(BasemapStyle):
 		d["marker_arrow_overhang"] = self.arrow_overhang
 		d["marker_arrow_length_includes_head"] = self.arrow_length_includes_head
 		d["marker_arrow_head_starts_at_zero"] = self.arrow_head_starts_at_zero
-		d["marker_alpha"] = self.alpha
+		d["marker_alpha"] = {True: None, False: self.alpha}[self.alpha == 1]
 		return d
 
 
@@ -706,7 +706,7 @@ class LineStyle(BasemapStyle):
 		else:
 			d["ls"] = self.line_pattern
 			#d["dashes"] = (None, None)
-		d["alpha"] = self.alpha
+		d["alpha"] = {True: None, False: self.alpha}[self.alpha == 1]
 		return d
 
 
@@ -836,7 +836,7 @@ class PolygonStyle(BasemapStyle):
 				d["ec"] = self.hatch_color
 				if self.line_color in (None, "None", "none"):
 					d["lw"] = 0
-		d["alpha"] = self.alpha
+		d["alpha"] = {True: None, False: self.alpha}[self.alpha == 1]
 		return d
 
 
@@ -945,7 +945,7 @@ class FocmecStyle(BasemapStyle):
 		d["edgecolor"] = self.line_color
 		d["facecolor"] = self.fill_color
 		d["bgcolor"] = self.bg_color
-		d["alpha"] = self.alpha
+		d["alpha"] = {True: None, False: self.alpha}[self.alpha == 1]
 		return d
 
 
@@ -1598,7 +1598,7 @@ class ColorbarStyle(BasemapStyle):
 		d["ticks"] = self.ticks
 		d["format"] = self.format
 		d["drawedges"] = self.drawedges
-		d["alpha"] = self.alpha
+		d["alpha"] = {True: None, False: self.alpha}[self.alpha == 1]
 		return d
 
 	@classmethod
@@ -1759,7 +1759,7 @@ class VectorStyle(BasemapStyle):
 		d["minlength"] = self.min_length
 		d["pivot"] = self.pivot
 		d["color"] = self.color
-		d["alpha"] = self.alpha
+		d["alpha"] = {True: None, False: self.alpha}[self.alpha == 1]
 		return d
 
 
@@ -1874,7 +1874,7 @@ class LegendStyle(BasemapStyle):
 		d["columnspacing"] = self.column_spacing
 		d["numpoints"] = self.num_points
 		d["scatterpoints"] = self.num_scatter_points
-		d["framealpha"] = self.alpha
+		d["framealpha"] = {True: None, False: self.alpha}[self.alpha == 1]
 		return d
 
 
@@ -2036,7 +2036,7 @@ class GraticuleStyle(BasemapStyle):
 		text_kwargs = self.label_style.to_kwargs()
 		del text_kwargs["alpha"]
 		d.update(text_kwargs)
-		d["alpha"] = self.alpha
+		d["alpha"] = {True: None, False: self.alpha}[self.alpha == 1]
 		return d
 
 
@@ -2133,5 +2133,5 @@ class WMSStyle(BasemapStyle):
 		d["xpixels"] = self.xpixels
 		d["ypixels"] = self.ypixels
 		d["format"] = self.format
-		d["alpha"] = self.alpha
+		d["alpha"] = {True: None, False: self.alpha}[self.alpha == 1]
 		return d

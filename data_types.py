@@ -2444,15 +2444,21 @@ class GisData(BasemapData):
 	:param convert_closed_lines:
 		bool, whether or not to silently convert closed lines to polygons
 		(default: True)
+	:param invert_selection:
+		bool, whether or not to invert the selection criteria in
+		:param:`selection_dict`
+		(default: False)
 	"""
 	def __init__(self, filespec, label_colname=None, selection_dict=None,
-				joined_attributes={}, style_params={}, convert_closed_lines=True):
+				joined_attributes={}, style_params={}, convert_closed_lines=True,
+				invert_selection=False):
 		self.filespec = filespec
 		self.label_colname = label_colname
 		self.selection_dict = selection_dict or {}
 		self.joined_attributes = joined_attributes or {}
 		self.style_params = style_params or {}
 		self.convert_closed_lines = convert_closed_lines
+		self.invert_selection = invert_selection
 
 	def get_attributes(self):
 		"""
@@ -2528,6 +2534,8 @@ class GisData(BasemapData):
 					selected[i] = 1
 				else:
 					selected[i] = 0
+			if self.invert_selection:
+				selected = np.abs(selected - 1)
 			if selected.all():
 				label = rec.get(self.label_colname)
 				if label is None and self.label_colname in self.joined_attributes:
