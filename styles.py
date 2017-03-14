@@ -457,7 +457,7 @@ class FrontStyle(BasemapStyle):
 		case, it is recommended to set lower left coordinate at (0, 0).
 	:param size:
 		int, size of front marker in points.
-		(default: 12)
+		(default: 10)
 	:param interval:
 		int, str or array-like, interval of front marker along line
 		- positive int: interval between markers in points
