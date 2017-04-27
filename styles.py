@@ -1170,19 +1170,29 @@ class ThematicStyleIndividual(ThematicStyle):
 		boundaries = np.concatenate([[values[0] - diff[0] / 2.], boundaries, [values[-1] + diff[-1] / 2.]])
 		return matplotlib.colors.BoundaryNorm(boundaries, len(self.values))
 
-	def to_scalar_mappable(self):
+	def to_scalar_mappable(self, values=None):
 		"""
 		Get corresponding Scalarmappable object. Only applicable if
 		:param:`styles` contains matplotlib colors
+
+		:param values:
+			list or array, data values
+			(default: None)
+
+		:return:
+			instance of :class:`matplotlib.cm.ScalarMappable`
 		"""
 		if self.is_color_style():
 			norm = self.get_norm()
 			cmap = self.to_colormap()
 			sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
-			if isinstance(self.values[0], (int, float)):
-				sm.set_array(self.values)
+			if values is None:
+				if isinstance(self.values[0], (int, float)):
+					sm.set_array(self.values)
+				else:
+					sm.set_array(np.arange(len(self.values)))
 			else:
-				sm.set_array(np.arange(len(self.values)))
+				sm.set_array(values)
 			return sm
 
 
@@ -1290,17 +1300,27 @@ class ThematicStyleRanges(ThematicStyle):
 		"""
 		return matplotlib.colors.BoundaryNorm(self.values, len(self.styles))
 
-	def to_scalar_mappable(self):
+	def to_scalar_mappable(self, values=None):
 		"""
 		Get corresponding Scalarmappable object. Only applicable if
 		:param:`styles` contains matplotlib colors
+
+		:param values:
+			list or array, data values
+			(default: None)
+
+		:return:
+			instance of :class:`matplotlib.cm.ScalarMappable`
 		"""
 		if self.is_color_style():
 			#cmap, norm = matplotlib.colors.from_levels_and_colors(self.values, self.styles)
 			cmap = self.to_colormap()
 			norm = self.get_norm()
 			sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
-			sm.set_array(self.values)
+			if values is None:
+				sm.set_array(self.values)
+			else:
+				sm.set_array(values)
 			return sm
 
 
@@ -1420,16 +1440,26 @@ class ThematicStyleGradient(ThematicStyle):
 		return PiecewiseLinearNorm(self.values)
 		#return matplotlib.colors.Normalize(vmin=self.values.min(), vmax=self.values.max())
 
-	def to_scalar_mappable(self):
+	def to_scalar_mappable(self, values=None):
 		"""
 		Get corresponding Scalarmappable object. Only applicable if
 		:param:`styles` contains matplotlib colors
+
+		:param values:
+			list or array, data values
+			(default: None)
+
+		:return:
+			instance of :class:`matplotlib.cm.ScalarMappable`
 		"""
 		if self.is_color_style():
 			norm = self.get_norm()
 			cmap = self.to_colormap()
 			sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
-			sm.set_array(self.values)
+			if values is None:
+				sm.set_array(self.values)
+			else:
+				sm.set_array(values)
 			return sm
 
 
@@ -1512,13 +1542,23 @@ class ThematicStyleColormap(ThematicStyle):
 		"""
 		return self.color_map
 
-	def to_scalar_mappable(self):
+	def to_scalar_mappable(self, values=None):
 		"""
 		Convert colormap and norm to a Scalarmappable object
+
+		:param values:
+			list or array, data values
+			(default: None)
+
+		:return:
+			instance of :class:`matplotlib.cm.ScalarMappable`
 		"""
 		norm = self.get_norm()
 		sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=self.color_map)
-		sm.set_array(self.values)
+		if values is None:
+			sm.set_array(self.values)
+		else:
+			sm.set_array(values)
 		return sm
 
 

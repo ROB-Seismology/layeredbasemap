@@ -1059,9 +1059,16 @@ class LayeredBasemap:
 					#	i = [1,1,1,0]
 						#i[3] = 0
 					## Use scalarmappable as cs for colorbar, vmin and vmax must be set
-					grid_style.color_map_theme.vmin = (vmin if vmin is not None else data.min())
-					grid_style.color_map_theme.vmax = (vmax if vmax is not None else data.max())
-					cs = grid_style.color_map_theme.to_scalar_mappable()
+					#grid_style.color_map_theme.vmin = (vmin if vmin is not None else data.min())
+					#grid_style.color_map_theme.vmax = (vmax if vmax is not None else data.max())
+					if grid_style.color_map_theme.norm:
+						grid_style.color_map_theme.norm.vmin = data.min()
+						grid_style.color_map_theme.norm.vmax = data.max()
+					cs = grid_style.color_map_theme.to_scalar_mappable(data)
+					if grid_style.color_map_theme.norm:
+						grid_style.color_map_theme.norm.vmin = vmin
+						grid_style.color_map_theme.norm.vmax = vmax
+
 				else:
 					if alpha == 1:
 						## Note: omit alpha parameter or else nodata grid cells
