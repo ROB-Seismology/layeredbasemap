@@ -38,7 +38,7 @@ import cm
 reload(cm)
 
 
-import LayeredBasemap
-reload(LayeredBasemap)
+import layered_basemap
+reload(layered_basemap)
 
-from LayeredBasemap import (MapLayer, LayeredBasemap)
+from layered_basemap import (MapLayer, LayeredBasemap)
