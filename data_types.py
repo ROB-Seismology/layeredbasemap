@@ -601,7 +601,7 @@ class LineData(SingleData):
 								style_params=style_params)
 
 	def get_incremental_distance(self):
-		from mapping.geo.geodetic import spherical_distance
+		from mapping.geotools.geodetic import spherical_distance
 		lons, lats = np.array(self.lons), np.array(self.lats)
 		lons1, lats1 = lons[:-1], lats[:-1]
 		lons2, lats2 = lons[1:], lats[1:]
@@ -652,7 +652,7 @@ class LineData(SingleData):
 			return PointData.from_shapely(pt)
 
 	def get_nearest_index_to_point(self, pt):
-		import mapping.geo.geometric as geometric
+		import mapping.geotools.geometric as geometric
 		distances = geometric.spherical_distance(pt.lon, pt.lat, self.lons, self.lats)
 		return np.argmin(distances)
 
@@ -1231,7 +1231,7 @@ class MeshGridData(GridData):
 	# TODO: correctly implement edge_lons, edge_lats!
 	# TODO: add nodata_value (np.nan only works for float arrays!)
 	def __init__(self, lons, lats, values, unit=""):
-		from mapping.geo.coordtrans import wgs84
+		from mapping.geotools.coordtrans import wgs84
 
 		if lons.ndim != 2 or lats.ndim != 2 or values.ndim != 2:
 			raise ValueError("lons, lats, and values should be 2-dimensional")
@@ -1345,7 +1345,7 @@ class MeshGridData(GridData):
 		"""
 		## Check scipy.interpolate.Rbf for additional interpolation methods
 		from mpl_toolkits.basemap import interp
-		from mapping.geo.coordtrans import transform_mesh_coordinates, wgs84
+		from mapping.geotools.coordtrans import transform_mesh_coordinates, wgs84
 
 		## xin, yin must be linearly increasing
 		values = self.values
@@ -1500,7 +1500,7 @@ class MeshGridData(GridData):
 			(default: "EPSG:4326" (= WGS84)
 		"""
 		import osr, gdal
-		from mapping.geo.coordtrans import get_epsg_srs, wgs84, transform_coordinates
+		from mapping.geotools.coordtrans import get_epsg_srs, wgs84, transform_coordinates
 
 		driver = gdal.GetDriverByName(driver_name)
 		num_bands = 1
@@ -1738,7 +1738,7 @@ class GdalRasterData(MeshGridData):
 		self.nrows = int(abs((self.y0 - self.y1) / self.dy)) + 1
 
 	def get_bbox_from_region(self, region, margin_fraction=1./20):
-		from mapping.geo.coordtrans import wgs84, transform_coordinates
+		from mapping.geotools.coordtrans import wgs84, transform_coordinates
 
 		srs = self.srs
 
@@ -1813,7 +1813,7 @@ class GdalRasterData(MeshGridData):
 			(lons, lats) tuple, 2-D arrays containing raster
 			longitudes and raster latitudes
 		"""
-		from mapping.geo.coordtrans import (transform_mesh_coordinates, wgs84)
+		from mapping.geotools.coordtrans import (transform_mesh_coordinates, wgs84)
 
 		## Create meshed coordinates
 		if cell_registration == "center":
@@ -1984,7 +1984,7 @@ class GdalRasterData(MeshGridData):
 		"""
 		## Check scipy.interpolate.Rbf for additional interpolation methods
 		from mpl_toolkits.basemap import interp
-		from mapping.geo.coordtrans import transform_mesh_coordinates
+		from mapping.geotools.coordtrans import transform_mesh_coordinates
 
 		## xin, yin must be linearly increasing
 		values = self.values
@@ -2044,7 +2044,7 @@ class GdalRasterData(MeshGridData):
 		return self.interpolate(X, Y)
 
 	def warp_to_map(self, map, checkbounds=False, masked=True, order=1):
-		from mapping.geo.coordtrans import transform_mesh_coordinates
+		from mapping.geotools.coordtrans import transform_mesh_coordinates
 
 		nx = int(round(map.figsize[0] * float(map.dpi)))
 		ny = int(round(map.figsize[1] * float(map.dpi)))
@@ -2259,7 +2259,7 @@ class WCSData(GdalRasterData):
 		:return:
 			osr SpatialReference object
 		"""
-		from mapping.geo.coordtrans import get_epsg_srs
+		from mapping.geotools.coordtrans import get_epsg_srs
 
 		crs = self.get_crs()
 		if crs.authority == 'EPSG':
@@ -2305,7 +2305,7 @@ class WCSData(GdalRasterData):
 			list or tuple of floats: (llx, lly, urx, ury)
 			bbox in native coordinates
 		"""
-		from mapping.geo.coordtrans import get_epsg_srs, wgs84, transform_coordinates
+		from mapping.geotools.coordtrans import get_epsg_srs, wgs84, transform_coordinates
 
 		srs = self.get_native_srs()
 		if not srs:
@@ -2467,7 +2467,7 @@ class GisData(BasemapData):
 		:return:
 			list of strings
 		"""
-		from mapping.geo.readGIS import read_GIS_file_attributes
+		from mapping.geotools.readGIS import read_GIS_file_attributes
 
 		return read_GIS_file_attributes(self.filespec)
 
@@ -2489,7 +2489,7 @@ class GisData(BasemapData):
 		:return:
 			(MultiPointData, MultiLineData, MultiPolygonData) tuple
 		"""
-		from mapping.geo.readGIS import read_GIS_file
+		from mapping.geotools.readGIS import read_GIS_file
 
 		if None in (point_value_colnames, line_value_colnames, polygon_value_colnames):
 			colnames = self.get_attributes()

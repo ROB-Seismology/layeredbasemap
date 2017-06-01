@@ -5,7 +5,7 @@ using thematic styles for their size and color
 """
 import eqcatalog.seismodb as seismodb
 from eqcatalog.source_models import rob_source_models_dict
-from mapping.geo.readGIS import read_GIS_file
+from mapping.geotools.readGIS import read_GIS_file
 from mapping.Basemap.LayeredBasemap import *
 
 

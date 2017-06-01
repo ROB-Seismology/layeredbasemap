@@ -5,7 +5,7 @@ geographic objects from a GIS file.
 
 import numpy as np
 import eqcatalog.seismodb as seismodb
-from mapping.geo.readGIS import read_GIS_file
+from mapping.geotools.readGIS import read_GIS_file
 import mapping.Basemap as lbm
 
 

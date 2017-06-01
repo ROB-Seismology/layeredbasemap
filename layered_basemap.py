@@ -888,7 +888,7 @@ class LayeredBasemap:
 	def draw_circles(self, circle_data, circle_style, legend_label="_nolegend_"):
 		## Note: we could also use the tissot method, but then we would have
 		## to code the thematic styling again
-		import mapping.geo.geodetic as geodetic
+		import mapping.geotools.geodetic as geodetic
 		circles = MultiPolygonData([], [], interior_lons=[], interior_lats=[], values=[], labels=[])
 		for i in range(len(circle_data)):
 			center = (circle_data.lons[i], circle_data.lats[i])
@@ -1721,12 +1721,12 @@ class LayeredBasemap:
 		Convert geographic to projected coordinates using ogr.
 		For some projections, this gives another result than meth:`lonlat_to_map_coordinates`
 		"""
-		from mapping.geo.coordtrans import transform_array_coordinates, wgs84
+		from mapping.geotools.coordtrans import transform_array_coordinates, wgs84
 		x, y = transform_array_coordinates(wgs84, self.get_srs(), lons, lats)
 		return (x, y)
 
 	def projected_to_lonlat_coordinates(self, x, y):
-		from mapping.geo.coordtrans import transform_array_coordinates, wgs84
+		from mapping.geotools.coordtrans import transform_array_coordinates, wgs84
 		lons, lats = transform_coordinates(self.get_srs(), wgs84, x, y)
 		return (lons, lats)
 
@@ -1832,7 +1832,7 @@ class LayeredBasemap:
 		:param dpi:
 			int, image resolution (default: 120)
 		"""
-		from mapping.geo.geotiff import write_multi_band_geotiff
+		from mapping.geotools.geotiff import write_multi_band_geotiff
 
 		img = self.get_map_image(dpi=dpi)
 		if verbose:
