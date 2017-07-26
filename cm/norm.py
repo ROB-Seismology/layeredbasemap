@@ -25,6 +25,9 @@ def interpolate(xin, yin, xout):
 	return yout
 
 
+LinearNorm = matplotlib.colors.Normalize
+
+
 class PiecewiseLinearNorm(matplotlib.colors.Normalize):
 	"""
 	Normalize a given value to the 0-1 range by piecewise linear
