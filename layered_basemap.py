@@ -755,7 +755,7 @@ class LayeredBasemap:
 				legend_name = point_style.thematic_legend_style
 				#legend_artists, legend_labels = self.get_thematic_legend_artists_and_labels(legend_name)
 			else:
-				legend_name = ""
+				legend_name = "main"
 
 			## If style is thematic, provide option to also include layer in
 			## a non-thematic legend
