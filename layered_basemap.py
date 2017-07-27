@@ -392,6 +392,8 @@ class LayeredBasemap:
 			instance of :class:`TextData`, :class:`MultiTextData`,
 			instance of :class:`PointData`, :class:`MultiPointData`
 		"""
+		from contrib.text_true_align import TextTrueAlign
+
 		## Compute offset in map units (not needed for annotate method)
 		#display_x, display_y = self.lonlat_to_display_coordinates(text_points.lons, text_points.lats)
 		#display_x = np.array(display_x) + style.offset[0]
@@ -436,7 +438,12 @@ class LayeredBasemap:
 					#print('data.append(lbm.TextData(%.0f, %.0f, label="%s"))' % (x[i], y[i], label))
 					xytext = None
 					textcoords = "data"
-			self.ax.annotate(label, (x[i], y[i]), xytext=xytext, textcoords=textcoords, zorder=self.zorder, axes=self.ax, clip_on=style.clip_on, **style.to_kwargs())
+			if style.rotation and style.horizontal_alignment != "center" and style.vertical_alignment != "center":
+				# TODO: properly take into account xytext, textcoords, offset...
+				text = TextTrueAlign(x[i], y[i], label, zorder=self.zorder, axes=self.ax, clip_on=style.clip_on, **style.to_kwargs())
+				self.ax.add_artist(text)
+			else:
+				self.ax.annotate(label, (x[i], y[i]), xytext=xytext, textcoords=textcoords, zorder=self.zorder, axes=self.ax, clip_on=style.clip_on, **style.to_kwargs())
 
 	def draw_polygon_layer(self, polygon_data, polygon_style, legend_label="_nolegend_"):
 		"""
@@ -496,16 +503,28 @@ class LayeredBasemap:
 			style.label_style = None
 			self._draw_polygon(polygon, style, legend_label, legend_name=legend_name)
 		self.zorder += 1
+
+		## Labels
 		if polygon_data.labels and polygon_style.label_style:
-			centroids = MultiPointData([], [], labels=[])
+			txt_points = MultiPointData([], [], labels=[])
 			for pg in polygon_data:
 				if pg.label:
-					centroid = pg.get_centroid()
-					centroids.lons.append(centroid.lon)
-					centroids.lats.append(centroid.lat)
-					centroids.labels.append(pg.label)
-			centroids.style_params = polygon_data.style_params
-			self._draw_texts(centroids, polygon_style.label_style)
+					label_anchor = pg.get_overriding_style(polygon_style).label_anchor
+					if label_anchor == "west":
+						pt = pg.get_west_point()
+					elif label_anchor == "east":
+						pt = pg.get_east_point()
+					elif label_anchor == "north":
+						pt = pg.get_north_point()
+					elif label_anchor == "south":
+						pt = pg.get_south_point()
+					else:
+						pt = pg.get_centroid()
+					txt_points.lons.append(pt.lon)
+					txt_points.lats.append(pt.lat)
+					txt_points.labels.append(pg.label)
+			txt_points.style_params = polygon_data.style_params
+			self._draw_texts(txt_points, polygon_style.label_style)
 			self.zorder += 1
 
 		## Thematic legend
@@ -664,15 +683,19 @@ class LayeredBasemap:
 		if line_data.labels and line_style.label_style:
 			# TODO: auto-rotate labels
 			# See http://stackoverflow.com/questions/18780198/how-to-rotate-matplotlib-annotation-to-match-a-line
+			# See also: https://stackoverflow.com/questions/44143395/align-arbitrarily-rotated-text-annotations-relative-to-the-text-not-the-boundin
 			# Add possibility to anchor label at start, end, middle or fraction of line length
 			# and obtain line orientation for that anchor point for auto-rotation
 			#label_points = MultiTextData([], [], labels=[])
-			if isinstance(line_style.label_anchor, (str, unicode)):
-				label_anchor = {"start": 0., "middle": 0.5, "end": 1.}.get(line_style.label_anchor, 0.5)
-			else:
-				label_anchor = line_style.label_anchor
+			#if isinstance(line_style.label_anchor, (str, unicode)):
+			#	label_anchor = {"start": 0., "middle": 0.5, "end": 1.}.get(line_style.label_anchor, 0.5)
+			#else:
+			#	label_anchor = line_style.label_anchor
 			for line in line_data:
 				if line.label:
+					label_anchor = line.get_overriding_style(line_style).label_anchor
+					if isinstance(label_anchor, (str, unicode)):
+						label_anchor = {"start": 0., "middle": 0.5, "end": 1.}.get(label_anchor, 0.5)
 					pt = line.get_point_at_fraction_of_length(label_anchor)
 					lp = TextData(pt.lon, pt.lat, label=line.label)
 					#label_points.lons.append(lp.lon)
