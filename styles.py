@@ -742,6 +742,9 @@ class PolygonStyle(BasemapStyle):
 	:param label_style:
 		instance of :class:`TextStyle`. If None, no labels will be plotted
 		(default: None)
+	:param label_anchor:
+		str, one of "centroid", "west", "east", "south" or "north"
+		(default: "centroid")
 	:param alpha:
 		Float in the range 0 - 1, opacity (default: 1.)
 	:param thematic_legend_style:
@@ -750,7 +753,7 @@ class PolygonStyle(BasemapStyle):
 		(default: None)
 	"""
 	# TODO: add dash_pattern as well!
-	def __init__(self, line_pattern="solid", line_width=1, line_color='k', fill_color='w', fill_hatch=None, hatch_color='k', label_style=None, alpha=1., thematic_legend_style=None):
+	def __init__(self, line_pattern="solid", line_width=1, line_color='k', fill_color='w', fill_hatch=None, hatch_color='k', label_style=None, label_anchor="centroid", alpha=1., thematic_legend_style=None):
 		self.line_pattern = {'-': 'solid', '--': 'dashed', ':': 'dotted', '-.': 'dashdot'}.get(line_pattern, line_pattern)
 		self.line_width = line_width
 		self.line_color = line_color
@@ -758,6 +761,7 @@ class PolygonStyle(BasemapStyle):
 		self.fill_hatch = fill_hatch
 		self.hatch_color = hatch_color
 		self.label_style = label_style
+		self.label_anchor = label_anchor
 		self.alpha = alpha
 		self.thematic_legend_style = thematic_legend_style
 
