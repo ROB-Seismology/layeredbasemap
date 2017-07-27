@@ -798,6 +798,22 @@ class PolygonData(SingleData):
 		centroid = self.to_shapely().centroid
 		return PointData(centroid.x, centroid.y)
 
+	def get_west_point(self):
+		idx = np.argmin(self.lons)
+		return PointData(self.lons[idx], self.lats[idx])
+
+	def get_east_point(self):
+		idx = np.argmax(self.lons)
+		return PointData(self.lons[idx], self.lats[idx])
+
+	def get_south_point(self):
+		idx = np.argmin(self.lats)
+		return PointData(self.lons[idx], self.lats[idx])
+
+	def get_north_point(self):
+		idx = np.argmax(self.lats)
+		return PointData(self.lons[idx], self.lats[idx])
+
 	def to_line(self):
 		## Interior rings are ignored
 		return LineData(self.lons, self.lats, value=self.value, label=self.label,
