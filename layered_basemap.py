@@ -300,7 +300,7 @@ class LayeredBasemap:
 					l = matplotlib.lines.Line2D([0], [0], lw=0, **ntl.to_kwargs())
 					thematic_legend_artists.append(l)
 
-			if nt_legend_name and not legend_label in ("_nolabel", "None", "", None):
+			if nt_legend_name and not legend_label in ("_nolegend_", "None", "", None):
 				## Add also to main legend
 				tl_artists, tl_labels = self.get_thematic_legend_artists_and_labels(nt_legend_name)
 				tl_artists.append(cs)
@@ -785,7 +785,7 @@ class LayeredBasemap:
 
 			# TODO: Maybe we should define thematic_legend_style in ThematicStyle
 			# and non-thematic legend_style in PointStyle etc. ??
-			if point_style.is_thematic() and not legend_label in ("_nolabel", "None", "", None):
+			if point_style.is_thematic() and not legend_label in ("_nolegend_", "None", "", None):
 				nt_legend_name = "main"
 			else:
 				nt_legend_name = ""
