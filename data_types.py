@@ -257,6 +257,15 @@ class PointData(SingleData):
 		"""
 		return self.to_shapely().wkt
 
+	def to_geojson(self):
+		return shapely.geometry.mapping(self.to_shapely())
+
+	def to_ogr_geom(self):
+		return ogr.CreateGeometryFromWkt(self.to_wkt())
+
+	def get_ogr_geomtype(self):
+		return ogr.wkbPoint
+
 	def to_multi_point(self):
 		"""
 		Convert to multi-point data
@@ -455,6 +464,15 @@ class MultiPointData(MultiData):
 		"""
 		return self.to_shapely().wkt
 
+	def to_geojson(self):
+		return shapely.geometry.mapping(self.to_shapely())
+
+	def to_ogr_geom(self):
+		return ogr.CreateGeometryFromWkt(self.to_wkt())
+
+	def get_ogr_geomtype(self):
+		return ogr.wkbMultiPoint
+
 	@classmethod
 	def from_shapely(cls, mp, values=None, labels=None, style_params=None):
 		"""
@@ -576,6 +594,16 @@ class LineData(SingleData):
 
 	def to_wkt(self):
 		return self.to_shapely().wkt
+
+	def to_geojson(self):
+		return shapely.geometry.mapping(self.to_shapely())
+
+	def to_ogr_geom(self):
+		return ogr.CreateGeometryFromWkt(self.to_wkt())
+		#return ogr.CreateGeometryFromJson(self.to_geojson())
+
+	def get_ogr_geomtype(self):
+		return ogr.wkbLineString
 
 	def to_multi_line(self):
 		values = self._get_multi_values(self.value)
@@ -704,6 +732,15 @@ class MultiLineData(MultiData):
 	def to_wkt(self):
 		return self.to_shapely().wkt
 
+	def to_geojson(self):
+		return shapely.geometry.mapping(self.to_shapely())
+
+	def to_ogr_geom(self):
+		return ogr.CreateGeometryFromWkt(self.to_wkt())
+
+	def get_ogr_geomtype(self):
+		return ogr.wkbMultiLinestring
+
 	@classmethod
 	def from_shapely(cls, mls, values=None, labels=None, style_params=None):
 		assert mls.geom_type == "MultiLineString"
@@ -754,6 +791,15 @@ class PolygonData(SingleData):
 
 	def to_wkt(self):
 		return self.to_shapely().wkt
+
+	def to_geojson(self):
+		return shapely.geometry.mapping(self.to_shapely())
+
+	def to_ogr_geom(self):
+		return ogr.CreateGeometryFromWkt(self.to_wkt())
+
+	def get_ogr_geomtype(self):
+		return ogr.wkbPolygon
 
 	@classmethod
 	def from_shapely(cls, pg, value=None, label="", style_params=None):
@@ -922,6 +968,15 @@ class MultiPolygonData(MultiData):
 
 	def to_wkt(self):
 		return self.to_shapely().wkt
+
+	def to_geojson(self):
+		return shapely.geometry.mapping(self.to_shapely())
+
+	def to_ogr_geom(self):
+		return ogr.CreateGeometryFromWkt(self.to_wkt())
+
+	def get_ogr_geomtype(self):
+		return ogr.wkbMultiPolygon
 
 	@classmethod
 	def from_shapely(cls, mpg, values=None, labels=None, style_params=None):
@@ -2661,3 +2716,70 @@ class WMSData(object):
 		self.url = url
 		self.layers = layers
 		self.verbose = verbose
+
+
+def export_ogr(lbm_data, layer_name):
+	"""
+	Create virtual OGR GIS file (in memory)
+
+	return as GisData?
+	"""
+	import osr
+
+	#TODO: assert only 1 geometry type (or store in different layers?)
+	#TODO: assert attributes are the same (at least for same geometry type)
+	## Create an output datasource in memory
+	outdriver = ogr.GetDriverByName('MEMORY')
+	ds = outdriver.CreateDataSource('memData')
+
+	## Open the memory datasource with write access
+	tmp=outdriver.Open('memData', 1)
+
+	## Create the spatial reference, WGS84
+	srs = osr.SpatialReference()
+	srs.ImportFromEPSG(4326)
+
+	## Create the layer
+	geom_type = lbm_data[0].get_ogr_geomtype()
+	layer = ds.CreateLayer(layer_name, srs, geom_type)
+
+	## Add data attributes
+	# TODO: OFTDate, OFTDateTime, ogr.OFTTime
+	if lbm_data[0].value:
+		for key, val in lbm_data[0].value:
+			if isinstance(val, (str, unicode)):
+				field_type = ogr.OFTString
+			elif isinstance(val, bool):
+				field_type = ogr.OFTBinary
+			elif isinstance(val, int):
+				field_type = ogr.OFTInteger
+			elif isinstance(val, float):
+				field_type = ogr.OFTReal
+
+			field_defn = ogr.FieldDefn(key, field_type)
+			#field_defn.SetWidth(24)
+			layer.CreateField(field_defn)
+
+	# Process the text file and add the attributes and features to the shapefile
+	for data in lbm_data:
+		# create the feature
+		feature = ogr.Feature(layer.GetLayerDefn())
+
+		# Set the attributes using the values from the delimited text file
+		if data.value:
+			for key, val in data.value:
+				feature.SetField(key, val)
+
+		# Create geometry from WKT
+		geom = ogr.CreateGeometryFromWkt(data.to_wkt())
+
+		# Set the feature geometry using the point
+		feature.SetGeometry(geom)
+
+		# Create the feature in the layer (shapefile)
+		layer.CreateFeature(feature)
+		# Dereference the feature
+		feature = None
+
+	# Save and close the data source
+	ds = None
