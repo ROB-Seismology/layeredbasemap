@@ -997,6 +997,7 @@ class LayeredBasemap:
 			if grid_style.color_gradient == "discontinuous":
 				if isinstance(norm, PiecewiseLinearNorm):
 					norm = norm.to_piecewise_constant_norm()
+					#norm = matplotlib.colors.BoundaryNorm(norm.breakpoints, cmap.N)
 					grid_style.color_map_theme.norm = norm
 
 			if grid_style.color_gradient == "discontinuous" and grid_style.pixelated == False:
@@ -1232,19 +1233,35 @@ class LayeredBasemap:
 		"""
 		# TODO: limit ticks to interval between norm.vmin and norm.vmax,
 		# but then we need to pass norm as well...
+		if style.location in ("top", "bottom"):
+			orientation = "horizontal"
+		else:
+			orientation = "vertical"
+
+		## Explicitly define colorbar boundaries, to avoid colorbar
+		## not being drawn (PiecewiseConstantNorm) or ugly (BoundaryNorm)
+		boundaries = None
+		if isinstance(sm.norm, matplotlib.colors.BoundaryNorm):
+			boundaries = sm.norm.boundaries
+		elif isinstance(sm.norm, cm.norm.PiecewiseConstantNorm):
+			boundaries = sm.norm.breakpoints
+		if boundaries is not None:
+			imin = np.digitize(sm.norm.vmin, boundaries) - 1
+			imax = np.digitize(sm.norm.vmax, boundaries)
+			boundaries = boundaries[imin:imax]
+
 		if self.cax == "fig":
-			cbar = self.map.colorbar(sm, ax=None, fig=self.fig, **style.to_kwargs())
+			cbar = self.map.colorbar(sm, ax=None, fig=self.fig, boundaries=boundaries,
+									**style.to_kwargs())
 		elif self.cax:
-			if style.location in ("top", "bottom"):
-				orientation = "horizontal"
-			else:
-				orientation = "vertical"
 			cbar = pylab.colorbar(sm, ax=None, cax=self.cax, orientation=orientation,
 						extend=style.extend, spacing=style.spacing,
 						ticks=style.ticks, format=style.format, drawedges=style.drawedges,
-						alpha=style.alpha)
+						boundaries=boundaries, alpha=style.alpha)
 		else:
-			cbar = self.map.colorbar(sm, ax=self.ax, fig=self.fig, **style.to_kwargs())
+			cbar = self.map.colorbar(sm, ax=self.ax, fig=self.fig, boundaries=boundaries,
+									**style.to_kwargs())
+
 		# TODO: do set_label and set_ticklabels accept font kwargs?
 		cbar.set_label(style.title, size=style.label_size)
 		if style.tick_labels:
