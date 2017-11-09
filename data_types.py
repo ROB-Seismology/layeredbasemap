@@ -2724,16 +2724,18 @@ def export_ogr(lbm_data, layer_name):
 
 	return as GisData?
 	"""
+	import datetime
 	import osr
 
 	#TODO: assert only 1 geometry type (or store in different layers?)
 	#TODO: assert attributes are the same (at least for same geometry type)
+
 	## Create an output datasource in memory
 	outdriver = ogr.GetDriverByName('MEMORY')
 	ds = outdriver.CreateDataSource('memData')
 
 	## Open the memory datasource with write access
-	tmp=outdriver.Open('memData', 1)
+	outdriver.Open('memData', 1)
 
 	## Create the spatial reference, WGS84
 	srs = osr.SpatialReference()
@@ -2743,10 +2745,9 @@ def export_ogr(lbm_data, layer_name):
 	geom_type = lbm_data[0].get_ogr_geomtype()
 	layer = ds.CreateLayer(layer_name, srs, geom_type)
 
-	## Add data attributes
-	# TODO: OFTDate, OFTDateTime, ogr.OFTTime
+	## Define data attributes
 	if lbm_data[0].value:
-		for key, val in lbm_data[0].value:
+		for key, val in lbm_data[0].value.items():
 			if isinstance(val, (str, unicode)):
 				field_type = ogr.OFTString
 			elif isinstance(val, bool):
@@ -2755,31 +2756,40 @@ def export_ogr(lbm_data, layer_name):
 				field_type = ogr.OFTInteger
 			elif isinstance(val, float):
 				field_type = ogr.OFTReal
+			elif isinstance(val, datetime.datetime):
+				field_type = ogr.OFTDateTime
+			elif isinstance(val, datetime.date):
+				field_type = ogr.OFTDate
+			elif isinstance(val, datetime.time):
+				field_type = ogr.OFTTime
 
 			field_defn = ogr.FieldDefn(key, field_type)
 			#field_defn.SetWidth(24)
 			layer.CreateField(field_defn)
 
-	# Process the text file and add the attributes and features to the shapefile
+	## Process data and add the attributes and features to the shapefile
 	for data in lbm_data:
-		# create the feature
+		## Create the feature
 		feature = ogr.Feature(layer.GetLayerDefn())
 
-		# Set the attributes using the values from the delimited text file
+		## Set the attributes using the values from the delimited text file
 		if data.value:
-			for key, val in data.value:
+			for key, val in data.value.items():
 				feature.SetField(key, val)
 
-		# Create geometry from WKT
+		## Create geometry from WKT
 		geom = ogr.CreateGeometryFromWkt(data.to_wkt())
 
-		# Set the feature geometry using the point
+		## Set the feature geometry
 		feature.SetGeometry(geom)
 
-		# Create the feature in the layer (shapefile)
+		## Create the feature in the layer (shapefile)
 		layer.CreateFeature(feature)
-		# Dereference the feature
+
+		## Dereference the feature
 		feature = None
 
-	# Save and close the data source
-	ds = None
+	## Dereference the layer
+	layer = None
+
+	return ds
