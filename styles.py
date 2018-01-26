@@ -2125,12 +2125,12 @@ class ImageStyle(BasemapStyle):
 		int, height of image in pixels
 		(default: None, determine height from width keeping original aspect ratio)
 	:param horizontal_alignment:
-		str, one of 'left', 'center' or 'right', horizontal alignment with
-		respect to image position
+		str, one of 'left', 'center', 'right' or 'stretch' (= 'fill'),
+		horizontal alignment with respect to image position
 		(default: 'center')
 	:param vertical_alignment:
-		str, one of 'bottom', 'center' or 'top', vertical alignment with respect
-		to image position
+		str, one of 'bottom', 'center', 'top' or 'stretch' (= 'fill'),
+		vertical alignment with respect to image position
 		(default: 'center')
 	:param on_top:
 		bool, whether or not to plot image on top of all other layers

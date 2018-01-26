@@ -1164,6 +1164,7 @@ class LayeredBasemap:
 			[x], [y] = self.map_to_display_coordinates([lon], [lat])
 		else:
 			[llx], [lly] = self.lonlat_to_display_coordinates([self.llcrnrlon], [self.llcrnrlat])
+			[urx], [ury] = self.lonlat_to_display_coordinates([self.urcrnrlon], [self.urcrnrlat])
 			x, y = llx + lon, lly + lat
 
 		width = image_style.width or img_ar.shape[1]
@@ -1175,12 +1176,16 @@ class LayeredBasemap:
 			x0, x1 = int(round((x - width/2.))), int(round(x + width/2.))
 		elif image_style.horizontal_alignment == 'right':
 			x0, x1 = x - width, x
+		elif image_style.horizontal_alignment in ('fill', 'stretch'):
+			x0, x1 = llx, urx
 		if image_style.vertical_alignment == 'top':
 			y0, y1 = y - height, y
 		elif image_style.vertical_alignment == 'center':
 			y0, y1 = int(round((y - height/2.))), int(round(y + height/2.))
 		elif image_style.vertical_alignment == 'bottom':
 			y0, y1 = y, y + height
+		elif image_style.vertical_alignment in ('fill', 'stretch'):
+			y0, y1 = lly, ury
 
 		X, Y = self.map_from_display_coordinates([x0,x1], [y0,y1])
 		extent = X + Y
