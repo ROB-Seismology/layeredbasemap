@@ -1099,7 +1099,7 @@ class LayeredBasemap:
 						## will be opaque!
 						cs = self.map.pcolormesh(x, y, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, linewidth=0, rasterized=True, zorder=self.zorder)
 					else:
-						cs = self.map.pcolor(x, y, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, linewidth=0, rasterized=True, alpha=1, zorder=self.zorder)
+						cs = self.map.pcolor(x, y, grid_data.values, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, shading=shading, linewidth=0, rasterized=True, alpha=alpha, zorder=self.zorder)
 
 			self.zorder += 1
 
@@ -1550,6 +1550,10 @@ class LayeredBasemap:
 		cmap._lut[1:,3] = 0
 		self.map.imshow(mask, cmap=cmap, zorder=self.zorder)
 		self.zorder += 1
+
+	def draw_text_box(self, pos, text, text_style):
+		self.ax.text(pos[0], pos[1], text, transform=self.ax.transAxes, zorder=1000,
+					**text_style.to_kwargs())
 
 	def draw_layers(self):
 		## Note: start with zorder = 1, to allow place for map border
