@@ -1124,9 +1124,9 @@ class LayeredBasemap:
 			line_style = grid_style.line_style
 			if not grid_style.color_gradient and cmap:
 				## Draw colored contour lines
-				cl = self.map.contour(xc, yc, grid_data.values, levels=grid_style.contour_levels, colors=None, cmap=cmap, norm=norm, linewidths=line_style.line_width, alpha=line_style.alpha, zorder=self.zorder)
+				cl = self.map.contour(xc, yc, grid_data.values, levels=grid_style.contour_levels, colors=None, cmap=cmap, norm=norm, linewidths=line_style.line_width, linestyles=line_style.line_pattern, alpha=line_style.alpha, zorder=self.zorder)
 			else:
-				cl = self.map.contour(xc, yc, grid_data.values, levels=grid_style.contour_levels, colors=line_style.line_color, linewidths=line_style.line_width, alpha=line_style.alpha, zorder=self.zorder)
+				cl = self.map.contour(xc, yc, grid_data.values, levels=grid_style.contour_levels, colors=line_style.line_color, linewidths=line_style.line_width, linestyles=line_style.line_pattern, alpha=line_style.alpha, zorder=self.zorder)
 			label_style = line_style.label_style
 			if label_style:
 				## other font properties do not seem to be supported
