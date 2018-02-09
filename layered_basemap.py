@@ -1086,8 +1086,8 @@ class LayeredBasemap:
 					#grid_style.color_map_theme.vmin = (vmin if vmin is not None else data.min())
 					#grid_style.color_map_theme.vmax = (vmax if vmax is not None else data.max())
 					if grid_style.color_map_theme.norm:
-						grid_style.color_map_theme.norm.vmin = data.min()
-						grid_style.color_map_theme.norm.vmax = data.max()
+						grid_style.color_map_theme.norm.vmin = np.nanmin(data)
+						grid_style.color_map_theme.norm.vmax = np.nanmax(data)
 					cs = grid_style.color_map_theme.to_scalar_mappable(data)
 					if grid_style.color_map_theme.norm:
 						grid_style.color_map_theme.norm.vmin = vmin
@@ -1238,6 +1238,8 @@ class LayeredBasemap:
 		"""
 		# TODO: limit ticks to interval between norm.vmin and norm.vmax,
 		# but then we need to pass norm as well...
+		from cm.norm import PiecewiseConstantNorm
+
 		if style.location in ("top", "bottom"):
 			orientation = "horizontal"
 		else:
@@ -1248,7 +1250,7 @@ class LayeredBasemap:
 		boundaries = None
 		if isinstance(sm.norm, matplotlib.colors.BoundaryNorm):
 			boundaries = sm.norm.boundaries
-		elif isinstance(sm.norm, cm.norm.PiecewiseConstantNorm):
+		elif isinstance(sm.norm, PiecewiseConstantNorm):
 			boundaries = sm.norm.breakpoints
 		if boundaries is not None:
 			imin = np.digitize(sm.norm.vmin, boundaries) - 1
