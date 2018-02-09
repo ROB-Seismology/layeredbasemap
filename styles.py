@@ -1491,6 +1491,7 @@ class ThematicStyleColormap(ThematicStyle):
 	range shown in the colorbar; the norm itself will not be affected.
 	"""
 	# TODO: add param labels too?
+	# TODO: add bad_rgba, over_rgba, under_rgba
 	def __init__(self, color_map="jet", norm=None, vmin=None, vmax=None, alpha=1.0, value_key=None, add_legend=True, colorbar_style=None):
 		super(ThematicStyleColormap, self).__init__(value_key, add_legend, colorbar_style)
 		if isinstance(color_map, matplotlib.colors.Colormap):
@@ -1952,8 +1953,14 @@ class ScalebarStyle(BasemapStyle):
 	:param fill_color2:
 		matplotlib color spec, colors of the alternating filled regions
 		for "fancy" barstyle (default: 'w' and 'k')
+	:param line_color:
+		matplotlib color spec, color of the scale
+		(default: 'k')
+	:pram line_width:
+		float, line width
+		(default: 1)
 	"""
-	def __init__(self, center, length, units='km', bar_style='simple', yoffset=None, label_style='simple', font_size=9, font_color='k', format='%d', fill_color1='w', fill_color2='k'):
+	def __init__(self, center, length, units='km', bar_style='simple', yoffset=None, label_style='simple', font_size=9, font_color='k', format='%d', fill_color1='w', fill_color2='k', line_color='k', line_width=1):
 		self.center = center
 		self.length = length
 		self.units = units
@@ -1965,6 +1972,8 @@ class ScalebarStyle(BasemapStyle):
 		self.format = format
 		self.fill_color1 = fill_color1
 		self.fill_color2 = fill_color2
+		self.line_color = line_color
+		self.line_width = line_width
 
 	@property
 	def lon(self):
@@ -1987,6 +1996,8 @@ class ScalebarStyle(BasemapStyle):
 		d["fontcolor"] = self.font_color
 		d["fillcolor1"] = self.fill_color1
 		d["fillcolor2"] = self.fill_color2
+		d["linecolor"] = self.line_color
+		d["linewidth"] = self.line_width
 		return d
 
 
