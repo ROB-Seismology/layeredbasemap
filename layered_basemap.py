@@ -1130,7 +1130,7 @@ class LayeredBasemap:
 			label_style = line_style.label_style
 			if label_style:
 				## other font properties do not seem to be supported
-				self.ax.clabel(cl, colors='k', inline=True, fontsize=label_style.font_size, fmt=grid_style.label_format, alpha=label_style.alpha, zorder=self.zorder)
+				self.ax.clabel(cl, colors=label_style.color, inline=True, fontsize=label_style.font_size, fmt=grid_style.label_format, alpha=label_style.alpha, zorder=self.zorder)
 			self.zorder += 1
 
 		## Draw color bar
