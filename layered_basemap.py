@@ -1000,8 +1000,9 @@ class LayeredBasemap:
 					#norm = matplotlib.colors.BoundaryNorm(norm.breakpoints, cmap.N)
 					grid_style.color_map_theme.norm = norm
 
-			if grid_style.color_gradient == "discontinuous" and grid_style.pixelated == False:
-				cs = self.map.contourf(xc, yc, grid_data.values, levels=grid_style.contour_levels, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, extend="both", alpha=alpha, zorder=self.zorder)
+			if grid_style.color_gradient == "discontinuous" and (
+					grid_style.pixelated == False or grid_style.fill_hatches):
+				cs = self.map.contourf(xc, yc, grid_data.values, levels=grid_style.contour_levels, hatches=grid_style.fill_hatches, cmap=cmap_obj, norm=norm, vmin=vmin, vmax=vmax, extend="both", alpha=alpha, zorder=self.zorder)
 			else:
 				shading = {True: 'flat', False: 'gouraud'}[grid_style.pixelated]
 				if shading == 'gouraud':
@@ -1124,9 +1125,17 @@ class LayeredBasemap:
 			line_style = grid_style.line_style
 			if not grid_style.color_gradient and cmap:
 				## Draw colored contour lines
-				cl = self.map.contour(xc, yc, grid_data.values, levels=grid_style.contour_levels, colors=None, cmap=cmap, norm=norm, linewidths=line_style.line_width, linestyles=line_style.line_pattern, alpha=line_style.alpha, zorder=self.zorder)
+				if not grid_style.fill_hatches:
+					cl = self.map.contour(xc, yc, grid_data.values, levels=grid_style.contour_levels, colors=None, cmap=cmap, norm=norm, linewidths=line_style.line_width, linestyles=line_style.line_pattern, alpha=line_style.alpha, zorder=self.zorder)
+				else:
+					cl = self.map.contourf(xc, yc, grid_data.values, levels=grid_style.contour_levels, colors=None, cmap=cmap, norm=norm, linestyles=line_style.line_pattern, hatches=grid_style.fill_hatches, alpha=line_style.alpha, zorder=self.zorder)
 			else:
-				cl = self.map.contour(xc, yc, grid_data.values, levels=grid_style.contour_levels, colors=line_style.line_color, linewidths=line_style.line_width, linestyles=line_style.line_pattern, alpha=line_style.alpha, zorder=self.zorder)
+				if not grid_style.fill_hatches:
+					cl = self.map.contour(xc, yc, grid_data.values, levels=grid_style.contour_levels, colors=line_style.line_color, linewidths=line_style.line_width, linestyles=line_style.line_pattern, alpha=line_style.alpha, zorder=self.zorder)
+				else:
+					## Note: colors refers to background color, edgecolor does
+					## not seem to be implemented yet, so hatches are always black
+					cl = self.map.contourf(xc, yc, grid_data.values, levels=grid_style.contour_levels, colors=line_style.line_color, linestyles=line_style.line_pattern, hatches=grid_style.fill_hatches, alpha=line_style.alpha, zorder=self.zorder)
 			label_style = line_style.label_style
 			if label_style:
 				## other font properties do not seem to be supported
