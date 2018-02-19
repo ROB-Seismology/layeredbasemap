@@ -732,7 +732,7 @@ class PolygonStyle(BasemapStyle):
 		(default: 'w')
 	:param fill_hatch:
 		char, hatch pattern format string:
-		"/" | r"\" | "|" | "-" | "+" | "x" | "o" | "O" | "." | "*"
+		"/" | "\\" | "|" | "-" | "+" | "x" | "o" | "O" | "." | "*"
 		Note: repeat pattern format to increase density, e.g. "//"
 		or "..."
 	:param hatch_color:
@@ -1691,11 +1691,16 @@ class GridStyle(BasemapStyle):
 	:param hillshade_style:
 		instance of :class:`HillShadeStyle` to apply hill shading
 		(default: None)
+	:param fill_hatches:
+		list of chars, hatch pattern format string for different contour
+		levels: "/" | "\\" | "|" | "-" | "+" | "x" | "o" | "O" | "." | "*"
+		Note: repeat pattern format to increase density, e.g. "//"
+		or "..."
 
 	Note: format of contour labels is determined by format property
 	of colorbar_style.
 	"""
-	def __init__(self, color_map_theme=ThematicStyleColormap("jet"), color_gradient="continuous", pixelated=False, line_style=None, contour_levels=None, colorbar_style=None, hillshade_style=None):
+	def __init__(self, color_map_theme=ThematicStyleColormap("jet"), color_gradient="continuous", pixelated=False, line_style=None, contour_levels=None, colorbar_style=None, hillshade_style=None, fill_hatches=[]):
 		self.color_map_theme = color_map_theme
 		self.color_gradient = color_gradient
 		self.pixelated = pixelated
@@ -1704,6 +1709,9 @@ class GridStyle(BasemapStyle):
 		if colorbar_style:
 			self.color_map_theme.colorbar_style = colorbar_style
 		self.hillshade_style = hillshade_style
+		self.fill_hatches = fill_hatches
+	# TODO: would it be more logical to define fill_hatches elsewhere
+	# (as it is related to contours)
 
 	@property
 	def colorbar_style(self):
