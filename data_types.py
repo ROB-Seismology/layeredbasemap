@@ -1715,6 +1715,8 @@ class GdalRasterData(MeshGridData):
 
 		gt = ds.GetGeoTransform()
 		# TODO: support rotated grids
+		if gt[2] or gt[4]:
+			print("Warning: rotation of GDAL rasters not supported yet!")
 		self._ncols, self._nrows = ds.RasterXSize, ds.RasterYSize
 		self._dx, self._dy = gt[1], gt[5]
 		## (x0, y0) and (x1, y1) now correspond to cell centers
