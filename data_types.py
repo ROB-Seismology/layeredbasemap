@@ -1484,6 +1484,30 @@ class MeshGridData(GridData):
 
 		return shade
 
+	def extract_contour_lines(self, levels):
+		"""
+		Extract contour lines from grid
+
+		:param levels:
+			list or array, contour line values
+
+		:return:
+			list with instances of :class:`MultiLineData`
+		"""
+		import matplotlib._cntr as cntr
+
+		contour_engine = cntr.Cntr(self.lons, self.lats, self.values)
+		contour_lines = []
+		for level in levels:
+			nlist = contour_engine.trace(level, level, 0)
+			segs = nlist[:len(nlist)//2]
+			contour_line = MultiLineData([], [])
+			for seg in segs:
+				cl = LineData(seg[:,0], seg[:,1], value=level)
+				contour_line.append(cl)
+			contour_lines.append(contour_line)
+		return contour_lines
+
 	@classmethod
 	def from_XYZ(cls, xyz_filespec, sep=',', num_header_lines=1, comment_char='#',
 				dtype=np.float64):
@@ -1638,9 +1662,13 @@ class GdalRasterData(MeshGridData):
 		list or tuple of floats: (lonmin, lonmax, latmin, latmax)
 		that will be used to determine bbox
 		(default: [])
+	:param value_conversion:
+		function to apply to stored grid values.
+		Only applies if :param:`band_nr` is not null
+		(default: None)
 	"""
 	def __init__(self, filespec, band_nr=1, down_sampling=1., nodata_value=None,
-				unit="", bbox=[], region=[]):
+				unit="", bbox=[], region=[], value_conversion=None):
 		self.filespec = filespec
 		self.band_nr = band_nr
 		self.read_grid_info()
@@ -1656,6 +1684,8 @@ class GdalRasterData(MeshGridData):
 		if not bbox:
 			bbox = self.get_native_bbox()
 		self.apply_bbox(bbox)
+
+		self.value_conversion = value_conversion or (lambda x:x)
 
 		## Store these when first computed to avoid computing more than once
 		self._edge_lons = None
@@ -1938,7 +1968,7 @@ class GdalRasterData(MeshGridData):
 	@property
 	def values(self):
 		if self.band_nr:
-			return self.read_band(self.band_nr)
+			return self.value_conversion(self.read_band(self.band_nr))
 		else:
 			return self.read_image_array()
 
