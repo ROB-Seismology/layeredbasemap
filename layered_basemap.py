@@ -1738,9 +1738,25 @@ class LayeredBasemap:
 
 	def draw_scalebar(self):
 		if self.scalebar_style:
+			scalebar_style = self.scalebar_style
 			lon0, lat0 = self.lon_0, self.lat_0
-			self.map.drawmapscale(lon0=lon0, lat0=lat0, zorder=self.zorder, **self.scalebar_style.to_kwargs())
+			#lon0, lat0 = scalebar_style.center
+
+			## Fix too short scalebar length for mercator projection
+			## See https://github.com/matplotlib/basemap/issues/165
+			if self.projection == "merc":
+				corr_factor = np.cos(np.radians(lat0))
+				scalebar_style.length /= corr_factor
+
+			scale = self.map.drawmapscale(lon0=lon0, lat0=lat0, zorder=self.zorder, **scalebar_style.to_kwargs())
 			self.zorder += 1
+
+			if self.projection == "merc":
+				## Modify labels with correct lengths
+				scalebar_style.length = int(scalebar_style.length * corr_factor)
+				if scalebar_style.bar_style == "fancy":
+					scale[-3].set_text(scalebar_style.length / 2)
+				scale[-2].set_text(scalebar_style.length)
 
 	def draw_map_border(self):
 		if self.border_style:
