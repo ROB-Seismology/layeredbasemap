@@ -1325,8 +1325,8 @@ class MeshGridData(GridData):
 	@property
 	def edge_lons(self):
 		if self._edge_lons is None:
-			lons = np.linspace(self.lon0 - self.dlon/2., self.lon1 + self.dlon/2., self.num_cols + 1)
-			lats = np.linspace(self.lat0 - self.dlat/2., self.lat1 + self.dlat/2., self.num_rows + 1)
+			lons = np.linspace(self.lon0 - self.dlon/2., self.lon1 + self.dlon/2., self.ncols + 1)
+			lats = np.linspace(self.lat0 - self.dlat/2., self.lat1 + self.dlat/2., self.nrows + 1)
 			self._edge_lons, self._edge_lats = np.meshgrid(lons, lats)
 		return self._edge_lons
 
@@ -1361,11 +1361,11 @@ class MeshGridData(GridData):
 		return self.center_lats[-1,0]
 
 	@property
-	def num_cols(self):
+	def ncols(self):
 		return self.center_lons.shape[1]
 
 	@property
-	def num_rows(self):
+	def nrows(self):
 		return self.center_lons.shape[0]
 
 	def get_mesh_coordinates(self, cell_registration="corner"):
@@ -1500,13 +1500,52 @@ class MeshGridData(GridData):
 		contour_lines = []
 		for level in levels:
 			nlist = contour_engine.trace(level, level, 0)
-			segs = nlist[:len(nlist)//2]
+			nseg = len(nlist) // 2
+			segs = nlist[:nseg]
 			contour_line = MultiLineData([], [])
 			for seg in segs:
 				cl = LineData(seg[:,0], seg[:,1], value=level)
 				contour_line.append(cl)
 			contour_lines.append(contour_line)
 		return contour_lines
+
+	def extract_contour_intervals(self, levels):
+		"""
+		Extract contour intervals from grid
+
+		:param levels:
+			list or array, contour line values
+
+		:return:
+			list with instances of :class:`MultiPolygonData`
+		"""
+		import numpy.ma as ma
+		import matplotlib._contour as _contour
+
+		values = ma.asarray(self.values)
+		contour_engine = _contour.QuadContourGenerator(self.lons, self.lats,
+												values.filled(), None, False, 0)
+		contour_polygons = []
+		for lower_level, upper_level in zip(levels[:-1], levels[1:]):
+			segs, path_codes = contour_engine.create_filled_contour(lower_level, upper_level)
+			contour_mpg = MultiPolygonData([], [])
+			for i in range(len(segs)):
+				seg = segs[i]
+				path_code = path_codes[i]
+				seg = np.split(seg, np.where(path_code == 1)[0][1:])
+				for s, coords in enumerate(seg):
+					if s == 0:
+						lons, lats = coords[:,0], coords[:,1]
+						interior_lons, interior_lats = [], []
+					else:
+						if coords.shape[0] > 2:
+							interior_lons.append(coords[:,0])
+							interior_lats.append(coords[:,1])
+				contour_pg = PolygonData(lons, lats, interior_lons, interior_lats,
+										lower_level)
+				contour_mpg.append(contour_pg)
+			contour_polygons.append(contour_mpg)
+		return contour_polygons
 
 	@classmethod
 	def from_XYZ(cls, xyz_filespec, sep=',', num_header_lines=1, comment_char='#',
@@ -1610,7 +1649,7 @@ class MeshGridData(GridData):
 			np.float64: gdal.GDT_Float64,
 			np.uint16: gdal.GDT_UInt16,
 			np.uint32: gdal.GDT_UInt16}[dtype]
-		ds = driver.Create(out_filespec, self.num_cols, self.num_rows, num_bands, gdal_data_type)
+		ds = driver.Create(out_filespec, self.ncols, self.nrows, num_bands, gdal_data_type)
 		ds.SetGeoTransform(self.get_gdal_geotransform())
 
 		if isinstance(proj_info, int):
@@ -1837,8 +1876,16 @@ class GdalRasterData(MeshGridData):
 		"""
 		bbox = self.align_bbox(self.adjust_bbox(bbox))
 		self.x0, self.y0, self.x1, self.y1 = bbox
-		self.ncols = int(abs((self.x0 - self.x1) / self.dx)) + 1
-		self.nrows = int(abs((self.y0 - self.y1) / self.dy)) + 1
+		#self.ncols = int(abs((self.x0 - self.x1) / self.dx)) + 1
+		#self.nrows = int(abs((self.y0 - self.y1) / self.dy)) + 1
+
+	@property
+	def ncols(self):
+		return int(abs((self.x0 - self.x1) / self.dx)) + 1
+
+	@property
+	def nrows(self):
+		return int(abs((self.y0 - self.y1) / self.dy)) + 1
 
 	def get_bbox_from_region(self, region, margin_fraction=1./20):
 		from mapping.geotools.coordtrans import wgs84, transform_coordinates
@@ -2008,10 +2055,10 @@ class GdalRasterData(MeshGridData):
 
 		xoff = self._get_x_index(self.x0)
 		yoff = self._get_y_index(self.y0)
-		buf_xsize = self.num_cols
-		buf_ysize = self.num_rows
-		win_xsize = int(self.num_cols * self.down_sampling)
-		win_ysize = int(self.num_rows * self.down_sampling)
+		buf_xsize = self.ncols
+		buf_ysize = self.nrows
+		win_xsize = int(self.ncols * self.down_sampling)
+		win_ysize = int(self.nrows * self.down_sampling)
 
 		values = band.ReadAsArray(xoff=xoff, yoff=yoff, win_xsize=win_xsize,
 				win_ysize=win_ysize, buf_xsize=buf_xsize, buf_ysize=buf_ysize)
