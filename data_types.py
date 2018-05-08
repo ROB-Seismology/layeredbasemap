@@ -432,8 +432,8 @@ class MultiPointData(MultiData):
 		"""
 		import numpy.ma as ma
 		lonmin, lonmax, latmin, latmax = bbox
-		lon_mask = ma.mask_outside(self.lons, lonmin, lonmax)
-		lat_mask = ma.mask_outside(self.lats, latmin, latmax)
+		lon_mask = ma.masked_outside(self.lons, lonmin, lonmax)
+		lat_mask = ma.masked_outside(self.lats, latmin, latmax)
 		lons = ma.array(self.lons, mask=lon_mask.mask + latmask.mask).compressed()
 		lats = ma.array(self.lats, mask=lon_mask.mask + latmask.mask).compressed()
 		labels = ma.array(self.labels, mask=lon_mask.mask + latmask.mask).compressed()
@@ -1371,14 +1371,70 @@ class MeshGridData(GridData):
 	def get_mesh_coordinates(self, cell_registration="corner"):
 		"""
 		To make MeshGridData compatible with GdalRasterData
-		Note: cell_registration currently ignored
 		"""
-		return (self.lons, self.lats)
+		if cell_registration == "corner":
+			return (self.edge_lons, self.edge_lats)
+		else:
+			return (self.lons, self.lats)
+
+	def to_multi_point_data(self, apply_mask=True):
+		"""
+		Convert to multi-point data
+
+		:return:
+			instance of :class:`MultiPointData`
+		"""
+		if apply_mask and self.is_masked():
+			mask = self.values.mask
+			values = self.values[~mask].data
+			lons = self.lons[~mask]
+			lats = self.lats[~mask]
+		else:
+			values = self.values.flatten()
+			lons = self.lons.flatten()
+			lats = self.lats.flatten()
+		return MultiPointData(lons, lats, list(values))
 
 	def mask_oceans(self, resolution, mask_lakes=False, grid_spacing=1.25):
 		from mpl_toolkits.basemap import maskoceans
 		masked_values = maskoceans(self.lons, self.lats, self.values, inlands=mask_lakes, resolution=resolution, grid=grid_spacing)
 		return MeshGridData(self.lons, self.lats, masked_values)
+
+	def is_masked(self):
+		return hasattr(self.values, 'mask')
+
+	def apply_mask(self, mask):
+		self.values = np.ma.array(self.values, mask=mask)
+
+	def mask_polygons(self, polygon_data, inside=True):
+		"""
+		Mask grid according to given polygon(s)
+
+		:param polygon_data:
+			instance of :class:`PolygonData` or :class:`MultiPolygonData`
+		:param inside:
+			bool, whether grid should be masked inside or outside of polygon
+			(default: True)
+		"""
+		ogr_polygon_data = polygon_data.to_ogr_geom()
+		if inside:
+			mask = np.zeros_like(self.values, dtype=np.bool)
+		else:
+			mask = np.ones_like(self.values, dtype=np.bool)
+		mpt = self.to_multi_point_data()
+		ogr_mpt = mpt.to_ogr_geom()
+		ogr_intersection = ogr_mpt.Intersection(ogr_polygon_data)
+		if ogr_intersection:
+			intersection = MultiPointData.from_ogr(ogr_intersection)
+			for pt in intersection:
+				row = int(round((pt.lat - self.lat0) / self.dlat))
+				col = int(round((pt.lon - self.lon0) / self.dlon))
+				if inside:
+					mask[row, col] = True
+				else:
+					mask[row, col] = False
+
+		self.apply_mask(mask)
 
 	def reproject(self, target_srs):
 		pass
@@ -1983,6 +2039,17 @@ class GdalRasterData(MeshGridData):
 			self._edge_lons, self._edge_lats = None, None
 			self._center_lons, self._center_lats = lons, lats
 		return lons, lats
+
+	def to_mesh_grid(self):
+		"""
+		Convert to regular MeshGridData
+
+		:return:
+			instance of :class:`MeshGridData`
+		"""
+		lons, lats = self.get_mesh_coordinates( cell_registration="center")
+		values = self.values
+		return MeshGridData(lons, lats, values, self.unit)
 
 	@property
 	def edge_lons(self):
@@ -2757,12 +2824,9 @@ class GisData(BasemapData):
 		for attrib_name in self.joined_attributes.keys():
 			key = self.joined_attributes[attrib_name]['key']
 			value_dict = self.joined_attributes[attrib_name]['values']
-			try:
-				point_data.values[attrib_name] = [value_dict[key_val] for key_val in point_data.values[key]]
-				line_data.values[attrib_name] = [value_dict[key_val] for key_val in line_data.values[key]]
-				polygon_data.values[attrib_name] = [value_dict[key_val] for key_val in polygon_data.values[key]]
-			except:
-				print("Warning: %s not found in data value keys!" % key_val)
+			point_data.values[attrib_name] = [value_dict.get(key_val) for key_val in point_data.values[key]]
+			line_data.values[attrib_name] = [value_dict.get(key_val) for key_val in line_data.values[key]]
+			polygon_data.values[attrib_name] = [value_dict.get(key_val) for key_val in polygon_data.values[key]]
 		return (point_data, line_data, polygon_data)
 
 	def export(self, format, out_filespec):
