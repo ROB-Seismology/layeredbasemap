@@ -573,6 +573,17 @@ class MultiPointData(MultiData):
 				self.style_params[key] = np.array(self.style_params[key])[sorted_indexes]
 		return sorted_indexes
 
+	def to_unstructured_grid_data(self, unit=""):
+		"""
+		Cast point cloud to unstructured grid.
+		Note that values must not be empty for this to work
+
+		:return:
+			instance of :class:`UnstructuredGrid`
+		"""
+		assert not self.values in (None, [])
+		return UnstructuredGridData(self.lons, self.lats, self.values, unit=unit)
+
 
 class LineData(SingleData):
 	def __init__(self, lons, lats, value=None, label="", style_params=None):
@@ -1207,7 +1218,9 @@ class GridData(BasemapData):
 
 class UnstructuredGridData(GridData):
 	"""
-	Unstructured 2-dimensional data
+	Unstructured 2-dimensional data (e.g., point clouds)
+
+	Provides method(s) to interpolate into meshed grid
 
 	:param lons:
 		1-D array of longitudes
@@ -1223,6 +1236,9 @@ class UnstructuredGridData(GridData):
 		if lons.ndim != 1 or lats.ndim != 1 or values.ndim != 1:
 			raise ValueError("lons, lats, and values should be 1-dimensional")
 		super(UnstructuredGridData, self).__init__(lons, lats, values, unit)
+
+	def __len__(self):
+		return len(self.lons)
 
 	def lonmin(self):
 		"""
@@ -1248,6 +1264,43 @@ class UnstructuredGridData(GridData):
 		"""
 		return self.lats.max()
 
+	def get_extent(self):
+		"""
+		:return:
+			(lonmin, lonmax, latmin, latmax) tuple
+		"""
+		return (self.lonmin(), self.lonmax(), self.latmin(), self.latmax())
+
+	def confine_to_extent(self, extent):
+		"""
+		Confine grid to given rectangular extent
+
+		:param extent:
+			(lonmin, lonmax, latmin, latmax) tuple
+
+		:return:
+			instance of :class:`UnstructuredGridData`
+		"""
+		lonmin, lonmax, latmin, latmax = extent
+		idxs = np.where((self.lons >= lonmin) & (self.lons <= lonmax)
+						& (self.lats >= latmin) & (self.lats <= latmax))
+		lons = self.lons[idxs]
+		lats = self.lats[idxs]
+		values = self.values[idxs]
+		return UnstructuredGridData(lons, lats, values, unit=self.unit)
+
+	def to_multi_point_data(self):
+		"""
+		Convert to multi-point data
+
+		:return:
+			instance of :class:`MultiPointData`
+		"""
+		lons = self.lons.flatten()
+		lats = self.lats.flatten()
+		values = self.values.flatten()
+		return MultiPointData(lons, lats, list(values))
+
 	def to_mesh_grid_data(self, num_cells, extent=(None, None, None, None), interpolation_method='cubic'):
 		"""
 		Convert to meshed grid data
@@ -1266,7 +1319,8 @@ class UnstructuredGridData(GridData):
 		"""
 		from scipy.interpolate import griddata
 		if isinstance(num_cells, int):
-			num_lons = num_lats = num_cels
+			num_cells = (num_cels, num_cells)
+		num_lons, num_lats = num_cells
 		lonmin, lonmax, latmin, latmax = extent
 		if lonmin is None:
 			lonmin = self.lonmin()
@@ -1381,6 +1435,10 @@ class MeshGridData(GridData):
 		"""
 		Convert to multi-point data
 
+		:param apply_mask:
+			bool, whether or not to leave out masked data
+			(default: True)
+
 		:return:
 			instance of :class:`MultiPointData`
 		"""
@@ -1401,9 +1459,20 @@ class MeshGridData(GridData):
 		return MeshGridData(self.lons, self.lats, masked_values)
 
 	def is_masked(self):
+		"""
+		:return:
+			bool, whether grid is masked or not
+		"""
 		return hasattr(self.values, 'mask')
 
 	def apply_mask(self, mask):
+		"""
+		Apply mask to grid
+
+		:param mask:
+			numpy bool array with same shape as grid
+		"""
+		assert mask.shape == self.values.shape
 		self.values = np.ma.array(self.values, mask=mask)
 
 	def mask_polygons(self, polygon_data, inside=True):
@@ -1415,6 +1484,9 @@ class MeshGridData(GridData):
 		:param inside:
 			bool, whether grid should be masked inside or outside of polygon
 			(default: True)
+
+		:return:
+			None, mask will be applied in-place
 		"""
 		ogr_polygon_data = polygon_data.to_ogr_geom()
 		if inside:
@@ -1433,6 +1505,47 @@ class MeshGridData(GridData):
 					mask[row, col] = True
 				else:
 					mask[row, col] = False
+
+		self.apply_mask(mask)
+
+	def set_mask_from_distance_to_data_points(self, data_points, max_dist):
+		"""
+		Mask grid depending on minimum distance to data points
+
+		:param data_points:
+			instance of :class:`MultiPointData` or :class:`UnstructuredGrid`
+		:param max_dist:
+			float, maximum distance to consider as valid grid cell
+			Grid cells with larger minimum distance to data points
+			will be masked
+			If :param:`data_points` is instance of :class:`MultiPointData`,
+			distance is expressed in meters
+			If :param:`data_points` is instance of :class:`UnstructuredGrid`,
+			distance is expressed in fractional degrees latitude
+
+		:return:
+			None, mask will be applied in-place
+		"""
+		from mapping.geotools.geodetic import spherical_distance
+		mask = np.zeros_like(self.values, dtype=np.bool)
+		if isinstance(data_points, MultiPointData):
+			for r in range(self.nrows):
+				for c in range(self.ncols):
+					lon, lat = self.lons[r,c], self.lats[r,c]
+					distances = spherical_distance(lon, lat, data_points.lons, data_points.lats)
+					if np.min(distances) >= max_dist:
+						mask[r,c] = True
+		elif isinstance(data_points, UnstructuredGridData):
+			## max_dist is distance in degrees
+			max_lon_dist = max_dist / np.cos(np.radians(max_dist))
+			for r in range(self.nrows):
+				for c in range(self.ncols):
+					lon, lat = self.lons[r,c], self.lats[r,c]
+					extent = (lon - max_lon_dist, lon + max_lon_dist,
+							lat - max_dist, lat + max_dist)
+					close_data_points = data_points.confine_to_extent(extent)
+					if len(close_data_points) == 0:
+						mask[r,c] = True
 
 		self.apply_mask(mask)
 
