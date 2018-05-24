@@ -811,7 +811,7 @@ class LayeredBasemap:
 				legend_labels.append(label)
 
 		self.zorder += 1
-		if point_data.labels and point_style.label_style:
+		if getattr(point_data, 'labels', False) and point_style.label_style:
 			self._draw_texts(point_data, point_style.label_style)
 			self.zorder += 1
 
@@ -1601,7 +1601,7 @@ class LayeredBasemap:
 				self.draw_great_circles(layer.data, layer.style, layer.legend_label)
 			elif isinstance(layer.data, MaskData):
 				self.draw_mask(layer.data.polygon, layer.style, layer.data.outside)
-			elif isinstance(layer.data, (PointData, MultiPointData)):
+			elif isinstance(layer.data, (PointData, MultiPointData, UnstructuredGridData)):
 				self.draw_point_layer(layer.data, layer.style, layer.legend_label)
 			elif isinstance(layer.data, (LineData, MultiLineData)):
 				self.draw_line_layer(layer.data, layer.style, layer.legend_label)
