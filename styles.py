@@ -2021,7 +2021,7 @@ class MapBorderStyle(BasemapStyle):
 		matplotlib color spec, color for map region background
 		(default: None)
 	"""
-	def __init__(self, line_width=1, line_color="k", fill_color=None):
+	def __init__(self, line_width=1, line_color="k", fill_color="w"):
 		self.line_width = line_width
 		self.line_color = line_color
 		self.fill_color = fill_color or "none"
