@@ -6,7 +6,7 @@ geographic objects from a GIS file.
 import numpy as np
 import eqcatalog.seismodb as seismodb
 from mapping.geotools.readGIS import read_GIS_file
-import mapping.Basemap as lbm
+import mapping.layeredbasemap as lbm
 
 
 ## Read communes from database
@@ -14,7 +14,7 @@ db_records = list(seismodb.query_seismodb_table("communes", where_clause='countr
 
 ## Read GIS table
 #gis_filespec = r"D:\seismo-gis\collections\Bel_administrative_ROB\TAB\Bel_villages_points.TAB"
-gis_filespec = r"D:\seismo-gis\collections\Bel_administrative_ROB\TAB\Bel_communes_avant_fusion_new.TAB"
+gis_filespec = r"D:\seismo-gis\collections\Bel_administrative_ROB\TAB\Bel_communes_avant_fusion.TAB"
 gis_records = read_GIS_file(gis_filespec)
 
 
@@ -33,22 +33,22 @@ title = "Join between seismodb and GIS"
 layers = []
 
 joined_attributes = {}
-joined_attributes[attribute] = {'key': 'ID', 'values': {rec['id']: rec[attribute] for rec in db_records}}
+joined_attributes[attribute] = {'key': 'ID_ROB', 'values': {rec['id']: rec[attribute] for rec in db_records}}
 
 ## Commune layer
 gis_data = lbm.GisData(gis_filespec, joined_attributes=joined_attributes)
 if attribute == "language":
-	tsi = lbm.ThematicStyleIndividual(["FR", "NL", "DE"], ['r', 'y', 'b'], value_key='language')
+	tsi = lbm.ThematicStyleIndividual(["FR", "NL", "DE"], ['r', 'y', 'b'], value_key=attribute)
 	thematic_legend_style = lbm.LegendStyle(title=attribute, location=3)
 elif attribute == "id_province":
-	tsi = lbm.ThematicStyleGradient(values=[1,6,11], styles=["r", "g", "b"], value_key='id_province')
+	tsi = lbm.ThematicStyleGradient(values=[1,6,11], styles=["r", "g", "b"], value_key=attribute)
 	thematic_legend_style = None
 	colorbar_style = lbm.ColorbarStyle(title=attribute, ticks=range(1,11), spacing="proportional")
 	tsi.colorbar_style = colorbar_style
 elif attribute == "id_main":
 	values = joined_attributes[attribute]['values'].values()
 	vmin, vmax = np.min(values), np.max(values)
-	tsi = lbm.ThematicStyleColormap(value_key="id_main", vmin=vmin, vmax=vmax)
+	tsi = lbm.ThematicStyleColormap(value_key=attribute, vmin=vmin, vmax=vmax)
 	thematic_legend_style = None
 	colorbar_style = lbm.ColorbarStyle(title=attribute)
 	tsi.colorbar_style = colorbar_style
