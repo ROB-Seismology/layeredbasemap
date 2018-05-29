@@ -672,7 +672,10 @@ class LineStyle(BasemapStyle):
 			line_color = 'k'
 		else:
 			line_color = self.line_color
-		return LineStyle(line_pattern, line_width, line_color, self.solid_capstyle, self.solid_joinstyle, self.dash_capstyle, self.dash_joinstyle, self.label_style, self.label_anchor, self.front_style, self.dash_pattern, self.alpha, self.thematic_legend_style)
+		return LineStyle(line_pattern, line_width, line_color, self.solid_capstyle,
+						self.solid_joinstyle, self.dash_capstyle, self.dash_joinstyle,
+						self.label_style, self.label_anchor, self.front_style,
+						self.dash_pattern, self.alpha, self.thematic_legend_style)
 
 	def to_line_style(self):
 		"""
@@ -687,7 +690,10 @@ class LineStyle(BasemapStyle):
 		:return:
 			instance of :class:`PolygonStyle`
 		"""
-		return PolygonStyle(self.line_pattern, self.line_width, self.line_color, fill_color="none", label_style=self.label_style, alpha=self.alpha, thematic_legend_style=self.thematic_legend_style)
+		return PolygonStyle(self.line_pattern, self.line_width, self.line_color,
+							fill_color="none", label_style=self.label_style,
+							label_anchor=self.label_anchor, alpha=self.alpha,
+							thematic_legend_style=self.thematic_legend_style)
 
 	def to_kwargs(self):
 		"""
@@ -806,7 +812,9 @@ class PolygonStyle(BasemapStyle):
 			fill_hatch = None
 		else:
 			fill_hatch = self.fill_hatch
-		return PolygonStyle(line_pattern, line_width, line_color, fill_color, fill_hatch, self.hatch_color, self.label_style, self.alpha, self.thematic_legend_style)
+		return PolygonStyle(line_pattern, line_width, line_color, fill_color,
+							fill_hatch, self.hatch_color, self.label_style,
+							self.label_anchor, self.alpha, self.thematic_legend_style)
 
 	def to_line_style(self):
 		"""
@@ -815,7 +823,9 @@ class PolygonStyle(BasemapStyle):
 		:return:
 			instance of :class:`LineStyle`
 		"""
-		return LineStyle(self.line_pattern, self.line_width, self.line_color, label_style=self.label_style, alpha=self.alpha, thematic_legend_style=self.thematic_legend_style)
+		return LineStyle(self.line_pattern, self.line_width, self.line_color,
+						label_style=self.label_style, label_anchor=self.label_anchor,
+						alpha=self.alpha, thematic_legend_style=self.thematic_legend_style)
 
 	def to_polygon_style(self):
 		"""
