@@ -741,6 +741,9 @@ class PolygonStyle(BasemapStyle):
 		"/" | "\\" | "|" | "-" | "+" | "x" | "o" | "O" | "." | "*"
 		Note: repeat pattern format to increase density, e.g. "//"
 		or "..."
+		May also be instance of :class:`ThematicStyleRanges` or of
+		:class:`ThematicStyleIndividual`
+
 	:param hatch_color:
 		matplotlib color spec, color of hatch pattern.
 		Only used if :prop:`line_color` is not set.
@@ -1083,14 +1086,26 @@ class ThematicStyleIndividual(ThematicStyle):
 	:param add_legend:
 	:param colorbar_style:
 		see :class:`ThematicStyle`
+	:param style_under:
+		style corresponding to data values lower than range in :param:`values`
+		(only applies if values are numbers and monotonically increasing)
+		(default: None)
+	:param style_over:
+		(only applies if values are numbers and monotonically increasing)
+		style corresponding to data values higher than range in :param:`values`
+		(default: None)
+	:param style_bad:
+		style corresponding to 'bad' data values (NaN)
+		(default: None)
 	"""
-	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True, colorbar_style=None):
+	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True,
+				colorbar_style=None, style_under=None, style_over=None, style_bad=None):
 		super(ThematicStyleIndividual, self).__init__(value_key, add_legend, colorbar_style)
-		assert len(values) == len(styles) or isinstance(styles, (str, unicode, matplotlib.colors.Colormap))
+		assert isinstance(styles, (str, unicode, matplotlib.colors.Colormap)) or len(values) == len(styles)
 		self.values = values
 		if isinstance(styles, (list, tuple, np.ndarray)):
 			self.set_styles(styles)
-		elif styles[:12] == "random_color":
+		elif isinstance(styles, (str, unicode)) and styles[:12] == "random_color":
 			if ',' in styles:
 				random_seed = int(styles.split(',')[-1])
 			else:
@@ -1118,6 +1133,19 @@ class ThematicStyleIndividual(ThematicStyle):
 			if self.colorbar_style.tick_labels is None:
 				self.colorbar_style.tick_labels = self.labels
 
+		self.style_under = style_under
+		self.style_over = style_over
+		self.style_bad = style_bad
+
+	def is_numeric(self):
+		return np.array([isinstance(self.values[idx], (str, unicode))
+						for idx in range(len(self.values))]).any()
+
+	def is_monotonously_increasing(self):
+		if self.is_numeric():
+			sign_diff = np.sign(np.diff(self.values))
+			return np.all(sign_diff == sign_diff[0])
+
 	def set_styles(self, styles):
 		self.styles = styles
 		self.style_dict = {}
@@ -1134,6 +1162,9 @@ class ThematicStyleIndividual(ThematicStyle):
 		sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=color_map)
 		styles = [sm.to_rgba(i) for i in range(N)]
 		self.set_styles(styles)
+		self.style_under = color_map._rgba_under
+		self.style_over = color_map._rgba_over
+		self.style_bad = color_map._rgba_bad
 
 	def set_styles_from_random_colors(self, random_seed=None):
 		import random
@@ -1158,7 +1189,19 @@ class ThematicStyleIndividual(ThematicStyle):
 		:return:
 			float or rgba array
 		"""
-		return [self.style_dict.get(val) for val in self.apply_value_key(values)]
+		out_styles = [self.style_dict.get(val) for val in self.apply_value_key(values)]
+		if self.is_monotonously_increasing():
+			if self.style_under:
+				for idx in np.argwhere(values < self.values[0]):
+					out_styles[idx] = self.style_under
+			if self.style_over:
+				for idx in np.argwhere(values > self.values[-1]):
+					out_styles[idx] = self.style_over
+			if self.style_bad:
+				for idx in np.argwhere(np.isnan(values)):
+					out_styles[idx] = self.style_bad
+		return out_styles
+
 
 	def to_colormap(self):
 		"""
@@ -1167,6 +1210,12 @@ class ThematicStyleIndividual(ThematicStyle):
 		"""
 		if self.is_color_style():
 			cmap = matplotlib.colors.ListedColormap(self.styles, name=self.value_key)
+			if self.style_under:
+				cmap.set_under(self.style_under)
+			if self.style_over:
+				cmap.set_over(self.style_over)
+			if self.style_bad:
+				cmap.set_bad(self.style_bad)
 			return cmap
 
 	def get_norm(self):
@@ -1232,8 +1281,18 @@ class ThematicStyleRanges(ThematicStyle):
 	:param add_legend:
 	:param colorbar_style:
 		see :class:`ThematicStyle`
+	:param style_under:
+		style corresponding to data values lower than range in :param:`values`
+		(default: None)
+	:param style_over:
+		style corresponding to data values higher than range in :param:`values`
+		(default: None)
+	:param style_bad:
+		style corresponding to 'bad' data values (NaN)
+		(default: None)
 	"""
-	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True, colorbar_style=None):
+	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True,
+				colorbar_style=None, style_under=None, style_over=None, style_bad=None):
 		super(ThematicStyleRanges, self).__init__(value_key, add_legend, colorbar_style)
 		self.values = np.array(values, dtype='f')
 		if styles[:12] == "random_color":
@@ -1261,6 +1320,10 @@ class ThematicStyleRanges(ThematicStyle):
 			if self.colorbar_style.tick_labels is None and labels:
 				self.colorbar_style.tick_labels = labels
 
+		self.style_under = style_under
+		self.style_over = style_over
+		self.style_bad = style_bad
+
 	def set_styles(self, styles):
 		self.styles = styles
 
@@ -1270,6 +1333,9 @@ class ThematicStyleRanges(ThematicStyle):
 		sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=color_map)
 		styles = [sm.to_rgba(i) for i in range(N)]
 		self.set_styles(styles)
+		self.style_under = color_map._rgba_under
+		self.style_over = color_map._rgba_over
+		self.style_bad = color_map._rgba_bad
 
 	def set_styles_from_random_colors(self, random_seed=None):
 		import random
@@ -1284,7 +1350,6 @@ class ThematicStyleRanges(ThematicStyle):
 		styles = [named_colors.next() for i in range(N)]
 		self.set_styles(styles)
 
-
 	def __call__(self, values):
 		"""
 		Convert data values to style values
@@ -1295,9 +1360,20 @@ class ThematicStyleRanges(ThematicStyle):
 		:return:
 			float or rgba array
 		"""
-		bin_indexes = np.digitize(self.apply_value_key(values), self.values) - 1
+		values = self.apply_value_key(values)
+		bin_indexes = np.digitize(values, self.values) - 1
 		bin_indexes = np.clip(bin_indexes, 0, len(self.styles) - 1)
-		return [self.styles[bi] for bi in bin_indexes]
+		out_styles = [self.styles[bi] for bi in bin_indexes]
+		if self.style_under:
+			for idx in np.argwhere(values < self.values[0]):
+				out_styles[idx] = self.style_under
+		if self.style_over:
+			for idx in np.argwhere(values > self.values[-1]):
+				out_styles[idx] = self.style_over
+		if self.style_bad:
+			for idx in np.argwhere(np.isnan(values)):
+				out_styles[idx] = self.style_bad
+		return out_styles
 
 	def to_colormap(self):
 		"""
@@ -1306,6 +1382,12 @@ class ThematicStyleRanges(ThematicStyle):
 		"""
 		if self.is_color_style():
 			cmap = matplotlib.colors.ListedColormap(self.styles, name=self.value_key)
+			if self.style_under:
+				cmap.set_under(self.style_under)
+			if self.style_over:
+				cmap.set_over(self.style_over)
+			if self.style_bad:
+				cmap.set_bad(self.style_bad)
 			return cmap
 
 	def get_norm(self):
@@ -1361,13 +1443,23 @@ class ThematicStyleGradient(ThematicStyle):
 	:param add_legend:
 	:param colorbar_style:
 		see :class:`ThematicStyle`
+	:param style_under:
+		style corresponding to data values lower than range in :param:`values`
+		(default: None)
+	:param style_over:
+		style corresponding to data values higher than range in :param:`values`
+		(default: None)
+	:param style_bad:
+		style corresponding to 'bad' data values (NaN)
+		(default: None)
 	"""
-	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True, colorbar_style=None):
+	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True,
+				colorbar_style=None, style_under=None, style_over=None, style_bad=None):
 		super(ThematicStyleGradient, self).__init__(value_key, add_legend, colorbar_style)
 		self.values = np.array(values, dtype='f')
 		if isinstance(styles, (list, tuple, np.ndarray)):
 			self.set_styles(styles)
-		elif styles[:12] == "random_color":
+		elif isinstance(styles, (str, unicode)) and styles[:12] == "random_color":
 			if ',' in styles:
 				random_seed = int(styles.split(',')[-1])
 			else:
@@ -1393,6 +1485,10 @@ class ThematicStyleGradient(ThematicStyle):
 			if self.colorbar_style.tick_labels is None and labels:
 				self.colorbar_style.tick_labels = labels
 
+		self.style_under = style_under
+		self.style_over = style_over
+		self.style_bad = style_bad
+
 	def set_styles(self, styles):
 		self.styles = styles
 
@@ -1402,6 +1498,9 @@ class ThematicStyleGradient(ThematicStyle):
 		sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=color_map)
 		styles = [sm.to_rgba(i) for i in range(N)]
 		self.set_styles(styles)
+		self.style_under = color_map._rgba_under
+		self.style_over = color_map._rgba_over
+		self.style_bad = color_map._rgba_bad
 
 	def set_styles_from_random_colors(self, random_seed=None):
 		import random
@@ -1416,7 +1515,6 @@ class ThematicStyleGradient(ThematicStyle):
 		styles = [named_colors.next() for i in range(N)]
 		self.set_styles(styles)
 
-
 	def __call__(self, values):
 		"""
 		Convert data values to style values
@@ -1427,12 +1525,21 @@ class ThematicStyleGradient(ThematicStyle):
 		:return:
 			float or rgba array
 		"""
+		values = self.apply_value_key(values)
 		try:
-			return np.interp(self.apply_value_key(values), self.values, self.styles)
+			out_styles = np.interp(values, self.values, self.styles)
 		except:
 			sm = self.to_scalar_mappable()
 			#return sm.to_rgba(self.apply_value_key(values), alpha=self.alpha)
-			return sm.to_rgba(self.apply_value_key(values))
+			return sm.to_rgba(values)
+		else:
+			if self.style_under:
+				out_styles[values < self.values[0]] = self.style_under
+			if self.style_over:
+				out_styles[values > self.values[-1]] = self.style_over
+			if self.style_bad:
+				out_styles[np.isnan(values)] = self.style_bad
+			return out_styles
 
 	def to_colormap(self):
 		"""
@@ -1444,6 +1551,12 @@ class ThematicStyleGradient(ThematicStyle):
 			x = np.linspace(0., 1., len(self.values))
 			cmap = matplotlib.colors.LinearSegmentedColormap.from_list(self.value_key, zip(x, self.styles))
 			cmap._init()
+			if self.style_under:
+				cmap.set_under(self.style_under)
+			if self.style_over:
+				cmap.set_over(self.style_over)
+			if self.style_bad:
+				cmap.set_bad(self.style_bad)
 			return cmap
 
 	def get_norm(self):
