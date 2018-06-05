@@ -1294,6 +1294,7 @@ class ThematicStyleRanges(ThematicStyle):
 	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True,
 				colorbar_style=None, style_under=None, style_over=None, style_bad=None):
 		super(ThematicStyleRanges, self).__init__(value_key, add_legend, colorbar_style)
+		assert len(values) == len(styles) + 1
 		self.values = np.array(values, dtype='f')
 		if styles[:12] == "random_color":
 			if ',' in styles:
@@ -1455,6 +1456,7 @@ class ThematicStyleGradient(ThematicStyle):
 	"""
 	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True,
 				colorbar_style=None, style_under=None, style_over=None, style_bad=None):
+		assert len(values) == len(styles)
 		super(ThematicStyleGradient, self).__init__(value_key, add_legend, colorbar_style)
 		self.values = np.array(values, dtype='f')
 		if isinstance(styles, (list, tuple, np.ndarray)):
