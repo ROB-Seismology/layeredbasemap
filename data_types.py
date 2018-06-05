@@ -2684,12 +2684,17 @@ class WCSData(GdalRasterData):
 			instance of :class:`owslib.util.ResponseWrapper`
 		"""
 		width, height = None, None
-		crs = self.get_crs()
+		try:
+			crs = self.get_crs()
+		except:
+			crs_code = "EPSG:31370"
+		else:
+			crs_code = crs.getcode()
 
 		format = "GeoTIFF"
 		return self.wcs.getCoverage(identifier=self.layer_name, width=width,
 					height=height, resx=self.resx, resy=self.resy, bbox=self.bbox,
-					format=format, crs=crs.getcode())
+					format=format, crs=crs_code)
 
 	def to_gdal_raster_data(self, verbose=True):
 		"""
