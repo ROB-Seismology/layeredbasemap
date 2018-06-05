@@ -528,7 +528,7 @@ class LayeredBasemap:
 			self.zorder += 1
 
 		## Thematic legend
-		if polygon_style.is_thematic() and polygon_style.thematic_legend_style != None:
+		if polygon_style.is_thematic():
 			legend_artists, legend_labels = [], []
 			## Fill color
 			if isinstance(polygon_style.fill_color, ThematicStyle) and polygon_style.fill_color.add_legend:
@@ -720,7 +720,7 @@ class LayeredBasemap:
 			self.zorder += 1
 
 		# Thematic legend
-		if line_style.is_thematic and line_style.thematic_legend_style != None:
+		if line_style.is_thematic:
 			legend_artists, legend_labels = [], []
 			## Line color
 			if isinstance(line_style.line_color, ThematicStyle) and line_style.line_color.add_legend:
