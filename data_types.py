@@ -2937,9 +2937,16 @@ class GisData(BasemapData):
 		for attrib_name in self.joined_attributes.keys():
 			key = self.joined_attributes[attrib_name]['key']
 			value_dict = self.joined_attributes[attrib_name]['values']
-			point_data.values[attrib_name] = [value_dict.get(key_val) for key_val in point_data.values[key]]
-			line_data.values[attrib_name] = [value_dict.get(key_val) for key_val in line_data.values[key]]
-			polygon_data.values[attrib_name] = [value_dict.get(key_val) for key_val in polygon_data.values[key]]
+			first_value = value_dict.values()[0]
+			if isinstance(first_value, (int, float)):
+				default = np.nan
+			elif isinstance(first_value, (str, unicode)):
+				default = ""
+			else:
+				default = None
+			point_data.values[attrib_name] = [value_dict.get(key_val, default) for key_val in point_data.values[key]]
+			line_data.values[attrib_name] = [value_dict.get(key_val, default) for key_val in line_data.values[key]]
+			polygon_data.values[attrib_name] = [value_dict.get(key_val, default) for key_val in polygon_data.values[key]]
 		return (point_data, line_data, polygon_data)
 
 	def export(self, format, out_filespec):
