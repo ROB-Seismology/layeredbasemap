@@ -201,6 +201,7 @@ class LayeredBasemap:
 				tl_labels.append(legend_label)
 		else:
 			## Thematic style, use scatter method
+			# TODO: we could also reorder point data such that largest symbols are plotted first...
 			if isinstance(style.size, ThematicStyle):
 				sizes = style.size(points.values)
 			else:
@@ -248,7 +249,23 @@ class LayeredBasemap:
 				cmap, norm, vmin, vmax = None, None, None, None
 				colors = None
 
-			cs = self.map.scatter(x, y, marker=style.shape, s=np.power(sizes, 2), c=colors, linewidths=line_widths, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, label=legend_label, alpha=style.alpha, zorder=self.zorder, axes=self.ax, **extra_kwargs)
+			if isinstance(style.alpha, ThematicStyle):
+				print("Warning: thematic alpha not implemented for point data!")
+				"""
+				# Note: does not work if colors is list of numbers!
+				if colors is not None:
+					alphas = style.alpha.apply_value_key(points.values)
+					if not list(np.unique(colors)) == [None]:
+						## Apply to fill colors only if they are not None
+						for c, color in enumerate(colors):
+							if color is not None and not (alphas[c] is None or np.isnan(alphas[c])):
+								colors[c] = color[:3] + tuple(alphas[c:c+1])
+				"""
+				alpha = None
+			else:
+				alpha = style.alpha
+
+			cs = self.map.scatter(x, y, marker=style.shape, s=np.power(sizes, 2), c=colors, linewidths=line_widths, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, label=legend_label, alpha=alpha, zorder=self.zorder, axes=self.ax, **extra_kwargs)
 
 			## Thematic legend
 			## Fill color
@@ -482,6 +499,16 @@ class LayeredBasemap:
 			fill_hatches = polygon_style.fill_hatch(polygon_data.values)
 		else:
 			fill_hatches = [polygon_style.fill_hatch] * num_polygons
+		if isinstance(polygon_style.alpha, ThematicStyle):
+			alphas = polygon_style.alpha(polygon_data.values)
+			if not list(np.unique(fill_colors)) == [None]:
+				## Apply to fill colors only if they are not None
+				for c, color in enumerate(fill_colors):
+					if color is not None and not np.isnan(alphas[c]):
+						fill_colors[c] = color[:3] + tuple(alphas[c:c+1])
+				alphas = [1] * num_polygons
+		else:
+			alphas = [polygon_style.alpha] * num_polygons
 
 		if isinstance(polygon_style.thematic_legend_style, (str, unicode)):
 			legend_name = polygon_style.thematic_legend_style
@@ -500,6 +527,7 @@ class LayeredBasemap:
 			style.line_color = line_colors[i]
 			style.fill_color = fill_colors[i]
 			style.fill_hatch = fill_hatches[i]
+			style.alpha = alphas[i]
 			style.label_style = None
 			self._draw_polygon(polygon, style, legend_label, legend_name=legend_name)
 		self.zorder += 1
@@ -644,6 +672,10 @@ class LayeredBasemap:
 		else:
 			# TODO: more efficient use of iterators ?
 			line_colors = [line_style.line_color] * num_lines
+		if isinstance(line_style.alpha, ThematicStyle):
+			line_alphas = line_style.alpha(polygon_data.values)
+		else:
+			line_alphas = [line_style.alpha] * num_polygons
 
 		if isinstance(line_style.thematic_legend_style, (str, unicode)):
 			legend_name = line_style.thematic_legend_style
@@ -661,6 +693,7 @@ class LayeredBasemap:
 			style.line_pattern = line_patterns[i]
 			style.line_width = line_widths[i]
 			style.line_color = line_colors[i]
+			style.alpha = line_alphas[i]
 			style.label_style = None
 			if line_style.front_style:
 				style.front_style = line_style.front_style.copy()
