@@ -275,9 +275,14 @@ class LayeredBasemap:
 					if colorbar_style is None and isinstance(style.thematic_legend_style, ColorbarStyle):
 						## interpret thematic_legend_style as colorbar_style
 						colorbar_style = style.thematic_legend_style
-					#sm = style.fill_color.to_scalar_mappable()
-					#self.draw_colorbar(sm, colorbar_style)
-					self.draw_colorbar(cs, colorbar_style)
+					if colorbar_style:
+						#sm = style.fill_color.to_scalar_mappable()
+						if not isinstance(style.fill_color, ThematicStyleColormap):
+							if colorbar_style.ticks is None:
+								colorbar_style.ticks = style.fill_color.values
+								colorbar_style.tick_labels = style.fill_color.labels
+						#self.draw_colorbar(sm, colorbar_style)
+						self.draw_colorbar(cs, colorbar_style)
 				else:
 					thematic_legend_labels.extend(style.fill_color.labels)
 					for fill_color in style.fill_color.styles:
@@ -292,7 +297,14 @@ class LayeredBasemap:
 					if colorbar_style is None and isinstance(style.thematic_legend_style, ColorbarStyle):
 						## interpret thematic_legend_style as colorbar_style
 						colorbar_style = style.thematic_legend_style
-					self.draw_colorbar(cs, colorbar_style)
+					if colorbar_style:
+						#sm = style.line_color.to_scalar_mappable()
+						if not isinstance(style.line_color, ThematicStyleColormap):
+							if colorbar_style.ticks is None:
+								colorbar_style.ticks = style.line_color.values
+								colorbar_style.tick_labels = style.line_color.labels
+						#self.draw_colorbar(sm, colorbar_style)
+						self.draw_colorbar(cs, colorbar_style)
 				else:
 					thematic_legend_labels.extend(style.line_color.labels)
 					for line_color in style.line_color.styles:
@@ -570,6 +582,7 @@ class LayeredBasemap:
 						if not isinstance(polygon_style.fill_color, ThematicStyleColormap):
 							if colorbar_style.ticks is None:
 								colorbar_style.ticks = polygon_style.fill_color.values
+								colorbar_style.tick_labels = polygon_style.fill_color.labels
 						self.draw_colorbar(sm, colorbar_style)
 				else:
 					#legend_labels.extend(polygon_style.fill_color.labels)
@@ -606,7 +619,8 @@ class LayeredBasemap:
 						if not isinstance(polygon_style.line_color, ThematicStyleColormap):
 							if colorbar_style.ticks is None:
 								colorbar_style.ticks = polygon_style.line_color.values
-					self.draw_colorbar(sm, colorbar_style)
+								colorbar_style.tick_labels = polygon_style.line_color.labels
+						self.draw_colorbar(sm, colorbar_style)
 				if isinstance(polygon_style.line_color, (ThematicStyleIndividual,  ThematicStyleRanges)):
 					legend_labels.extend(polygon_style.line_color.labels)
 					for color in polygon_style.line_color.styles:
@@ -673,9 +687,9 @@ class LayeredBasemap:
 			# TODO: more efficient use of iterators ?
 			line_colors = [line_style.line_color] * num_lines
 		if isinstance(line_style.alpha, ThematicStyle):
-			line_alphas = line_style.alpha(polygon_data.values)
+			line_alphas = line_style.alpha(line_data.values)
 		else:
-			line_alphas = [line_style.alpha] * num_polygons
+			line_alphas = [line_style.alpha] * num_lines
 
 		if isinstance(line_style.thematic_legend_style, (str, unicode)):
 			legend_name = line_style.thematic_legend_style
@@ -767,6 +781,7 @@ class LayeredBasemap:
 						if not isinstance(line_style.line_color, ThematicStyleColormap):
 							if colorbar_style.ticks is None:
 								colorbar_style.ticks = line_style.line_color.values
+								colorbar_style.tick_labels = line_style.line_color.labels
 						self.draw_colorbar(sm, colorbar_style)
 				if isinstance(line_style.line_color, (ThematicStyleIndividual,  ThematicStyleRanges)):
 					legend_labels.extend(line_style.line_color.labels)
