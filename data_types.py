@@ -57,6 +57,25 @@ class SingleData(BasemapData):
 			style = default_style
 		return style
 
+	def create_buffer(self, distance):
+		"""
+		Create buffer around point, line or polygon feature.
+
+		Note: the buffer distance is in the same units as the dataset,
+		which is normally degrees. If metric distance is required, the
+		dataset should first be reprojected (not supported) or read
+		in the native coordinate system!
+
+		:param distance:
+			float, buffer distance (in dataset units)
+
+		:return:
+			instance of :class:`PolygonData`
+		"""
+		geom = self.to_ogr_geom()
+		poly = geom.Buffer(distance)
+		return PolygonData.from_ogr(poly)
+
 
 class MultiData(BasemapData):
 	def __len__(self):
