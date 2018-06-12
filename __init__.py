@@ -22,7 +22,8 @@ from styles import (FontStyle, TextStyle, DefaultTitleTextStyle, PointStyle,
 					ThematicStyleIndividual, ThematicStyleRanges, ThematicStyleGradient,
 					ThematicStyleColormap, ColorbarStyle, GridStyle, LegendStyle,
 					ScalebarStyle, MapBorderStyle, GraticuleStyle, GridImageStyle,
-					ImageStyle, HillshadeStyle, WMSStyle, FrontStyle, VectorStyle)
+					ImageStyle, HillshadeStyle, WMSStyle, FrontStyle, VectorStyle,
+					PiechartStyle)
 
 
 import data_types
@@ -32,7 +33,8 @@ from data_types import (BuiltinData, PointData, MultiPointData, LineData, MultiL
 						PolygonData, MultiPolygonData, FocmecData, CircleData, MaskData,
 						CompositeData, GridData, MeshGridData, UnstructuredGridData,
 						GdalRasterData, GisData, GreatCircleData, ImageData, WMSData,
-						WCSData, MeshGridVectorData, TextData, MultiTextData)
+						WCSData, MeshGridVectorData, TextData, MultiTextData,
+						PiechartData)
 
 import cm
 reload(cm)

@@ -1227,6 +1227,41 @@ class CompositeData(BasemapData):
 		self.texts = texts
 
 
+class PiechartData(BasemapData):
+	"""
+	Class representing pie chart data
+
+	:param lons:
+		list or array of floats, longitudes
+	:param lats:
+		list or array of floats, latitudes
+	:param ratios:
+		nested list or 2-D array of ratios of different pie chart
+		categories (need not sum to 1)
+	:param sizes:
+		list or array of floats, pie chart sizes
+	"""
+	def __init__(self, lons, lats, ratios, sizes):
+		self.lons = np.asarray(lons)
+		self.lats = np.asarray(lats)
+		self.ratios = np.asarray(ratios)
+		self.sizes = np.asarray(sizes)
+
+	def __len__(self):
+		return len(self.lons)
+
+	def __getitem__(self, index):
+		lon = self.lons[index]
+		lat = self.lats[index]
+		ratios = self.ratios[index]
+		size = self.sizes[index]
+		return (lon, lat, ratios, size)
+
+	def __iter__(self):
+		for i in range(len(self)):
+			yield self.__getitem__(i)
+
+
 class GridData(BasemapData):
 	def __init__(self, lons, lats, values, unit=""):
 		self.lons = np.asarray(lons)

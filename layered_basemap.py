@@ -993,6 +993,43 @@ class LayeredBasemap:
 		for (start_lon, start_lat, end_lon, end_lat) in gc_data:
 			self.map.drawgreatcircle(start_lon, start_lat, end_lon, end_lat, del_s=gc_data.resolution, **gc_style.to_kwargs())
 
+	def draw_piecharts(self, pie_data, pie_style, legend_label="_nolegend_"):
+		"""
+		Draw pie charts on map
+		Idea from http://www.geophysique.be/2010/11/15/matplotlib-basemap-tutorial-05-adding-some-pie-charts/
+
+		:param pie_data:
+			instance of :class:`PiechartData`
+		:param pie_style:
+			instance of :class:`PiechartStyle`
+		:param legend_label:
+			str, label to put in legend for this data set
+			(default: "_nolegend_", will not add entry in legend)
+		"""
+		# TODO: labels and/or legend
+		circle_num_pts = 100
+		sorted_idxs = np.argsort(pie_data.sizes)[::-1]
+		lons, lats, ratios, sizes = pie_data[sorted_idxs]
+		pie_data = PiechartData(lons, lats, ratios, sizes)
+		X, Y = self.map(pie_data.lons, pie_data.lats)
+
+		for p, (_, _, ratios, size) in enumerate(pie_data):
+			ratios = np.asarray(ratios, dtype='float')
+			ratios /= np.sum(ratios)
+			start = 0.
+			for r, ratio in enumerate(ratios):
+				num_pts = int(round(ratio * circle_num_pts))
+				pie_rads = np.linspace(2*np.pi*start, 2*np.pi*(start+ratio), num_pts)
+				pie_rads += np.radians(pie_style.start_angle)
+				pie_x = [0] + np.cos(pie_rads).tolist()
+				pie_y = [0] + np.sin(pie_rads).tolist()
+				pie_xy = zip(pie_x, pie_y)
+				start += ratio
+				self.map.scatter(X[p], Y[p], marker=(pie_xy, 0), s=size**2,
+					facecolor=pie_style.fill_colors[r], zorder=self.zorder,
+					**pie_style.to_kwargs())
+			self.zorder += 1
+
 	def draw_grid_layer(self, grid_data, grid_style, legend_label=""):
 		# TODO: add ax=self.ax to plot functions??
 
@@ -1647,6 +1684,8 @@ class LayeredBasemap:
 				self.draw_circles(layer.data, layer.style, layer.legend_label)
 			elif isinstance(layer.data, GreatCircleData):
 				self.draw_great_circles(layer.data, layer.style, layer.legend_label)
+			elif isinstance(layer.data, PiechartData):
+				self.draw_piecharts(layer.data, layer.style)
 			elif isinstance(layer.data, MaskData):
 				self.draw_mask(layer.data.polygon, layer.style, layer.data.outside)
 			elif isinstance(layer.data, (PointData, MultiPointData, UnstructuredGridData)):

@@ -966,6 +966,48 @@ class FocmecStyle(BasemapStyle):
 		return d
 
 
+class PiechartStyle():
+	"""
+	Style defining how pie charts should be plotted
+
+	:param fill_colors:
+		list of matplotlib color specifications for the different
+		pie chart categories
+	:param line_color:
+		matplotlib color specification for pie outlines
+		(default: 'k')
+	:param line_width:
+		float, line width of pie outlines
+		(default: 1)
+	:param start_angle:
+		float, angle at which first category starts  (in degrees
+		counterclockwise from the X-axis)
+		(default: 0)
+	:param alpha:
+		float in the range 0 - 1, opacity (default: 1.)
+	"""
+	def __init__(self, fill_colors, line_color='k', line_width=1, start_angle=0,
+				alpha=1.):
+		self.fill_colors = fill_colors
+		#self.size = size
+		self.line_color = line_color
+		self.line_width = line_width
+		self.start_angle = start_angle
+		self.alpha = alpha
+
+	def to_kwargs(self):
+		"""
+		Return a dictionary with keys corresponding to matplotlib parameter names,
+		and which can be passed to the plot function
+		"""
+		d = {}
+		#d["ms"] = self.size
+		d["linewidths"] = self.line_width
+		d["edgecolors"] = self.line_color
+		d["alpha"] = {True: None, False: self.alpha}[self.alpha == 1]
+		return d
+
+
 class CompositeStyle:
 	"""
 	Class representing composite style, defining how an ensemble of
