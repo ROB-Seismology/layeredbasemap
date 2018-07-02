@@ -1143,9 +1143,9 @@ class ThematicStyleIndividual(ThematicStyle):
 	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True,
 				colorbar_style=None, style_under=None, style_over=None, style_bad=None):
 		super(ThematicStyleIndividual, self).__init__(value_key, add_legend, colorbar_style)
-		assert isinstance(styles, (str, unicode, matplotlib.colors.Colormap)) or len(values) == len(styles)
 		self.values = values
 		if isinstance(styles, (list, tuple, np.ndarray)):
+			assert len(values) == len(styles)
 			self.set_styles(styles)
 		elif isinstance(styles, (str, unicode)) and styles[:12] == "random_color":
 			if ',' in styles:
@@ -1336,7 +1336,6 @@ class ThematicStyleRanges(ThematicStyle):
 	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True,
 				colorbar_style=None, style_under=None, style_over=None, style_bad=None):
 		super(ThematicStyleRanges, self).__init__(value_key, add_legend, colorbar_style)
-		assert len(values) == len(styles) + 1
 		self.values = np.array(values, dtype='f')
 		if styles[:12] == "random_color":
 			if ',' in styles:
@@ -1345,6 +1344,7 @@ class ThematicStyleRanges(ThematicStyle):
 				random_seed = None
 			self.set_styles_from_random_colors(random_seed)
 		elif isinstance(styles, (list, tuple, np.ndarray)):
+			assert len(values) == len(styles) + 1
 			self.set_styles(styles)
 		elif isinstance(styles, (str, matplotlib.colors.Colormap)):
 			self.set_styles_from_colormap(styles)
@@ -1498,10 +1498,10 @@ class ThematicStyleGradient(ThematicStyle):
 	"""
 	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True,
 				colorbar_style=None, style_under=None, style_over=None, style_bad=None):
-		assert len(values) == len(styles)
 		super(ThematicStyleGradient, self).__init__(value_key, add_legend, colorbar_style)
 		self.values = np.array(values, dtype='f')
 		if isinstance(styles, (list, tuple, np.ndarray)):
+			assert len(values) == len(styles)
 			self.set_styles(styles)
 		elif isinstance(styles, (str, unicode)) and styles[:12] == "random_color":
 			if ',' in styles:
