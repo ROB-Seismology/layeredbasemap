@@ -512,12 +512,14 @@ class LayeredBasemap:
 		else:
 			fill_hatches = [polygon_style.fill_hatch] * num_polygons
 		if isinstance(polygon_style.alpha, ThematicStyle):
+			print type(fill_colors), fill_colors.shape
 			alphas = polygon_style.alpha(polygon_data.values)
 			if not list(np.unique(fill_colors)) == [None]:
 				## Apply to fill colors only if they are not None
 				for c, color in enumerate(fill_colors):
 					if color is not None and not np.isnan(alphas[c]):
-						fill_colors[c] = color[:3] + tuple(alphas[c:c+1])
+						#fill_colors[c] = color[:3] + tuple(alphas[c:c+1])
+						fill_colors[c][3] = alphas[c]
 				alphas = [1] * num_polygons
 		else:
 			alphas = [polygon_style.alpha] * num_polygons
