@@ -517,8 +517,10 @@ class LayeredBasemap:
 				## Apply to fill colors only if they are not None
 				for c, color in enumerate(fill_colors):
 					if color is not None and not np.isnan(alphas[c]):
-						#fill_colors[c] = color[:3] + tuple(alphas[c:c+1])
-						fill_colors[c][3] = alphas[c]
+						if isinstance(fill_colors[c], tuple):
+							fill_colors[c] = color[:3] + tuple(alphas[c:c+1])
+						else:
+							fill_colors[c][3] = alphas[c]
 				alphas = [1] * num_polygons
 		else:
 			alphas = [polygon_style.alpha] * num_polygons
