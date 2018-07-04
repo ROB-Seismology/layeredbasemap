@@ -1337,15 +1337,15 @@ class ThematicStyleRanges(ThematicStyle):
 				colorbar_style=None, style_under=None, style_over=None, style_bad=None):
 		super(ThematicStyleRanges, self).__init__(value_key, add_legend, colorbar_style)
 		self.values = np.array(values, dtype='f')
-		if styles[:12] == "random_color":
+		if isinstance(styles, (list, tuple, np.ndarray)):
+			assert len(values) == len(styles) + 1
+			self.set_styles(styles)
+		elif isinstance(styles, (str, unicode)) and styles[:12] == "random_color":
 			if ',' in styles:
 				random_seed = int(styles.split(',')[-1])
 			else:
 				random_seed = None
 			self.set_styles_from_random_colors(random_seed)
-		elif isinstance(styles, (list, tuple, np.ndarray)):
-			assert len(values) == len(styles) + 1
-			self.set_styles(styles)
 		elif isinstance(styles, (str, matplotlib.colors.Colormap)):
 			self.set_styles_from_colormap(styles)
 		if not (labels is None or labels == []):
