@@ -2997,12 +2997,13 @@ class GisData(BasemapData):
 			key = self.joined_attributes[attrib_name]['key']
 			value_dict = self.joined_attributes[attrib_name]['values']
 			first_value = value_dict.values()[0]
-			if isinstance(first_value, (int, float)):
+			first_non_none_value = next((val for val in value_dict.values() if val is not None), None)
+			if isinstance(first_non_none_value, (int, float)):
 				default = np.nan
-			elif isinstance(first_value, (str, unicode)):
+			elif isinstance(first_non_none_value, (str, unicode)):
 				default = ""
 			else:
-				default = None
+				default = np.nan
 			point_data.values[attrib_name] = [value_dict.get(key_val, default) for key_val in point_data.values[key]]
 			line_data.values[attrib_name] = [value_dict.get(key_val, default) for key_val in line_data.values[key]]
 			polygon_data.values[attrib_name] = [value_dict.get(key_val, default) for key_val in polygon_data.values[key]]
