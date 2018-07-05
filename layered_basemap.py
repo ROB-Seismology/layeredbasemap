@@ -67,6 +67,8 @@ class LayeredBasemap:
 	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), extent=(None, None), graticule_interval=(None, None), resolution="i", title_style=DefaultTitleTextStyle, legend_style=LegendStyle(), scalebar_style=None, border_style=MapBorderStyle(), graticule_style=GraticuleStyle(), ax=None, cax=None, figsize=(8,6), dpi=120, **proj_args):
 		self.layers = layers
 		self.title = title
+		if isinstance(region, (str, unicode)):
+			region = self.parse_well_known_region(region)
 		self.region = region
 		self.projection = projection
 		self.origin = origin
@@ -134,6 +136,40 @@ class LayeredBasemap:
 	@property
 	def dlat(self):
 		return self.graticule_interval[1]
+
+	def parse_well_known_region(self, region_name):
+		region = {'africa': [-30, 65, -55, 40],
+				'america': [-170, -30, -60, 75],
+				'asia': [37.5, 150, 0, 75],
+				'atlantic': [-90, 30, -80, 80],
+				'australasia': [85, 180, -55, 20],
+				'belgium': [1, 7, 49.25, 51.75],
+				'belgium_tight': [2.4, 6.6, 49.4, 51.6],
+				'benelux': [2, 7.5, 49, 53.9],
+				'brussels': [4.20, 4.53, 50.75, 50.95],
+				'bulgaria': [21.75, 29.25, 40.75, 44.5],
+				'caribbean': [-85, -55, 5, 25],
+				'eastern mediterranean': [15, 40, 27.5, 47.5],
+				'europe': [-25, 45, 35, 75],
+				'flanders': [2.4, 6.0, 50.6, 51.6],
+				'japan': [125, 155, 25, 50],
+				'limburg': [5, 6, 50.75, 51.25],
+				'mediterranean': [-10, 40, 27.5, 47.5],
+				'middle east': [25, 90, 10, 50],
+				'new zealand': [162.5, 180, -50, -32.5],
+				'northwest europe': [-12.5, 27, 35, 62.5],
+				'north america': [-170, -50, 5, 75],
+				'pacific': [120, 295, -75, 70],
+				'philippines_japan': [115, 155, -10, 50],
+				'roer valley graben': [4.5, 7.5, 50.35, 51.85],
+				'south america': [-90, -30, -60, 15],
+				'sumatra': [65, 125, -15, 25],
+				'turkey': [25, 45, 34, 42.5],
+				'united states': [-130, -65, 22.5, 52.5],
+				'wallonia': [2.5, 6.6, 49.4, 50.95],
+				'western mediterranean': [-10, 20, 27.5, 47.5]
+				}[region_name.lower()]
+		return region
 
 	def init_basemap(self, ax=None):
 		self.zorder = 0
@@ -1651,8 +1687,9 @@ class LayeredBasemap:
 		self.zorder += 1
 
 	def draw_text_box(self, pos, text, text_style):
-		self.ax.text(pos[0], pos[1], text, transform=self.ax.transAxes, zorder=1000,
+		self.ax.text(pos[0], pos[1], text, transform=self.ax.transAxes, zorder=self.zorder,
 					**text_style.to_kwargs())
+		self.zorder += 1
 
 	def draw_layers(self):
 		## Note: start with zorder = 1, to allow place for map border
@@ -1679,7 +1716,7 @@ class LayeredBasemap:
 					self.draw_shadedrelief(layer.style)
 				if layer.data.feature == "etopo":
 					self.draw_etopo(layer.style)
-			elif isinstance(layer.data, MultiTextData):
+			elif isinstance(layer.data, (TextData, MultiTextData)):
 				self._draw_texts(layer.data, layer.style)
 			elif isinstance(layer.data, FocmecData):
 				self.draw_focmecs(layer.data, layer.style)
