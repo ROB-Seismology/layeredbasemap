@@ -1158,7 +1158,7 @@ class TextData(SingleData):
 		"""
 		style_params = self._get_multi_values(self.style_params)
 		return MultiTextData([self.lon], [self.lat], labels=[self.label],
-							style_params=style_params)
+						coord_frame=self.coord_frame, style_params=style_params)
 
 
 class MultiTextData(MultiData):
