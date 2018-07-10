@@ -247,9 +247,10 @@ class PointData(SingleData):
 		on the one hand and TextStyle on the other hand.
 		(default: None --> {})
 	"""
-	def __init__(self, lon, lat, value=None, label="", style_params=None):
+	def __init__(self, lon, lat, z=0, value=None, label="", style_params=None):
 		self.lon = lon
 		self.lat = lat
+		self.z = z
 		self.value = value
 		self.label = label
 		self.style_params = style_params or {}
@@ -265,7 +266,7 @@ class PointData(SingleData):
 		"""
 		Convert to shapely Point object
 		"""
-		return shapely.geometry.Point(self.lon, self.lat)
+		return shapely.geometry.Point(self.lon, self.lat, self.z)
 
 	def to_wkt(self):
 		"""
@@ -294,7 +295,7 @@ class PointData(SingleData):
 		"""
 		values = self._get_multi_values(self.value)
 		style_params = self._get_multi_values(self.style_params)
-		return MultiPointData([self.lon], [self.lat], values=values,
+		return MultiPointData([self.lon], [self.lat], [self.z], values=values,
 							labels=[self.label], style_params=style_params)
 
 	@classmethod
@@ -313,7 +314,8 @@ class PointData(SingleData):
 			instance of :class:`PointData`
 		"""
 		assert pt.geom_type == "Point"
-		return PointData(pt.x, pt.y, value=value, label=label,
+		z = pt.z if pt.has_z else 0.
+		return PointData(pt.x, pt.y, z=z, value=value, label=label,
 						style_params=style_params)
 
 	@classmethod
@@ -382,9 +384,10 @@ class MultiPointData(MultiData):
 		on the one hand and TextStyle on the other hand.
 		(default: None --> {})
 	"""
-	def __init__(self, lons, lats, values=None, labels=None, style_params=None):
+	def __init__(self, lons, lats, z=None, values=None, labels=None, style_params=None):
 		self.lons = lons
 		self.lats = lats
+		self.z = z or [0.] * len(lons)
 		self.values = values or []
 		self.labels = labels or []
 		self.style_params = style_params or {}
@@ -392,10 +395,11 @@ class MultiPointData(MultiData):
 	def __getitem__(self, index):
 		lon = self.lons[index]
 		lat = self.lats[index]
+		z = self.z[index]
 		value = self._get_value_at_index(index)
 		label = self._get_label_at_index(index)
 		style_params = self._get_style_params_at_index(index)
-		return PointData(lon, lat, value=value, label=label,
+		return PointData(lon, lat, z=z, value=value, label=label,
 						style_params=style_params)
 
 	@classmethod
@@ -409,17 +413,18 @@ class MultiPointData(MultiData):
 		:return:
 			instance of :class:`MultiPointData`
 		"""
-		lons, lats, labels = [], [], []
+		lons, lats, Z, labels = [], [], []
 		pt0 = point_list[0]
 		values = SingleData._get_multi_values(pt0.value)
 		style_params = SingleData._get_multi_values(pt0.style_params)
 		for pt in point_list:
 			lons.append(pt.lon)
 			lats.append(pt.lat)
+			Z.append(pt.z)
 			labels.append(pt.label)
 			cls._append_to_multi_values(values, pt.value)
 			cls._append_to_multi_values(style_params, pt.style_params)
-		return MultiPointData(lons, lats, values=values, labels=labels,
+		return MultiPointData(lons, lats, z=Z, values=values, labels=labels,
 							style_params=style_params)
 
 	def append(self, pt):
@@ -434,6 +439,7 @@ class MultiPointData(MultiData):
 		if isinstance(pt, MultiPointData):
 			self.lons = np.concatenate([self.lons, pt.lons])
 			self.lats = np.concatenate([self.lats, pt.lats])
+			self.z = np.concatenate([self.z, pt.z])
 			self._extend_multi_values(self.values, pt.values)
 			self.labels.extend(pt.labels)
 			self._extend_multi_values(self.style_params, pt.style_params)
@@ -455,6 +461,7 @@ class MultiPointData(MultiData):
 		lat_mask = ma.masked_outside(self.lats, latmin, latmax)
 		lons = ma.array(self.lons, mask=lon_mask.mask + latmask.mask).compressed()
 		lats = ma.array(self.lats, mask=lon_mask.mask + latmask.mask).compressed()
+		Z = ma.array(self.z, lon_mask.mask + latmask.mask).compressed()
 		labels = ma.array(self.labels, mask=lon_mask.mask + latmask.mask).compressed()
 		if isinstance(self.values, dict):
 			values = {}
@@ -465,14 +472,14 @@ class MultiPointData(MultiData):
 		style_params = {}
 		for key, val in self.style_params.items():
 			style_params[key] = ma.array(val, mask=lon_mask.mask + latmask.mask).compressed()
-		return MultiPointData(lons, lats, values=values, labels=labels,
+		return MultiPointData(lons, lats, z=Z, values=values, labels=labels,
 							style_params=style_params)
 
 	def to_shapely(self):
 		"""
 		Convert to shapely Point object
 		"""
-		return shapely.geometry.MultiPoint(zip(self.lons, self.lats))
+		return shapely.geometry.MultiPoint(zip(self.lons, self.lats, self.z))
 
 	def to_wkt(self):
 		"""
@@ -508,6 +515,7 @@ class MultiPointData(MultiData):
 			instance of :class:`MultiPointData`
 		"""
 		assert mp.geom_type == "MultiPoint"
+		Z = [pt.z for pt in mp] if mp.has_z else [0.] * len(mp)
 		return MultiPointData([pt.x for pt in mp], [pt.y for pt in mp],
 						values=values, labels=labels, style_params=style_params)
 
@@ -588,6 +596,7 @@ class MultiPointData(MultiData):
 		if sorted_indexes != None:
 			self.lons = np.array(self.lons)[sorted_indexes]
 			self.lats = np.array(self.lats)[sorted_indexes]
+			self.z = np.array(self.z)[sorted_indexes]
 			for key in self.style_params:
 				self.style_params[key] = np.array(self.style_params[key])[sorted_indexes]
 		return sorted_indexes
@@ -605,9 +614,10 @@ class MultiPointData(MultiData):
 
 
 class LineData(SingleData):
-	def __init__(self, lons, lats, value=None, label="", style_params=None):
+	def __init__(self, lons, lats, z=None, value=None, label="", style_params=None):
 		self.lons = lons
 		self.lats = lats
+		self.z = z or [0.] * len(lons)
 		self.value = value
 		self.label = label
 		self.style_params = style_params or {}
@@ -620,7 +630,7 @@ class LineData(SingleData):
 			yield self
 
 	def to_shapely(self):
-		return shapely.geometry.LineString(zip(self.lons, self.lats))
+		return shapely.geometry.LineString(zip(self.lons, self.lats, self.z))
 
 	def to_wkt(self):
 		return self.to_shapely().wkt
@@ -637,14 +647,18 @@ class LineData(SingleData):
 
 	def to_multi_line(self):
 		values = self._get_multi_values(self.value)
-		return MultiLineData([self.lons], [self.lats], values=values,
+		return MultiLineData([self.lons], [self.lats], [self.z], values=values,
 							labels=[self.label])
 
 	@classmethod
 	def from_shapely(cls, ls, value=None, label="", style_params=None):
 		assert ls.geom_type == "LineString"
-		lons, lats = zip(*ls.coords)
-		return LineData(lons, lats, value=value, label=label,
+		if ls.has_z:
+			lons, lats, z = zip(*ls.coords)
+		else:
+			lons, lats = zip(*ls.coords)
+			z = None
+		return LineData(lons, lats, z=z, value=value, label=label,
 								style_params=style_params)
 
 	@classmethod
@@ -699,10 +713,11 @@ class LineData(SingleData):
 	def get_point_at_index(self, idx):
 		lon = self.lons[idx]
 		lat = self.lats[idx]
+		z = self.z[idx]
 		value = self.value
 		style_params = self.style_params
 		label = self.label
-		return PointData(lon, lat, value=value, label=label, style_params=style_params)
+		return PointData(lon, lat, z=z, value=value, label=label, style_params=style_params)
 
 	def get_intersection(self, line2):
 		pt = self.to_shapely().intersection(line2.to_shapely())
@@ -710,24 +725,41 @@ class LineData(SingleData):
 			return PointData.from_shapely(pt)
 
 	def get_nearest_index_to_point(self, pt):
-		import mapping.geotools.geometric as geometric
-		distances = geometric.spherical_distance(pt.lon, pt.lat, self.lons, self.lats)
+		import mapping.geotools.geodetic as geodetic
+		distances = geodetic.spherical_distance(pt.lon, pt.lat, self.lons, self.lats)
 		return np.argmin(distances)
 
 	def to_polygon(self):
 		# TODO: should we check if first point == last point?
-		return PolygonData(self.lons, self.lats, value=self.value,
+		return PolygonData(self.lons, self.lats, z=self.z, value=self.value,
 						label=self.label, style_params=self.style_params)
+
+	def get_mean_strike(self):
+		import mapping.geotools.geodetic as geodetic
+		from mapping.geotools.angle import mean_angle
+		lons, lats = np.array(self.lons), np.array(self.lats)
+		lons1, lats1 = lons[:-1], lats[:-1]
+		lons2, lats2 = lons[1:], lats[1:]
+		distances = geodetic.spherical_distance(lons1, lats1, lons2, lats2)
+		azimuths = geodetic.spherical_azimuth(lons1, lats1, lons2, lats2)
+		weights = distances / np.add.reduce(distances)
+		mean_strike = mean_angle(azimuths, weights)
+		return mean_strike
 
 
 class MultiLineData(MultiData):
-	def __init__(self, lons, lats, values=None, labels=None, style_params=None):
+	def __init__(self, lons, lats, z=None, values=None, labels=None, style_params=None):
 		if lons:
 			assert isinstance(lons[0], (list, tuple, np.ndarray)), "lons items must be sequences"
 		self.lons = lons
 		if lats:
 			assert isinstance(lats[0], (list, tuple, np.ndarray)), "lats items must be sequences"
 		self.lats = lats
+		if z:
+			assert isinstance(z[0], (list, tuple, np.ndarray)), "z items must be sequences"
+		else:
+			z = [[0] * len(seq) for seq in lons]
+		self.z = z
 		self.values = values or []
 		self.labels = labels or []
 		self.style_params = style_params or {}
@@ -735,28 +767,31 @@ class MultiLineData(MultiData):
 	def __getitem__(self, index):
 		lons = self.lons[index]
 		lats = self.lats[index]
+		Z = self.z[index]
 		value = self._get_value_at_index(index)
 		label = self._get_label_at_index(index)
 		style_params = self._get_style_params_at_index(index)
-		return LineData(lons, lats, value=value, label=label,
+		return LineData(lons, lats, z=Z, value=value, label=label,
 						style_params=style_params)
 
 	def append(self, line):
 		if isinstance(line, LineData):
 			self.lons.append(line.lons)
 			self.lats.append(line.lats)
+			self.z.append(line.z)
 			self._append_to_multi_values(self.values, line.value or None)
 			self.labels.append(line.label or "")
 			self._append_to_multi_values(self.style_params, line.style_params)
 		elif isinstance(line, MultiLineData):
 			self.lons.extend(line.lons)
 			self.lats.extend(line.lats)
+			self.z.extend(line.z)
 			self._extend_multi_values(self.values, line.values or [None] * len(line))
 			self.labels.extend(line.labels or [""] * len(line))
 			self._extend_multi_values(self.style_params, line.style_params)
 
 	def to_shapely(self):
-		coords = [zip(self.lons[i], self.lats[i]) for i in range(len(lons))]
+		coords = [zip(self.lons[i], self.lats[i], self.z[i]) for i in range(len(lons))]
 		return shapely.geometry.MultiLineString(coords)
 
 	def to_wkt(self):
@@ -774,12 +809,17 @@ class MultiLineData(MultiData):
 	@classmethod
 	def from_shapely(cls, mls, values=None, labels=None, style_params=None):
 		assert mls.geom_type == "MultiLineString"
-		lons, lats =  [], []
+		lons, lats, Z =  [], [], []
 		for ls in mls:
-			x, y = zip(*ls.coords)
+			if mls.has_z:
+				x, y, z = zip(*ls.coords)
+			else:
+				x, y = zip(*ls.coords)
+				z = [0] * len(x)
 			lons.append(x)
 			lats.append(y)
-		return MultiLineData(lons, lats, values=values, labels=labels,
+			Z.append(z)
+		return MultiLineData(lons, lats, z=Z, values=values, labels=labels,
 							style_params=style_params)
 
 	@classmethod
@@ -795,16 +835,18 @@ class MultiLineData(MultiData):
 
 
 class PolygonData(SingleData):
-	def __init__(self, lons, lats, interior_lons=None, interior_lats=None,
-				value=None, label="", style_params=None):
+	def __init__(self, lons, lats, z=None, interior_lons=None, interior_lats=None,
+				interior_z=None, value=None, label="", style_params=None):
 		"""
 		lons, lats: lists
-		interior_lons, interior_lats: 3-D lists
+		interior_lons, interior_lats: 2-D lists
 		"""
 		self.lons = lons
 		self.lats = lats
+		self.z = z or [0.] * len(lons)
 		self.interior_lons = interior_lons or []
 		self.interior_lats = interior_lats or []
+		self.interior_z = interior_z or [[0.] * len(seq) for seq in self.interior_lons]
 		self.value = value
 		self.label = label
 		self.style_params = style_params or {}
@@ -817,7 +859,9 @@ class PolygonData(SingleData):
 			return self
 
 	def to_shapely(self):
-		return shapely.geometry.Polygon(zip(self.lons, self.lats), [zip(self.interior_lons[i], self.interior_lats[i]) for i in range(len(self.interior_lons))])
+		return shapely.geometry.Polygon(zip(self.lons, self.lats, self.z),
+			[zip(self.interior_lons[i], self.interior_lats[i], self.interior_z[i])
+			for i in range(len(self.interior_lons))])
 
 	def to_wkt(self):
 		return self.to_shapely().wkt
@@ -834,13 +878,23 @@ class PolygonData(SingleData):
 	@classmethod
 	def from_shapely(cls, pg, value=None, label="", style_params=None):
 		assert pg.geom_type == "Polygon"
-		exterior_lons, exterior_lats = zip(*pg.exterior.coords)
-		interior_lons, interior_lats = [], []
+		if pg.has_z:
+			exterior_lons, exterior_lats, exterior_z = zip(*pg.exterior.coords)
+		else:
+			exterior_lons, exterior_lats = zip(*pg.exterior.coords)
+			exterior_z = [0.] * len(exterior_lons)
+		interior_lons, interior_lats, interior_z = [], [], []
 		for interior_ring in pg.interiors:
-			lons, lats = zip(*interior_ring.coords)
+			if interior_ring.has_z:
+				lons, lats, z = zip(*interior_ring.coords)
+			else:
+				lons, lats = zip(*interior_ring.coords)
+				z = [0.] * len(lons)
 			interior_lons.append(lons)
 			interior_lats.append(lats)
-		return PolygonData(exterior_lons, exterior_lats, interior_lons, interior_lats,
+			interior_z.append(z)
+		return PolygonData(exterior_lons, exterior_lats, exterior_z,
+						interior_lons, interior_lats, interior_z,
 						value=value, label=label, style_params=style_params)
 
 	@classmethod
@@ -892,15 +946,16 @@ class PolygonData(SingleData):
 
 	def to_line(self):
 		## Interior rings are ignored
-		return LineData(self.lons, self.lats, value=self.value, label=self.label,
-						style_params=self.style_params)
+		return LineData(self.lons, self.lats, z=self.z, value=self.value,
+						label=self.label, style_params=self.style_params)
 
 	def to_multi_polygon(self):
 		values = self._get_multi_values(self.value)
 		style_params = self._get_multi_values(self.style_params)
-		return MultiPolygonData([self.lons], [self.lats],
+		return MultiPolygonData([self.lons], [self.lats], [self.z],
 					interior_lons=[self.interior_lons],
 					interior_lats=[self.interior_lats],
+					interior_z=[self.interior_z],
 					values=values, labels=[self.label],
 					style_params=style_params)
 
@@ -930,16 +985,18 @@ class PolygonData(SingleData):
 
 
 class MultiPolygonData(MultiData):
-	def __init__(self, lons, lats, interior_lons=None, interior_lats=None,
-				values=None, labels=None, style_params=None):
+	def __init__(self, lons, lats, z=None, interior_lons=None, interior_lats=None,
+				interior_z=None, values=None, labels=None, style_params=None):
 		"""
 		lons, lats: 2-D lists
 		interior_lons, interior_lats: 3-D lists
 		"""
 		self.lons = lons
 		self.lats = lats
+		self.z = z or [[0] * len(pg) for pg in lons]
 		self.interior_lons = interior_lons or []
 		self.interior_lats = interior_lats or []
+		self.interior_z = interior_z or [[[0.] * len(seq) for seq in pg] for pg in self.interior_lons]
 		self.values = values or []
 		self.labels = labels or []
 		self.style_params = style_params or {}
@@ -947,26 +1004,30 @@ class MultiPolygonData(MultiData):
 	def __getitem__(self, index):
 		lons = self.lons[index]
 		lats = self.lats[index]
+		Z = self.z[index]
 		try:
 			interior_lons = self.interior_lons[index]
 		except:
 			interior_lons = []
-		try:
-			interior_lats = self.interior_lats[index]
-		except:
 			interior_lats = []
+			interior_z = []
+		else:
+			interior_lats = self.interior_lats[index]
+			interior_z = self.interior_z[index]
 		value = self._get_value_at_index(index)
 		label = self._get_label_at_index(index)
 		style_params = self._get_style_params_at_index(index)
-		return PolygonData(lons, lats, interior_lons, interior_lats,
+		return PolygonData(lons, lats, Z, interior_lons, interior_lats, interior_z,
 						value=value, label=label, style_params=style_params)
 
 	def append(self, polygon):
 		assert isinstance(polygon, PolygonData)
 		self.lons.append(polygon.lons)
 		self.lats.append(polygon.lats)
+		self.z.append(polygon.z)
 		self.interior_lons.append(polygon.interior_lons or [])
 		self.interior_lats.append(polygon.interior_lats or [])
+		self.interior_z.append(polygon.interior_z or [])
 		self._append_to_multi_values(self.values, polygon.value or None)
 		self.labels.append(polygon.label or "")
 		self._append_to_multi_values(self.style_params, polygon.style_params)
@@ -977,20 +1038,23 @@ class MultiPolygonData(MultiData):
 		"""
 		lons = self.lons[0]
 		lats = self.lats[0]
+		Z = self.z[0]
 		try:
 			interior_lons = self.interior_lons[0]
 		except IndexError:
 			interior_lons = []
-		try:
-			interior_lats = self.interior_lats[0]
-		except IndexError:
 			interior_lats = []
+			interior_z = []
+		else:
+			interior_lats = self.interior_lats[0]
+			interior_z = self.interior_z[0]
 		value = self._get_value_at_index(0)
 		label = self._get_label_at_index(0)
 		style_params = self._get_style_params_at_index(0)
 
-		return PolygonData(lons, lats, interior_lons, interior_lats, value=value,
-							label=label, style_params=style_params)
+		return PolygonData(lons, lats, Z, interior_lons, interior_lats,
+							interior_z=interior_z, value=value, label=label,
+							style_params=style_params)
 
 	def to_shapely(self):
 		shapely_polygons = [pg.to_shapely() for pg in self]
@@ -1011,22 +1075,33 @@ class MultiPolygonData(MultiData):
 	@classmethod
 	def from_shapely(cls, mpg, values=None, labels=None, style_params=None):
 		assert mpg.geom_type == "MultiPolygon"
-		exterior_lons, exterior_lats = [], []
-		interior_lons, interior_lats = [], []
+		exterior_lons, exterior_lats, exterior_z = [], [], []
+		interior_lons, interior_lats, interior_z = [], [], []
 		for pg in mpg:
-			lons, lats = zip(*pg.exterior.coords)
+			if pg.has_z:
+				lons, lats, z = zip(*pg.exterior.coords)
+			else:
+				lons, lats = zip(*pg.exterior.coords)
+				z = [0.] * len(lons)
 			exterior_lons.append(lons)
 			exterior_lats.append(lats)
-			pg_interior_lons, pg_interior_lats = [], []
+			exterior_z.append(z)
+			pg_interior_lons, pg_interior_lats, pg_interior_z = [], [], []
 			for interior_ring in pg.interiors:
-				lons, lats = zip(*interior_ring.coords)
+				if interior_ring.has_z:
+					lons, lats, z = zip(*interior_ring.coords)
+				else:
+					lons, lats = zip(*interior_ring.coords)
+					z = [0.] * len(lons)
 				pg_interior_lons.append(lons)
 				pg_interior_lats.append(lats)
+				pg_interior_z.append(z)
 			interior_lons.append(pg_interior_lons)
 			interior_lats.append(pg_interior_lats)
-		return MultiPolygonData(exterior_lons, exterior_lats, interior_lons,
-							interior_lats, values=values, labels=labels,
-							style_params=style_params)
+			interior_z.append(pg_interior_z)
+		return MultiPolygonData(exterior_lons, exterior_lats, exterior_z,
+							interior_lons, interior_lats, interior_z, values=values,
+							labels=labels, style_params=style_params)
 
 	@classmethod
 	def from_wkt(cls, wkt, values=None, labels=None, style_params=None):
@@ -2861,7 +2936,7 @@ class GisData(BasemapData):
 		return read_GIS_file_attributes(self.filespec)
 
 	def get_data(self, point_value_colnames=None, line_value_colnames=None,
-					polygon_value_colnames=None):
+					polygon_value_colnames=None, layer_num=None):
 		"""
 		Read GIS records, transforming into LayeredBasemap data types
 
@@ -2914,7 +2989,7 @@ class GisData(BasemapData):
 		for colname in polygon_value_colnames:
 			polygon_data.values[colname] = []
 
-		for rec in read_GIS_file(self.filespec):
+		for rec in read_GIS_file(self.filespec, layer_num=layer_num):
 			selected = np.zeros(len(self.selection_dict.keys()))
 			for i, (selection_colname, selection_value) in enumerate(self.selection_dict.items()):
 				if rec[selection_colname] == selection_value:
