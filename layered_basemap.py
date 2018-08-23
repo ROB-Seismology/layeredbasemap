@@ -1686,10 +1686,12 @@ class LayeredBasemap:
 		self.map.imshow(mask, cmap=cmap, zorder=self.zorder)
 		self.zorder += 1
 
-	def draw_text_box(self, pos, text, text_style):
-		self.ax.text(pos[0], pos[1], text, transform=self.ax.transAxes, zorder=self.zorder,
+	def draw_text_box(self, pos, text, text_style, zorder=None):
+		if zorder is None:
+			zorder = self.zorder
+			self.zorder += 1
+		self.ax.text(pos[0], pos[1], text, transform=self.ax.transAxes, zorder=zorder,
 					**text_style.to_kwargs())
-		self.zorder += 1
 
 	def draw_layers(self):
 		## Note: start with zorder = 1, to allow place for map border
