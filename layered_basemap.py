@@ -1283,7 +1283,8 @@ class LayeredBasemap:
 
 	def draw_grid_image_layer(self, grid_data, image_style):
 		img_ar = grid_data.warp_to_map(self, **image_style.to_kwargs())
-		img_ar = np.rollaxis(img_ar, 0, 3)
+		if grid_data.band_nr == 0:
+			img_ar = np.rollaxis(img_ar, 0, 3)
 		self.map.imshow(img_ar, ax=self.ax, zorder=self.zorder, alpha=image_style.alpha)
 		self.zorder += 1
 
