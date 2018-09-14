@@ -1065,11 +1065,24 @@ class ThematicStyle(object):
 		instance of :class:`ColorbarStyle`, determining the aspect of
 		the colorbar, in case the thematic style feature is a color
 		(default: None)
+	:param style_under:
+		style corresponding to data values lower than range in :param:`values`
+		(default: None)
+	:param style_over:
+		style corresponding to data values higher than range in :param:`values`
+		(default: None)
+	:param style_bad:
+		style corresponding to 'bad' data values (NaN)
+		(default: None)
 	"""
-	def __init__(self, value_key=None, add_legend=True, colorbar_style=None):
+	def __init__(self, value_key=None, add_legend=True, colorbar_style=None,
+				style_under=None, style_over=None, style_bad=None):
 		self.value_key = value_key
 		self.add_legend = add_legend
 		self.colorbar_style = colorbar_style
+		self.style_under = style_under
+		self.style_over = style_over
+		self.style_bad = style_bad
 
 	def apply_value_key(self, values):
 		"""
@@ -1142,7 +1155,8 @@ class ThematicStyleIndividual(ThematicStyle):
 	"""
 	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True,
 				colorbar_style=None, style_under=None, style_over=None, style_bad=None):
-		super(ThematicStyleIndividual, self).__init__(value_key, add_legend, colorbar_style)
+		super(ThematicStyleIndividual, self).__init__(value_key, add_legend, colorbar_style,
+													style_under, style_over, style_bad)
 		self.values = values
 		if isinstance(styles, (list, tuple, np.ndarray)):
 			assert len(values) == len(styles)
@@ -1174,10 +1188,6 @@ class ThematicStyleIndividual(ThematicStyle):
 				self.colorbar_style.ticks = sm.get_array()
 			if self.colorbar_style.tick_labels is None:
 				self.colorbar_style.tick_labels = self.labels
-
-		self.style_under = style_under
-		self.style_over = style_over
-		self.style_bad = style_bad
 
 	def is_numeric(self):
 		return np.array([isinstance(self.values[idx], (str, unicode))
@@ -1335,7 +1345,8 @@ class ThematicStyleRanges(ThematicStyle):
 	"""
 	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True,
 				colorbar_style=None, style_under=None, style_over=None, style_bad=None):
-		super(ThematicStyleRanges, self).__init__(value_key, add_legend, colorbar_style)
+		super(ThematicStyleRanges, self).__init__(value_key, add_legend, colorbar_style,
+													style_under, style_over, style_bad)
 		self.values = np.array(values, dtype='f')
 		if isinstance(styles, (list, tuple, np.ndarray)):
 			assert len(values) == len(styles) + 1
@@ -1362,10 +1373,6 @@ class ThematicStyleRanges(ThematicStyle):
 				self.colorbar_style.ticks = sm.get_array()
 			if self.colorbar_style.tick_labels is None and labels:
 				self.colorbar_style.tick_labels = labels
-
-		self.style_under = style_under
-		self.style_over = style_over
-		self.style_bad = style_bad
 
 	def set_styles(self, styles):
 		self.styles = styles
@@ -1498,7 +1505,8 @@ class ThematicStyleGradient(ThematicStyle):
 	"""
 	def __init__(self, values, styles, labels=[], value_key=None, add_legend=True,
 				colorbar_style=None, style_under=None, style_over=None, style_bad=None):
-		super(ThematicStyleGradient, self).__init__(value_key, add_legend, colorbar_style)
+		super(ThematicStyleGradient, self).__init__(value_key, add_legend, colorbar_style,
+													style_under, style_over, style_bad)
 		self.values = np.array(values, dtype='f')
 		if isinstance(styles, (list, tuple, np.ndarray)):
 			assert len(values) == len(styles)
@@ -1528,10 +1536,6 @@ class ThematicStyleGradient(ThematicStyle):
 				self.colorbar_style.ticks = sm.get_array()
 			if self.colorbar_style.tick_labels is None and labels:
 				self.colorbar_style.tick_labels = labels
-
-		self.style_under = style_under
-		self.style_over = style_over
-		self.style_bad = style_bad
 
 	def set_styles(self, styles):
 		self.styles = styles
@@ -1659,6 +1663,7 @@ class ThematicStyleColormap(ThematicStyle):
 	"""
 	# TODO: add param labels too?
 	# TODO: add bad_rgba, over_rgba, under_rgba
+	# TODO: style_under, style_over, style_bad?
 	def __init__(self, color_map="jet", norm=None, vmin=None, vmax=None, alpha=1.0, value_key=None, add_legend=True, colorbar_style=None):
 		super(ThematicStyleColormap, self).__init__(value_key, add_legend, colorbar_style)
 		if isinstance(color_map, matplotlib.colors.Colormap):
