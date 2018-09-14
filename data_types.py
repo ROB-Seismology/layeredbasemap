@@ -2393,7 +2393,7 @@ class GdalRasterData(MeshGridData):
 		ds = gdal.Open(self.filespec, gdal.GA_ReadOnly)
 		#import matplotlib.image as mpimg
 		#values = mpimg.imread(self.filespec)
-		values = np.zeros((4, self.nrows, self.ncols), dtype=np.uint8)
+		values = np.zeros((self.num_bands, self.nrows, self.ncols), dtype=np.uint8)
 		ds.ReadAsArray(buf_obj=values)
 		ds = None
 
