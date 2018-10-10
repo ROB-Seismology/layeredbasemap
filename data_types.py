@@ -262,11 +262,18 @@ class PointData(SingleData):
 		for i in range(1):
 			yield self
 
-	def to_shapely(self):
+	def to_shapely(self, include_z=True):
 		"""
 		Convert to shapely Point object
+
+		:param include_z:
+			bool, whether or not to include Z-coordinate(s)
+			(default: True)
 		"""
-		return shapely.geometry.Point(self.lon, self.lat, self.z)
+		if include_z:
+			return shapely.geometry.Point(self.lon, self.lat, self.z)
+		else:
+			return shapely.geometry.Point(self.lon, self.lat)
 
 	def to_wkt(self):
 		"""
@@ -475,11 +482,18 @@ class MultiPointData(MultiData):
 		return MultiPointData(lons, lats, z=Z, values=values, labels=labels,
 							style_params=style_params)
 
-	def to_shapely(self):
+	def to_shapely(self, include_z=True):
 		"""
 		Convert to shapely Point object
+
+		:param include_z:
+			bool, whether or not to include Z-coordinate(s)
+			(default: True)
 		"""
-		return shapely.geometry.MultiPoint(zip(self.lons, self.lats, self.z))
+		if include_z:
+			return shapely.geometry.MultiPoint(zip(self.lons, self.lats, self.z))
+		else:
+			return shapely.geometry.MultiPoint(zip(self.lons, self.lats))
 
 	def to_wkt(self):
 		"""
@@ -629,8 +643,16 @@ class LineData(SingleData):
 		for i in range(1):
 			yield self
 
-	def to_shapely(self):
-		return shapely.geometry.LineString(zip(self.lons, self.lats, self.z))
+	def to_shapely(self, include_z=True):
+		"""
+		:param include_z:
+			bool, whether or not to include Z-coordinate(s)
+			(default: True)
+		"""
+		if include_z:
+			return shapely.geometry.LineString(zip(self.lons, self.lats, self.z))
+		else:
+			return shapely.geometry.LineString(zip(self.lons, self.lats))
 
 	def to_wkt(self):
 		return self.to_shapely().wkt
@@ -790,8 +812,16 @@ class MultiLineData(MultiData):
 			self.labels.extend(line.labels or [""] * len(line))
 			self._extend_multi_values(self.style_params, line.style_params)
 
-	def to_shapely(self):
-		coords = [zip(self.lons[i], self.lats[i], self.z[i]) for i in range(len(lons))]
+	def to_shapely(self, include_z=True):
+		"""
+		:param include_z:
+			bool, whether or not to include Z-coordinate(s)
+			(default: True)
+		"""
+		if include_z:
+			coords = [zip(self.lons[i], self.lats[i], self.z[i]) for i in range(len(lons))]
+		else:
+			coords = [zip(self.lons[i], self.lats[i]) for i in range(len(lons))]
 		return shapely.geometry.MultiLineString(coords)
 
 	def to_wkt(self):
@@ -858,10 +888,20 @@ class PolygonData(SingleData):
 		for i in range(1):
 			return self
 
-	def to_shapely(self):
-		return shapely.geometry.Polygon(zip(self.lons, self.lats, self.z),
-			[zip(self.interior_lons[i], self.interior_lats[i], self.interior_z[i])
-			for i in range(len(self.interior_lons))])
+	def to_shapely(self, include_z=True):
+		"""
+		:param include_z:
+			bool, whether or not to include Z-coordinate(s)
+			(default: True)
+		"""
+		if include_z:
+			return shapely.geometry.Polygon(zip(self.lons, self.lats, self.z),
+				[zip(self.interior_lons[i], self.interior_lats[i], self.interior_z[i])
+				for i in range(len(self.interior_lons))])
+		else:
+			return shapely.geometry.Polygon(zip(self.lons, self.lats),
+				[zip(self.interior_lons[i], self.interior_lats[i])
+				for i in range(len(self.interior_lons))])
 
 	def to_wkt(self):
 		return self.to_shapely().wkt
@@ -1056,8 +1096,13 @@ class MultiPolygonData(MultiData):
 							interior_z=interior_z, value=value, label=label,
 							style_params=style_params)
 
-	def to_shapely(self):
-		shapely_polygons = [pg.to_shapely() for pg in self]
+	def to_shapely(self, include_z=True):
+		"""
+		:param include_z:
+			bool, whether or not to include Z-coordinate(s)
+			(default: True)
+		"""
+		shapely_polygons = [pg.to_shapely(include_z=include_z) for pg in self]
 		return shapely.geometry.MultiPolygon(shapely_polygons)
 
 	def to_wkt(self):
