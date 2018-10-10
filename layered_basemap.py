@@ -439,7 +439,8 @@ class LayeredBasemap:
 					self.map.plot(x, y, label="_nolegend_", zorder=self.zorder, axes=self.ax, **style.to_line_style().to_kwargs())
 			else:
 				from descartes.patch import PolygonPatch
-				proj_polygon = proj_polygon.to_shapely()
+				## Remove Z coordinates to avoid exception in PolygonPatch
+				proj_polygon = proj_polygon.to_shapely(include_z=False)
 				## Make sure exterior and interior rings of polygon are properly oriented
 				proj_polygon = shapely.geometry.polygon.orient(proj_polygon)
 				#patch = PolygonPatch(proj_polygon, fill=fill, label=legend_label, **style.to_kwargs())
@@ -1650,7 +1651,9 @@ class LayeredBasemap:
 			for pg in polygon:
 				interior_lons.append(pg.lons)
 				interior_lats.append(pg.lats)
-			mask_polygon = PolygonData(exterior_lons, exterior_lats, interior_lons, interior_lats)
+			exterior_z = interior_z = None
+			mask_polygon = PolygonData(exterior_lons, exterior_lats, exterior_z,
+									interior_lons, interior_lats, interior_z)
 			self._draw_polygon(mask_polygon, mask_style)
 
 		self.zorder += 1
@@ -1911,7 +1914,9 @@ class LayeredBasemap:
 			x, y = self.map(polygon.interior_lons[i], polygon.interior_lats[i])
 			interior_x.append(x)
 			interior_y.append(y)
-		proj_polygon = PolygonData(exterior_x, exterior_y, interior_x, interior_y, value=polygon.value, label=polygon.label)
+		exterior_z = interior_z = None
+		proj_polygon = PolygonData(exterior_x, exterior_y, exterior_z, interior_x,
+					interior_y, interior_z, value=polygon.value, label=polygon.label)
 		return proj_polygon
 
 	def lonlat_to_display_coordinates(self, lons, lats):
