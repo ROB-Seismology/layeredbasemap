@@ -64,7 +64,7 @@ class ThematicLegend:
 
 
 class LayeredBasemap:
-	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), extent=(None, None), graticule_interval=(None, None), resolution="i", title_style=DefaultTitleTextStyle, legend_style=LegendStyle(), scalebar_style=None, border_style=MapBorderStyle(), graticule_style=GraticuleStyle(), ax=None, cax=None, figsize=(8,6), dpi=120, **proj_args):
+	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), extent=(None, None), graticule_interval=(None, None), resolution="i", area_thresh=None, title_style=DefaultTitleTextStyle, legend_style=LegendStyle(), scalebar_style=None, border_style=MapBorderStyle(), graticule_style=GraticuleStyle(), ax=None, cax=None, figsize=(8,6), dpi=120, **proj_args):
 		self.layers = layers
 		self.title = title
 		if isinstance(region, (str, unicode)):
@@ -75,6 +75,7 @@ class LayeredBasemap:
 		self.extent = extent
 		self.graticule_interval = graticule_interval
 		self.resolution = resolution
+		self.area_thresh = area_thresh
 		self.title_style = title_style
 		self.legend_style = legend_style
 		self.scalebar_style = scalebar_style
@@ -198,7 +199,7 @@ class LayeredBasemap:
 		else:
 			## Basemap version on Ubuntu 12.04 does not support epsg parameter
 			projection = self.projection
-			map = Basemap(projection=projection, resolution=self.resolution, llcrnrlon=llcrnrlon, llcrnrlat=llcrnrlat, urcrnrlon=urcrnrlon, urcrnrlat=urcrnrlat, lon_0=lon_0, lat_0=lat_0, width=width, height=height, ax=ax, **self.proj_args)
+			map = Basemap(projection=projection, resolution=self.resolution, area_thresh=area_thresh, llcrnrlon=llcrnrlon, llcrnrlat=llcrnrlat, urcrnrlon=urcrnrlon, urcrnrlat=urcrnrlat, lon_0=lon_0, lat_0=lat_0, width=width, height=height, ax=ax, **self.proj_args)
 
 		self.region = (map.llcrnrlon, map.urcrnrlon, map.llcrnrlat, map.urcrnrlat)
 		self.is_drawn = False
