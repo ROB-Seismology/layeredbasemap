@@ -1209,6 +1209,8 @@ class ThematicStyleIndividual(ThematicStyle):
 				self.style_dict[value] = style
 
 	def set_styles_from_colormap(self, color_map):
+		if isinstance(color_map, (str)):
+			color_map = matplotlib.cm.get_cmap(color_map)
 		N = len(self.values)
 		norm  = matplotlib.colors.Normalize(vmin=0, vmax=N-1)
 		sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=color_map)
@@ -1378,6 +1380,8 @@ class ThematicStyleRanges(ThematicStyle):
 		self.styles = styles
 
 	def set_styles_from_colormap(self, color_map):
+		if isinstance(color_map, (str)):
+			color_map = matplotlib.cm.get_cmap(color_map)
 		N = len(self.values) - 1
 		norm  = matplotlib.colors.Normalize(vmin=0, vmax=N-1)
 		sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=color_map)
@@ -1541,6 +1545,8 @@ class ThematicStyleGradient(ThematicStyle):
 		self.styles = styles
 
 	def set_styles_from_colormap(self, color_map):
+		if isinstance(color_map, (str)):
+			color_map = matplotlib.cm.get_cmap(color_map)
 		N = len(self.values)
 		norm  = matplotlib.colors.Normalize(vmin=0, vmax=N-1)
 		sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=color_map)
