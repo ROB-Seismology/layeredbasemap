@@ -333,3 +333,32 @@ def adjust_cmap_saturation(cmap, dsat, colorspace='HSV'):
 		rgba[:, 0:3] = hls_to_rgb(hls)
 
 	return ListedColormap(rgba)
+
+
+def extract_partial_cmap(cmap, min_val=0.0, max_val=1.0, n=256):
+	"""
+	Extract a subset of a colormap as a new colormap.
+	Note: colormap can also be reversed by specifying min_val > max_val
+
+	Source: https://gist.github.com/denis-bz/8052855
+
+	:param cmap:
+		matplotlib Colormap object
+	:param min_val:
+		float (range 0-1): fraction of colormap to start new colormap with
+		(default: 0.)
+	:param max_val:
+		float (range 0-1): fraction of colormap to end new colormap with
+		(default: 1.)
+	:param n:
+		int, number of colors in output colormap
+
+	:return:
+		matplotlib Colormap object
+	"""
+	from matplotlib.colors import LinearSegmentedColormap
+	#cmap = get_cmap(cmap)
+	name = "%s-trunc-%.2g-%.2g" % (cmap.name, min_val, max_val)
+	new_cmap = LinearSegmentedColormap.from_list(name,
+					cmap(np.linspace(min_val, max_val, n)), N=n)
+	return new_cmap
