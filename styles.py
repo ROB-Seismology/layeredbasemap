@@ -2,6 +2,14 @@
 Styles used in LayeredBasemap
 """
 
+try:
+	## Python 2
+	basestring
+except:
+	## Python 3
+	basestring = str
+
+
 import numpy as np
 import matplotlib
 import matplotlib.cm
@@ -21,13 +29,12 @@ class BasemapStyle(object):
 			dictionary containing style properties as keys
 
 		:return:
-			instance of :class:`BasemapStyle` or subclass
+			instance of :class:`BasemapStyle` or derived class
 		"""
-		style = cls()
-		for key in style_dict.keys():
-			if hasattr(style, key):
-				setattr(style, key, style_dict[key])
-		return style
+		## Note: it is not currently possible to check if all keys in style_dict
+		## are properties of the particular style, and we can't instantiate
+		## the style as some styles have positional arguments...
+		return cls(**style_dict)
 
 	def to_dict(self):
 		"""
@@ -41,19 +48,6 @@ class BasemapStyle(object):
 			if attr == "text_filter" or (not attr.startswith('__') and not callable(getattr(self, attr))):
 				d[attr] = getattr(self, attr, None)
 		return d
-
-	@classmethod
-	def from_dict(cls, d):
-		"""
-		Construct style from dictionary.
-
-		:param d:
-			dict
-
-		:return:
-			instance of :class:`BasemapStyle` or derived class
-		"""
-		return cls(**d)
 
 	def copy(self):
 		"""
@@ -1161,13 +1155,13 @@ class ThematicStyleIndividual(ThematicStyle):
 		if isinstance(styles, (list, tuple, np.ndarray)):
 			assert len(values) == len(styles)
 			self.set_styles(styles)
-		elif isinstance(styles, (str, unicode)) and styles[:12] == "random_color":
+		elif isinstance(styles, basestring) and styles[:12] == "random_color":
 			if ',' in styles:
 				random_seed = int(styles.split(',')[-1])
 			else:
 				random_seed = None
 			self.set_styles_from_random_colors(random_seed)
-		elif isinstance(styles, (str, unicode, matplotlib.colors.Colormap)):
+		elif isinstance(styles, (basestring, matplotlib.colors.Colormap)):
 			self.set_styles_from_colormap(styles)
 		if not (labels is None or labels == []):
 			self.labels = labels
@@ -1190,7 +1184,7 @@ class ThematicStyleIndividual(ThematicStyle):
 				self.colorbar_style.tick_labels = self.labels
 
 	def is_numeric(self):
-		return np.array([isinstance(self.values[idx], (str, unicode))
+		return np.array([not isinstance(self.values[idx], basestring)
 						for idx in range(len(self.values))]).any()
 
 	def is_monotonously_increasing(self):
@@ -1353,7 +1347,7 @@ class ThematicStyleRanges(ThematicStyle):
 		if isinstance(styles, (list, tuple, np.ndarray)):
 			assert len(values) == len(styles) + 1
 			self.set_styles(styles)
-		elif isinstance(styles, (str, unicode)) and styles[:12] == "random_color":
+		elif isinstance(styles, basestring) and styles[:12] == "random_color":
 			if ',' in styles:
 				random_seed = int(styles.split(',')[-1])
 			else:
@@ -1515,13 +1509,13 @@ class ThematicStyleGradient(ThematicStyle):
 		if isinstance(styles, (list, tuple, np.ndarray)):
 			assert len(values) == len(styles)
 			self.set_styles(styles)
-		elif isinstance(styles, (str, unicode)) and styles[:12] == "random_color":
+		elif isinstance(styles, basestring) and styles[:12] == "random_color":
 			if ',' in styles:
 				random_seed = int(styles.split(',')[-1])
 			else:
 				random_seed = None
 			self.set_styles_from_random_colors(random_seed)
-		elif isinstance(styles, (str, unicode, matplotlib.colors.Colormap)):
+		elif isinstance(styles, (basestring, matplotlib.colors.Colormap)):
 			self.set_styles_from_colormap(styles)
 		#TODO: assert len(values) = len(styles)
 		if not (labels is None or labels == []):
