@@ -2,14 +2,28 @@
 Data types used in LayeredBasemap
 """
 
+try:
+	## Python 2
+	basestring
+except:
+	## Python 3
+	basestring = str
+
+
 import numpy as np
 import shapely
 import shapely.geometry
 import shapely.wkt
-import ogr
+import ogr, osr
 
 
-# TODO: add srs (default: wgs84)
+## Define WGS84 spatial reference system
+WGS84 = osr.SpatialReference()
+WGS84_EPSG = 4326
+WGS84.ImportFromEPSG(WGS84_EPSG)
+
+
+# TODO: add srs parameter (default: WGS84)
 
 class BasemapData(object):
 	"""
@@ -420,7 +434,7 @@ class MultiPointData(MultiData):
 		:return:
 			instance of :class:`MultiPointData`
 		"""
-		lons, lats, Z, labels = [], [], []
+		lons, lats, Z, labels = [], [], [], []
 		pt0 = point_list[0]
 		values = SingleData._get_multi_values(pt0.value)
 		style_params = SingleData._get_multi_values(pt0.style_params)
@@ -466,19 +480,19 @@ class MultiPointData(MultiData):
 		lonmin, lonmax, latmin, latmax = bbox
 		lon_mask = ma.masked_outside(self.lons, lonmin, lonmax)
 		lat_mask = ma.masked_outside(self.lats, latmin, latmax)
-		lons = ma.array(self.lons, mask=lon_mask.mask + latmask.mask).compressed()
-		lats = ma.array(self.lats, mask=lon_mask.mask + latmask.mask).compressed()
-		Z = ma.array(self.z, lon_mask.mask + latmask.mask).compressed()
-		labels = ma.array(self.labels, mask=lon_mask.mask + latmask.mask).compressed()
+		lons = ma.array(self.lons, mask=lon_mask.mask + lat_mask.mask).compressed()
+		lats = ma.array(self.lats, mask=lon_mask.mask + lat_mask.mask).compressed()
+		Z = ma.array(self.z, lon_mask.mask + lat_mask.mask).compressed()
+		labels = ma.array(self.labels, mask=lon_mask.mask + lat_mask.mask).compressed()
 		if isinstance(self.values, dict):
 			values = {}
 			for key, val in self.values.items():
-				values[key] = ma.array(val, mask=lon_mask.mask + latmask.mask).compressed()
+				values[key] = ma.array(val, mask=lon_mask.mask + lat_mask.mask).compressed()
 		else:
-			values = ma.array(values, mask=lon_mask.mask + latmask.mask).compressed()
+			values = ma.array(values, mask=lon_mask.mask + lat_mask.mask).compressed()
 		style_params = {}
 		for key, val in self.style_params.items():
-			style_params[key] = ma.array(val, mask=lon_mask.mask + latmask.mask).compressed()
+			style_params[key] = ma.array(val, mask=lon_mask.mask + lat_mask.mask).compressed()
 		return MultiPointData(lons, lats, z=Z, values=values, labels=labels,
 							style_params=style_params)
 
@@ -530,7 +544,7 @@ class MultiPointData(MultiData):
 		"""
 		assert mp.geom_type == "MultiPoint"
 		Z = [pt.z for pt in mp] if mp.has_z else [0.] * len(mp)
-		return MultiPointData([pt.x for pt in mp], [pt.y for pt in mp],
+		return MultiPointData([pt.x for pt in mp], [pt.y for pt in mp], Z,
 						values=values, labels=labels, style_params=style_params)
 
 	@classmethod
@@ -607,7 +621,7 @@ class MultiPointData(MultiData):
 				sorted_indexes = sorted_indexes[::-1]
 			for key in self.values:
 				self.values[key] = np.array(self.values[key])[sorted_indexes]
-		if sorted_indexes != None:
+		if not sorted_indexes is None:
 			self.lons = np.array(self.lons)[sorted_indexes]
 			self.lats = np.array(self.lats)[sorted_indexes]
 			self.z = np.array(self.z)[sorted_indexes]
@@ -819,9 +833,9 @@ class MultiLineData(MultiData):
 			(default: True)
 		"""
 		if include_z:
-			coords = [zip(self.lons[i], self.lats[i], self.z[i]) for i in range(len(lons))]
+			coords = [zip(self.lons[i], self.lats[i], self.z[i]) for i in range(len(self.lons))]
 		else:
-			coords = [zip(self.lons[i], self.lats[i]) for i in range(len(lons))]
+			coords = [zip(self.lons[i], self.lats[i]) for i in range(len(self.lons))]
 		return shapely.geometry.MultiLineString(coords)
 
 	def to_wkt(self):
@@ -834,7 +848,7 @@ class MultiLineData(MultiData):
 		return ogr.CreateGeometryFromWkt(self.to_wkt())
 
 	def get_ogr_geomtype(self):
-		return ogr.wkbMultiLinestring
+		return ogr.wkbMultiLineString
 
 	@classmethod
 	def from_shapely(cls, mls, values=None, labels=None, style_params=None):
@@ -1175,12 +1189,14 @@ class MultiPolygonData(MultiData):
 class FocmecData(MultiPointData):
 	"""
 	"""
-	def __init__(self, lons, lats, sdr, values=None, labels=None, style_params=None):
-		super(FocmecData, self).__init__(lons, lats, values, labels, style_params)
+	def __init__(self, lons, lats, sdr, z=None, values=None, labels=None, style_params=None):
+		super(FocmecData, self).__init__(lons, lats, z, values, labels, style_params)
 		self.sdr = sdr
 
 	def sort(self, value_key=None, ascending=True):
 		"""
+		Sort focmec data in-place based on a value column
+
 		:param value_key:
 			str, name of value column to be used for sorting
 			(default: None, assumes values is a single list or array)
@@ -1202,7 +1218,8 @@ class CircleData(MultiPointData):
 	radii: in km
 	"""
 	def __init__(self, lons, lats, radii, values=[], labels=[], azimuthal_resolution=1):
-		super(CircleData, self).__init__(lons, lats, values, labels)
+		z = None
+		super(CircleData, self).__init__(lons, lats, z, values, labels)
 		self.radii = radii
 		self.azimuthal_resolution = 1
 
@@ -1406,7 +1423,7 @@ class UnstructuredGridData(GridData):
 		str, measurement unit of values
 		(default: "")
 	"""
-	def __int__(self, lons, lats, values, unit=""):
+	def __init__(self, lons, lats, values, unit=""):
 		if lons.ndim != 1 or lats.ndim != 1 or values.ndim != 1:
 			raise ValueError("lons, lats, and values should be 1-dimensional")
 		super(UnstructuredGridData, self).__init__(lons, lats, values, unit)
@@ -1493,7 +1510,7 @@ class UnstructuredGridData(GridData):
 		"""
 		from scipy.interpolate import griddata
 		if isinstance(num_cells, int):
-			num_cells = (num_cels, num_cells)
+			num_cells = (num_cells, num_cells)
 		num_lons, num_lats = num_cells
 		lonmin, lonmax, latmin, latmax = extent
 		if lonmin is None:
@@ -1530,8 +1547,6 @@ class MeshGridData(GridData):
 	# TODO: correctly implement edge_lons, edge_lats!
 	# TODO: add nodata_value (np.nan only works for float arrays!)
 	def __init__(self, lons, lats, values, unit=""):
-		from mapping.geotools.coordtrans import wgs84
-
 		if lons.ndim != 2 or lats.ndim != 2 or values.ndim != 2:
 			raise ValueError("lons, lats, and values should be 2-dimensional")
 		## Not sure the following is really necessary
@@ -1548,7 +1563,7 @@ class MeshGridData(GridData):
 		self._edge_lons, self._edge_lats = None, None
 
 		## For compatibility with GdalRasterData
-		self.srs = wgs84
+		self.srs = WGS84
 
 	@property
 	def edge_lons(self):
@@ -1759,7 +1774,7 @@ class MeshGridData(GridData):
 		"""
 		## Check scipy.interpolate.Rbf for additional interpolation methods
 		from mpl_toolkits.basemap import interp
-		from mapping.geotools.coordtrans import transform_mesh_coordinates, wgs84
+		from mapping.geotools.coordtrans import transform_mesh_coordinates
 
 		## xin, yin must be linearly increasing
 		values = self.values
@@ -1776,7 +1791,7 @@ class MeshGridData(GridData):
 
 		## Transform output coordinates to lon/lat coordinates if necessary
 		if srs and srs != self.srs:
-			xout, yout = transform_mesh_coordinates(self.srs, wgs84, xout, yout)
+			xout, yout = transform_mesh_coordinates(self.srs, WGS84, xout, yout)
 
 		out_data = interp(values, xin, yin, xout, yout, checkbounds=checkbounds,
 							masked=masked, order=order)
@@ -1817,9 +1832,9 @@ class MeshGridData(GridData):
 		ls = LightSource(azimuth, elevation_angle)
 		# TODO: look into vertical exaggeration with true dx and dy
 
-		try:
+		if hasattr(self, 'dx'):
 			shade = ls.hillshade(self.values, dx=np.sign(self.dx), dy=-np.sign(self.dy))
-		except:
+		else:
 			shade = ls.hillshade(self.values, dx=np.sign(self.dlon), dy=-np.sign(self.dlat))
 
 		## Eliminate nan values, they result in black when blended
@@ -1977,7 +1992,7 @@ class MeshGridData(GridData):
 			(default: "EPSG:4326" (= WGS84)
 		"""
 		import osr, gdal
-		from mapping.geotools.coordtrans import get_epsg_srs, wgs84, transform_coordinates
+		from mapping.geotools.coordtrans import get_epsg_srs
 
 		driver = gdal.GetDriverByName(driver_name)
 		num_bands = 1
@@ -1997,7 +2012,7 @@ class MeshGridData(GridData):
 
 		if isinstance(proj_info, int):
 			wkt = get_epsg_srs(proj_info).ExportToWkt()
-		elif isinstance(proj_info, (str, unicode)):
+		elif isinstance(proj_info, basestring):
 			if proj_info[:4].upper() == "EPSG":
 				wkt = get_epsg_srs(proj_info).ExportToWkt()
 			else:
@@ -2121,7 +2136,7 @@ class GdalRasterData(MeshGridData):
 		if projection:
 			self.srs.ImportFromWkt(projection)
 		else:
-			self.srs.SetWellKnownGeogCS("WGS84")
+			self.srs = WGS84
 			print("Warning: no spatial reference system defined, assuming WGS84!")
 		self.num_bands = ds.RasterCount
 
@@ -2231,7 +2246,7 @@ class GdalRasterData(MeshGridData):
 		return int(abs((self.y0 - self.y1) / self.dy)) + 1
 
 	def get_bbox_from_region(self, region, margin_fraction=1./20):
-		from mapping.geotools.coordtrans import wgs84, transform_coordinates
+		from mapping.geotools.coordtrans import transform_coordinates
 
 		srs = self.srs
 
@@ -2240,10 +2255,10 @@ class GdalRasterData(MeshGridData):
 		lat_margin = (latmax - latmin) * margin_fraction
 		coords_in = np.array([(lonmin-lon_margin, latmin-lat_margin),
 					(lonmax+lon_margin, latmax+lat_margin)])
-		if srs.ExportToWkt() == wgs84.ExportToWkt():
+		if srs.ExportToWkt() == WGS84.ExportToWkt():
 			coords = coords_in
 		else:
-			coords = transform_coordinates(wgs84, srs, coords_in)
+			coords = transform_coordinates(WGS84, srs, coords_in)
 
 		bbox = (list(np.floor(coords[0] / self._dx) * self._dx) +
 				list(np.ceil(coords[1] / self._dy) * self._dy))
@@ -2306,7 +2321,7 @@ class GdalRasterData(MeshGridData):
 			(lons, lats) tuple, 2-D arrays containing raster
 			longitudes and raster latitudes
 		"""
-		from mapping.geotools.coordtrans import (transform_mesh_coordinates, wgs84)
+		from mapping.geotools.coordtrans import transform_mesh_coordinates
 
 		## Create meshed coordinates
 		if cell_registration == "center":
@@ -2317,7 +2332,7 @@ class GdalRasterData(MeshGridData):
 							np.linspace(self.y0 - self.dy/2., self.y1 + self.dy/2., self.nrows+1))
 
 		## Convert from source projection to WGS84
-		target_srs = wgs84
+		target_srs = WGS84
 		lons, lats = transform_mesh_coordinates(self.srs, target_srs, xx, yy)
 		if cell_registration == "corner":
 			self._edge_lons, self._edge_lats = lons, lats
@@ -2809,7 +2824,7 @@ class WCSData(GdalRasterData):
 			list or tuple of floats: (llx, lly, urx, ury)
 			bbox in native coordinates
 		"""
-		from mapping.geotools.coordtrans import get_epsg_srs, wgs84, transform_coordinates
+		from mapping.geotools.coordtrans import transform_coordinates
 
 		srs = self.get_native_srs()
 		if not srs:
@@ -2821,7 +2836,7 @@ class WCSData(GdalRasterData):
 		lat_margin = (latmax - latmin) * margin_fraction
 		coords_in = [(lonmin-lon_margin, latmin-lat_margin),
 					(lonmax+lon_margin, latmax+lat_margin)]
-		coords = transform_coordinates(wgs84, srs, coords_in)
+		coords = transform_coordinates(WGS84, srs, coords_in)
 
 		resx, resy = self.resx, self.resy
 		bbox = (list(np.floor(coords[0] / resx) * resx) +
@@ -2976,9 +2991,9 @@ class GisData(BasemapData):
 		:return:
 			list of strings
 		"""
-		from mapping.geotools.readGIS import read_GIS_file_attributes
+		from mapping.geotools.read_gis import read_gis_file_attributes
 
-		return read_GIS_file_attributes(self.filespec)
+		return read_gis_file_attributes(self.filespec)
 
 	def get_data(self, point_value_colnames=None, line_value_colnames=None,
 					polygon_value_colnames=None, layer_num=None):
@@ -2998,7 +3013,7 @@ class GisData(BasemapData):
 		:return:
 			(MultiPointData, MultiLineData, MultiPolygonData) tuple
 		"""
-		from mapping.geotools.readGIS import read_GIS_file
+		from mapping.geotools.read_gis import read_gis_file
 
 		if None in (point_value_colnames, line_value_colnames, polygon_value_colnames):
 			colnames = self.get_attributes()
@@ -3034,7 +3049,7 @@ class GisData(BasemapData):
 		for colname in polygon_value_colnames:
 			polygon_data.values[colname] = []
 
-		for rec in read_GIS_file(self.filespec, layer_num=layer_num):
+		for rec in read_gis_file(self.filespec, layer_num=layer_num):
 			selected = np.zeros(len(self.selection_dict.keys()))
 			for i, (selection_colname, selection_value) in enumerate(self.selection_dict.items()):
 				if rec[selection_colname] == selection_value:
@@ -3120,7 +3135,7 @@ class GisData(BasemapData):
 			first_non_none_value = next((val for val in value_dict.values() if val is not None), None)
 			if isinstance(first_non_none_value, (int, float)):
 				default = np.nan
-			elif isinstance(first_non_none_value, (str, unicode)):
+			elif isinstance(first_non_none_value, basestring):
 				default = ""
 			else:
 				default = np.nan
@@ -3168,7 +3183,6 @@ def export_ogr(lbm_data, layer_name):
 	return as GisData?
 	"""
 	import datetime
-	import osr
 
 	#TODO: assert only 1 geometry type (or store in different layers?)
 	#TODO: assert attributes are the same (at least for same geometry type)
@@ -3181,8 +3195,7 @@ def export_ogr(lbm_data, layer_name):
 	outdriver.Open('memData', 1)
 
 	## Create the spatial reference, WGS84
-	srs = osr.SpatialReference()
-	srs.ImportFromEPSG(4326)
+	srs = WGS84
 
 	## Create the layer
 	geom_type = lbm_data[0].get_ogr_geomtype()
@@ -3191,7 +3204,7 @@ def export_ogr(lbm_data, layer_name):
 	## Define data attributes
 	if lbm_data[0].value:
 		for key, val in lbm_data[0].value.items():
-			if isinstance(val, (str, unicode)):
+			if isinstance(val, basestring):
 				field_type = ogr.OFTString
 			elif isinstance(val, bool):
 				field_type = ogr.OFTBinary
