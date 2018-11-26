@@ -2,6 +2,14 @@
 Generic wrapper for creating maps with Basemap
 """
 
+try:
+	## Python 2
+	basestring
+except:
+	## Python 3
+	basestring = str
+
+
 import os
 import datetime
 
@@ -67,7 +75,7 @@ class LayeredBasemap:
 	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), extent=(None, None), graticule_interval=(None, None), resolution="i", area_thresh=None, title_style=DefaultTitleTextStyle, legend_style=LegendStyle(), scalebar_style=None, border_style=MapBorderStyle(), graticule_style=GraticuleStyle(), ax=None, cax=None, figsize=(8,6), dpi=120, **proj_args):
 		self.layers = layers
 		self.title = title
-		if isinstance(region, (str, unicode)):
+		if isinstance(region, basestring):
 			region = self.parse_well_known_region(region)
 		self.region = region
 		self.projection = projection
@@ -199,7 +207,7 @@ class LayeredBasemap:
 		else:
 			## Basemap version on Ubuntu 12.04 does not support epsg parameter
 			projection = self.projection
-			map = Basemap(projection=projection, resolution=self.resolution, area_thresh=area_thresh, llcrnrlon=llcrnrlon, llcrnrlat=llcrnrlat, urcrnrlon=urcrnrlon, urcrnrlat=urcrnrlat, lon_0=lon_0, lat_0=lat_0, width=width, height=height, ax=ax, **self.proj_args)
+			map = Basemap(projection=projection, resolution=self.resolution, area_thresh=self.area_thresh, llcrnrlon=llcrnrlon, llcrnrlat=llcrnrlat, urcrnrlon=urcrnrlon, urcrnrlat=urcrnrlat, lon_0=lon_0, lat_0=lat_0, width=width, height=height, ax=ax, **self.proj_args)
 
 		self.region = (map.llcrnrlon, map.urcrnrlon, map.llcrnrlat, map.urcrnrlat)
 		self.is_drawn = False
@@ -563,7 +571,7 @@ class LayeredBasemap:
 		else:
 			alphas = [polygon_style.alpha] * num_polygons
 
-		if isinstance(polygon_style.thematic_legend_style, (str, unicode)):
+		if isinstance(polygon_style.thematic_legend_style, basestring):
 			legend_name = polygon_style.thematic_legend_style
 		else:
 			legend_name = "main"
@@ -683,7 +691,7 @@ class LayeredBasemap:
 				for line_pattern in polygon_style.fill_hatch.styles:
 					ntl = polygon_style.get_non_thematic_style()
 					ntl.line_pattern = line_pattern
-					p = matplotlib.patches.Rectangle((0, 0), 1, 1, **ntl_to_kwargs())
+					p = matplotlib.patches.Rectangle((0, 0), 1, 1, **ntl.to_kwargs())
 					legend_artists.append(p)
 			## Line width
 			if isinstance(polygon_style.line_width, (ThematicStyleIndividual, ThematicStyleRanges, ThematicStyleGradient)):
@@ -698,7 +706,7 @@ class LayeredBasemap:
 				if isinstance(polygon_style.thematic_legend_style, LegendStyle):
 					thematic_legend = ThematicLegend(legend_artists, legend_labels, polygon_style.thematic_legend_style)
 					self.thematic_legends.append(thematic_legend)
-				elif isinstance(polygon_style.thematic_legend_style, (str, unicode)):
+				elif isinstance(polygon_style.thematic_legend_style, basestring):
 					legend_title = polygon_style.thematic_legend_style
 					tl_artists, tl_labels = self.get_thematic_legend_artists_and_labels(legend_title)
 					tl_artists.extend(legend_artists)
@@ -710,8 +718,8 @@ class LayeredBasemap:
 		"""
 		if isinstance(line_data, LineData):
 			line_data = line_data.to_multi_line()
-		if isinstance(line_style, LineStyle):
-			polygon_style = line_style.to_line_style()
+		if isinstance(line_style, PolygonStyle):
+			line_style = line_style.to_line_style()
 
 		num_lines = len(line_data)
 		if isinstance(line_style.line_pattern, ThematicStyle):
@@ -732,7 +740,7 @@ class LayeredBasemap:
 		else:
 			line_alphas = [line_style.alpha] * num_lines
 
-		if isinstance(line_style.thematic_legend_style, (str, unicode)):
+		if isinstance(line_style.thematic_legend_style, basestring):
 			legend_name = line_style.thematic_legend_style
 		else:
 			legend_name = "main"
@@ -775,14 +783,14 @@ class LayeredBasemap:
 			# Add possibility to anchor label at start, end, middle or fraction of line length
 			# and obtain line orientation for that anchor point for auto-rotation
 			#label_points = MultiTextData([], [], labels=[])
-			#if isinstance(line_style.label_anchor, (str, unicode)):
+			#if isinstance(line_style.label_anchor, basestring):
 			#	label_anchor = {"start": 0., "middle": 0.5, "end": 1.}.get(line_style.label_anchor, 0.5)
 			#else:
 			#	label_anchor = line_style.label_anchor
 			for line in line_data:
 				if line.label:
 					label_anchor = line.get_overriding_style(line_style).label_anchor
-					if isinstance(label_anchor, (str, unicode)):
+					if isinstance(label_anchor, basestring):
 						label_anchor = {"start": 0., "middle": 0.5, "end": 1.}.get(label_anchor, 0.5)
 					pt = line.get_point_at_fraction_of_length(label_anchor)
 					lp = TextData(pt.lon, pt.lat, label=line.label)
@@ -852,7 +860,7 @@ class LayeredBasemap:
 				if isinstance(line_style.thematic_legend_style, LegendStyle):
 					thematic_legend = ThematicLegend(legend_artists, legend_labels, line_style.thematic_legend_style)
 					self.thematic_legends.append(thematic_legend)
-				elif isinstance(line_style.thematic_legend_style, (str, unicode)):
+				elif isinstance(line_style.thematic_legend_style, basestring):
 					legend_title = line_style.thematic_legend_style
 					tl_artists, tl_labels = self.get_thematic_legend_artists_and_labels(legend_title)
 					tl_artists.extend(legend_artists)
@@ -863,7 +871,7 @@ class LayeredBasemap:
 		if isinstance(point_data, PointData):
 			point_data = point_data.to_multi_point()
 		if not isinstance(point_style.shape, ThematicStyle):
-			if isinstance(point_style.thematic_legend_style, (str, unicode)):
+			if isinstance(point_style.thematic_legend_style, basestring):
 				legend_name = point_style.thematic_legend_style
 				#legend_artists, legend_labels = self.get_thematic_legend_artists_and_labels(legend_name)
 			else:
@@ -909,7 +917,7 @@ class LayeredBasemap:
 				if isinstance(point_style.thematic_legend_style, LegendStyle):
 					thematic_legend = ThematicLegend(legend_artists, legend_labels, point_style.thematic_legend_style)
 					self.thematic_legends.append(thematic_legend)
-				elif isinstance(point_style.thematic_legend_style, (str, unicode)):
+				elif isinstance(point_style.thematic_legend_style, basestring):
 					legend_title = point_style.thematic_legend_style
 					tl_artists, tl_labels = self.get_thematic_legend_artists_and_labels(legend_title)
 					tl_artists.extend(legend_artists)
@@ -1355,7 +1363,7 @@ class LayeredBasemap:
 
 			# Legend does not support QuiverKey object...
 			"""
-			if isinstance(vector_style.thematic_legend_style, (str, unicode)):
+			if isinstance(vector_style.thematic_legend_style, basestring):
 				legend_name = vector_style.thematic_legend_style
 				qk._init()
 				legend_artists, legend_labels = self.get_thematic_legend_artists_and_labels(legend_name)
@@ -1433,7 +1441,7 @@ class LayeredBasemap:
 			lake_color = getattr(continent_style, "bg_color", "None")
 			self.map.fillcontinents(color=continent_style.fill_color, lake_color=lake_color, zorder=self.zorder, alpha=continent_style.alpha)
 		self.zorder += 1
-		if continent_style.line_color:
+		if continent_style.line_color and continent_style.line_pattern:
 			self.draw_coastlines(continent_style.to_line_style())
 
 	def draw_coastlines(self, coastline_style):
@@ -1479,7 +1487,14 @@ class LayeredBasemap:
 			self.zorder += 1
 
 	def draw_focmecs(self, focmec_data, focmec_style):
-		from obspy.imaging.beachball import Beach
+		try:
+			from obspy.imaging.beachball import Beach
+		except ImportError:
+			try:
+				from obspy.imaging.beachball import beach as Beach
+			except ImportError:
+				raise Exception("Plotting with ObsPy not supported!")
+
 		## Determine conversion factor between display coordinates
 		## and map coordinates for beachball size
 		x0, y0 = self.map(self.lon_0, self.lat_0)
@@ -1622,7 +1637,7 @@ class LayeredBasemap:
 				if isinstance(focmec_style.thematic_legend_style, LegendStyle):
 					thematic_legend = ThematicLegend(legend_artists, legend_labels, focmec_style.thematic_legend_style)
 					self.thematic_legends.append(thematic_legend)
-				elif isinstance(focmec_style.thematic_legend_style, (str, unicode)):
+				elif isinstance(focmec_style.thematic_legend_style, basestring):
 					legend_title = focmec_style.thematic_legend_style
 					tl_artists, tl_labels = self.get_thematic_legend_artists_and_labels(legend_title)
 					tl_artists.extend(legend_artists)
@@ -1676,8 +1691,9 @@ class LayeredBasemap:
 
 		x, y = self.map(polygon.lons, polygon.lats)
 		vertices = zip(x, y)
+		path = matplotlib.path.Path(vertices)
 
-		mask = matplotlib.nxutils.points_inside_poly(grid_points, vertices)
+		mask = path.contains_points(grid_points)
 		mask = mask.reshape(height, width)
 		print mask
 		if not outside:
@@ -1933,13 +1949,13 @@ class LayeredBasemap:
 		Convert geographic to projected coordinates using ogr.
 		For some projections, this gives another result than meth:`lonlat_to_map_coordinates`
 		"""
-		from mapping.geotools.coordtrans import transform_array_coordinates, wgs84
-		x, y = transform_array_coordinates(wgs84, self.get_srs(), lons, lats)
+		from mapping.geotools.coordtrans import transform_array_coordinates, WGS84
+		x, y = transform_array_coordinates(WGS84, self.get_srs(), lons, lats)
 		return (x, y)
 
 	def projected_to_lonlat_coordinates(self, x, y):
-		from mapping.geotools.coordtrans import transform_array_coordinates, wgs84
-		lons, lats = transform_coordinates(self.get_srs(), wgs84, x, y)
+		from mapping.geotools.coordtrans import transform_array_coordinates, WGS84
+		lons, lats = transform_array_coordinates(self.get_srs(), WGS84, x, y)
 		return (lons, lats)
 
 	def map_to_display_coordinates(self, x, y):
@@ -2082,11 +2098,7 @@ class LayeredBasemap:
 		:param new_index:
 			int, target layer index (may be negative)
 		"""
-		if not isinstance(cur_index_or_name, int):
-			cur_index = self.get_named_layer_index(cur_index_or_name)
-		else:
-			cur_index = cur_index_or_name
-
+		cur_index = self.get_layer_index(cur_index_or_name)
 		if cur_index < 0:
 			cur_index = len(self.layers) + cur_index
 		if new_index < 0:
@@ -2102,7 +2114,8 @@ class LayeredBasemap:
 			int, current layer index (may be negative)
 			or str, layer name
 		"""
-		self.move_layer(cur_index_or_name, cur_index+1)
+		cur_index = self.get_layer_index(cur_index_or_name)
+		self.move_layer(cur_index, cur_index+1)
 
 	def move_layer_down(self, cur_index_or_name):
 		"""
@@ -2112,7 +2125,8 @@ class LayeredBasemap:
 			int, current layer index (may be negative)
 			or str, layer name
 		"""
-		self.move_layer(cur_index_or_name, cur_index-1)
+		cur_index = self.get_layer_index(cur_index_or_name)
+		self.move_layer(cur_index, cur_index-1)
 
 	def move_layer_top(self, cur_index_or_name):
 		"""
@@ -2133,6 +2147,13 @@ class LayeredBasemap:
 			or str, layer name
 		"""
 		self.move_layer(cur_index_or_name, 0)
+
+	def get_layer_index(self, index_or_name):
+		if not isinstance(index_or_name, int):
+			cur_index = self.get_named_layer_index(index_or_name)
+		else:
+			cur_index = index_or_name
+		return cur_index
 
 	def get_layer_names(self):
 		"""
@@ -2211,7 +2232,7 @@ if __name__ == "__main__":
 	model = "VG_Ambr95DD_Leynaud_EC8"
 	crisis_filespec = os.path.join(root_folder, model)
 	return_period = 475
-	hms = rshalib.crisis.readCRISIS_MAP(crisis_filespec)
+	hms = rshalib.crisis.read_MAP(crisis_filespec)
 	hm = hms.getHazardMap(return_period=return_period)
 	contour_interval = {475: 0.02, 3000:0.04, 5000:0.05}[return_period]
 	num_grid_cells = 100
@@ -2309,4 +2330,3 @@ if __name__ == "__main__":
 	fig_filespec = None
 	map.draw()
 	map.plot(fig_filespec=fig_filespec)
-
