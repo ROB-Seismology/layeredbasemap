@@ -5,7 +5,7 @@ geographic objects from a GIS file.
 
 import numpy as np
 import eqcatalog.seismodb as seismodb
-from mapping.geotools.readGIS import read_GIS_file
+from mapping.geotools.read_gis import read_gis_file
 import mapping.layeredbasemap as lbm
 
 
@@ -15,7 +15,7 @@ db_records = list(seismodb.query_seismodb_table("communes", where_clause='countr
 ## Read GIS table
 #gis_filespec = r"D:\seismo-gis\collections\Bel_administrative_ROB\TAB\Bel_villages_points.TAB"
 gis_filespec = r"D:\seismo-gis\collections\Bel_administrative_ROB\TAB\Bel_communes_avant_fusion.TAB"
-gis_records = read_GIS_file(gis_filespec)
+gis_records = read_gis_file(gis_filespec)
 
 
 ## Compare number of records
@@ -58,7 +58,7 @@ commune_layer = lbm.MapLayer(gis_data, style, legend_label={"polygons": ""})
 layers.append(commune_layer)
 
 ## Province layer
-data = lbm.GisData(r"D:\seismo-gis\collections\Bel_administrative_ROB\TAB\Bel_provinces.TAB")
+data = lbm.GisData("D:\\seismo-gis\\collections\\Bel_administrative_ROB\\TAB\\Bel_provinces.TAB")
 polygon_style = lbm.PolygonStyle(line_width=1, fill_color='none')
 gis_style = lbm.CompositeStyle(polygon_style=polygon_style)
 province_layer = lbm.MapLayer(data, gis_style, legend_label={"polygons": ""})

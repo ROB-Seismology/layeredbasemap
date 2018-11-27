@@ -3,7 +3,7 @@ GeoTIFF example
 """
 
 import os
-import mapping.Basemap as lbm
+import mapping.layeredbasemap as lbm
 
 
 os.environ["CPL_TMPDIR"] = r"C:\Temp"

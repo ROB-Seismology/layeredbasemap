@@ -5,7 +5,7 @@ Test plotting of maps in multiple axes
 
 import pylab
 import matplotlib.gridspec as gridspec
-import mapping.Basemap as lbm
+import mapping.layeredbasemap as lbm
 
 
 FIGSIZE = pylab.rcParams['figure.figsize']

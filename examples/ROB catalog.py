@@ -10,7 +10,7 @@ import mapping.layeredbasemap as lbm
 import eqcatalog.seismodb as seismodb
 
 
-out_folder = r"E:\Home\_kris\Meetings\2018 - Opendeurdagen"
+out_folder = "E:\\Home\\_kris\\Meetings\\2018 - Opendeurdagen"
 
 
 
@@ -187,8 +187,8 @@ map = lbm.LayeredBasemap(layers, title, projection, region=region, resolution=re
 
 
 fig_filename = "ROB_catalog%s.PNG" % file_name_ext
-fig_filespec = os.path.join(out_folder, fig_filename)
-#fig_filespec = None
+#fig_filespec = os.path.join(out_folder, fig_filename)
+fig_filespec = None
 if fig_filespec:
 	dpi = 600
 else:
