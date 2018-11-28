@@ -1,17 +1,49 @@
 """
-Test to plot frontlines in matplotlib using markers
+Module to plot frontlines in matplotlib using markers
 
 Author: Kris Vanneste, Royal Observatory of Belgium, 2014
 """
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+
+try:
+	## Python 2
+	basestring
+	PY2 = True
+except:
+	## Python 3
+	basestring = str
+	PY2 = False
+
+
 from types import MethodType
 import numpy as np
 import matplotlib as mpl
-import matplotlib.mlab as mlab
+from matplotlib.collections import PatchCollection
+#import matplotlib.mlab as mlab
 
 
 class FrontlineLegendHandler(object):
 	pass
+
+
+def pt2pixel(pts, dpi, corr_factor=1.0):
+	"""
+	Convert points (1 pt = 1/72 inch) to pixels
+
+	:param pts:
+		float, number of points
+	:param dpi:
+		float, pixel density (dots per inch)
+	:param corr_factor:
+		float, correction factor
+		(default: 1.)
+
+	:return:
+		float, number of pixels
+	"""
+	return pts * (dpi / 72.) * corr_factor
 
 
 def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_alpha=1,
@@ -146,11 +178,6 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 	#legend_artist = None
 	legend_handler = None
 
-	def pt2pixel(val):
-		#return val * (dpi / 72.)
-		## Correct for a slight mismatch with dash lengths
-		return val * (dpi / 72.) * 1.004
-
 	## Plot line first
 	if not line_style in ("None", None):
 		ax.plot(x, y, lw=line_width, color=line_color, ls=line_style, alpha=line_alpha, zorder=zorder, **kwargs)
@@ -161,10 +188,12 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 	inverse_transform = ax.transData.inverted()
 
 	## Compute cumulative distance along line and angles in pixel domain
-	display_data_coords = forward_transform.transform(zip(x,y))
+	display_data_coords = forward_transform.transform(list(zip(x,y)))
 	display_data_x, display_data_y = zip(*display_data_coords)
 	display_data_angles = np.arctan2(np.diff(display_data_y), np.diff(display_data_x))
-	display_distance = mlab.distances_along_curve(display_data_coords)
+	## mlab.distances_along_curve function was deprecated in mpl 2.2, and removed in 3.1
+	#display_distance = mlab.distances_along_curve(display_data_coords)
+	display_distance = (np.sum(np.diff(display_data_coords, axis=0)**2, axis=1))**(1./2)
 	display_cum_distance = np.concatenate([[0.], np.cumsum(display_distance)])
 
 	if marker_shape == "asterisk" and marker_num_sides <= 2:
@@ -177,24 +206,27 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 	else:
 		marker_offset = np.asarray(marker_offset[:2])
 
+	## Correct for a slight mismatch with dash lengths
+	pt_corr_factor = 1.004
+
 	## Convert points to pixels (1 pt = 1/72 inch)
-	marker_length_px = pt2pixel(marker_length)
-	marker_size_px = pt2pixel(marker_size)
-	marker_offset_px = pt2pixel(marker_offset)
+	marker_length_px = pt2pixel(marker_length, dpi, pt_corr_factor)
+	marker_size_px = pt2pixel(marker_size, dpi, pt_corr_factor)
+	marker_offset_px = pt2pixel(marker_offset, dpi, pt_corr_factor)
 
 	## Compute marker coordinates in data units based on
 	## interpolation of cumulative distance along line in display units
 	start_distance = marker_length_px/2. + marker_offset_px[0]
-	end_distance = display_cum_distance[-1] - marker_length_px/2
+	end_distance = display_cum_distance[-1] - marker_length_px/2.
 	if isinstance(marker_interval, (list, np.ndarray)):
-		marker_interval_px = pt2pixel(np.asarray(marker_interval))
+		marker_interval_px = np.asarray(marker_interval)
 		display_marker_distances = np.interp(marker_interval_px, [0.,1.], [start_distance, end_distance])
-	elif isinstance(marker_interval, str):
-		marker_interval_px = pt2pixel(float(marker_interval))
+	elif isinstance(marker_interval, basestring):
+		marker_interval_px = pt2pixel(float(marker_interval), dpi, pt_corr_factor)
 		num_markers = np.abs(np.round((end_distance - start_distance) / marker_interval_px)) + 1
 		display_marker_distances = np.linspace(start_distance, end_distance, num_markers)
 	elif marker_interval > 0:
-		marker_interval_px = pt2pixel(marker_interval)
+		marker_interval_px = pt2pixel(marker_interval, dpi, pt_corr_factor)
 		display_marker_distances = np.arange(start_distance, end_distance, marker_interval_px)
 	elif marker_interval <= 0:
 		display_marker_distances = np.linspace(start_distance, end_distance, np.abs(marker_interval))
@@ -205,8 +237,9 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 		display_marker_angles[1::2] += np.pi
 	display_marker_x += (marker_offset_px[1] * np.cos(display_marker_angles + np.pi/2))
 	display_marker_y += (marker_offset_px[1] * np.sin(display_marker_angles + np.pi/2))
-	marker_coords = inverse_transform.transform(zip(display_marker_x, display_marker_y))
+	marker_coords = inverse_transform.transform(list(zip(display_marker_x, display_marker_y)))
 
+	patch_list = []
 
 	## Regular markers
 	if marker_shape in ["polygon", "star", "asterisk", "circle"]:
@@ -216,7 +249,7 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 		if marker_shape_code in (0,1,3):
 			## Convert marker size in diamter to size in area
 			# TODO: find correct conversion for different shapes
-			radius = marker_size / 2
+			radius = marker_size / 2.
 			marker_size = radius * (radius ** 2) / (marker_size)
 		for i, (marker_x, marker_y) in enumerate(marker_coords):
 			angle = np.degrees(display_marker_angles[i]) + marker_angle
@@ -247,7 +280,10 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 		else:
 			#legend_handler = type('FrontlineLegendHandler',  (), {'legend_artist': classmethod(legend_artist)})()
 			legend_handler = FrontlineLegendHandler()
-			legend_handler.legend_artist = MethodType(legend_artist, legend_handler, FrontlineLegendHandler)
+			if PY2:
+				legend_handler.legend_artist = MethodType(legend_artist, legend_handler, FrontlineLegendHandler)
+			else:
+				legend_handler.legend_artist = MethodType(legend_artist, legend_handler)
 
 	## Patches
 	elif marker_shape in ["arc", "arrow", "ellipse", "rectangle"] or isinstance(marker_shape, mpl.patches.Patch):
@@ -255,10 +291,12 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 			dmx, dmy = display_marker_x[i], display_marker_y[i]
 			angle = np.degrees(display_marker_angles[i]) + marker_angle
 			if marker_shape == "arc":
-				patch = mpl.patches.Arc((0, 0), marker_size_px, marker_size_px * marker_aspect_ratio, theta1=marker_theta1, theta2=marker_theta2, angle=angle)
+				patch = mpl.patches.Arc((0, 0), marker_size_px, marker_size_px * marker_aspect_ratio, theta1=marker_theta1, theta2=marker_theta2, angle=angle, fill=False)
+				## Workaround because in some mpl versions, theta1,2 params are ignored...
+				patch._path = mpl.patches.Path.arc(marker_theta1, marker_theta2)
 			elif marker_shape == "arrow":
-				dx = np.cos(np.radians(angle)) * marker_length_px / 2
-				dy = np.sin(np.radians(angle)) * marker_length_px / 2
+				dx = np.cos(np.radians(angle)) * marker_length_px / 2.
+				dy = np.sin(np.radians(angle)) * marker_length_px / 2.
 				patch = mpl.patches.FancyArrow(0, 0, dx, dy, width=marker_edge_width, head_width=marker_size_px/2*marker_aspect_ratio, head_length=marker_size_px/2, shape=marker_arrow_shape, overhang=marker_arrow_overhang, length_includes_head=marker_arrow_length_includes_head, head_starts_at_zero=marker_arrow_head_starts_at_zero)
 			elif marker_shape == "ellipse":
 				patch = mpl.patches.Ellipse((0, 0), marker_size_px, marker_size_px * marker_aspect_ratio, angle=angle)
@@ -270,8 +308,8 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 				patch.set_transform(tf)
 			## Shift patch back half its width if needed
 			if marker_shape in ("arrow", "rectangle") or isinstance(marker_shape, mpl.patches.Patch):
-				dmx += (-np.cos(np.radians(angle)) * marker_length_px / 2)
-				dmy += (-np.sin(np.radians(angle)) * marker_length_px / 2)
+				dmx += (-np.cos(np.radians(angle)) * marker_length_px / 2.)
+				dmy += (-np.sin(np.radians(angle)) * marker_length_px / 2.)
 			tf = mpl.transforms.Affine2D().translate(dmx, dmy)
 
 			## Copy tranformed vertices to a new patch, otherwise patches
@@ -280,8 +318,10 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 			path = path.cleaned(transform=(patch.get_transform() + tf + inverse_transform))
 			vertices, codes = path.vertices, path.codes
 			if marker_shape == "arc":
-				## Modify code to make filling of arc patches possible
-				codes = np.concatenate([codes[:-1], [mpl.path.Path.CLOSEPOLY]])
+				## Modify codes to make filling of arc patches possible
+				## Alternatively, see: https://stackoverflow.com/questions/30642391/how-to-draw-a-filled-arc-in-matplotlib
+				if codes[-1] != mpl.path.Path.CLOSEPOLY:
+					codes = np.concatenate([codes[:-1], [mpl.path.Path.CLOSEPOLY]])
 
 			# Note: the following lines work too, but in the case of arcs,
 			# some points seem to disappear
@@ -289,11 +329,21 @@ def draw_frontline(x, y, ax, line_style="-", line_color='k', line_width=1, line_
 			#vertices = patch.get_verts()
 			#codes = [mpl.path.Path.MOVETO] + [mpl.path.Path.LINETO] * (len(vertices) - 2) + [mpl.path.Path.CLOSEPOLY]
 
-			## Copy patch and apply color and linewidth options
+			## Copy patch (and apply color and linewidth options)
 			path = mpl.path.Path(vertices, codes)
-			patch = mpl.patches.PathPatch(path, ec=marker_edge_color, fc=marker_face_color, lw=marker_edge_width, alpha=marker_alpha)
-			patch.set_zorder(zorder)
-			ax.add_patch(patch)
+			#patch = mpl.patches.PathPatch(path, ec=marker_edge_color, fc=marker_face_color, lw=marker_edge_width, alpha=marker_alpha)
+			#patch.set_zorder(zorder)
+			#ax.add_patch(patch)
+			patch = mpl.patches.PathPatch(path)
+			patch_list.append(patch)
+
+		## Plot patches collectively, and apply color and linewidth options
+		col = PatchCollection(patches=patch_list, facecolors=marker_face_color,
+					edgecolors=marker_edge_color, linewidths=marker_edge_width,
+					alpha=marker_alpha)
+		col.set_zorder(zorder)
+		ax.add_collection(col)
+
 
 		# TODO: custom legend handler for patches
 
@@ -342,7 +392,8 @@ if __name__ == "__main__":
 			marker_num_sides = 3
 			marker_angle = 0
 			marker_size = 15
-			marker_offset = (marker_size / 2)
+			marker_offset = (marker_size / 2.)
+			line_style = "dashed"
 			kwargs["dashes"] = [marker_size, marker_interval-marker_size]
 			title = "Thrust fault"
 
@@ -362,7 +413,7 @@ if __name__ == "__main__":
 		elif example == "arrow1":
 			marker_shape = "arrow"
 			marker_arrow_shape = "right"
-			marker_offset = marker_size / 2
+			marker_offset = marker_size / 2.
 			marker_interval = [0.,0.,0.5,0.5,1.0,1.0]
 			marker_alternate_sides = True
 			title = "Right-lateral strike-slip fault"
@@ -371,7 +422,7 @@ if __name__ == "__main__":
 			marker_shape = "arrow"
 			marker_angle = 180
 			marker_arrow_shape = "left"
-			marker_offset = marker_size / 2
+			marker_offset = marker_size / 2.
 			marker_interval = [0.,0.,0.5,0.5,1.0,1.0]
 			marker_alternate_sides = True
 			title = "Left-lateral strike-slip fault"
@@ -399,9 +450,9 @@ if __name__ == "__main__":
 			title = "Star"
 
 		elif example == "patch":
-			marker_shape = mpl.patches.Polygon([[0,0], [0,marker_size], [marker_size/2,marker_size/2], [marker_size, marker_size], [marker_size,0]], closed=True)
-			marker_offset = [marker_size/4, 0]
-			kwargs["dashes"] = [marker_size/2,marker_size/2]
+			marker_shape = mpl.patches.Polygon([[0,0], [0,marker_size], [marker_size/2.,marker_size/2.], [marker_size, marker_size], [marker_size,0]], closed=True)
+			marker_offset = [marker_size/4., 0]
+			kwargs["dashes"] = [marker_size/2.,marker_size/2.]
 			title = "Arbitrary patch, aligned with dashes"
 
 
