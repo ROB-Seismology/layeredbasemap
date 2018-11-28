@@ -1,12 +1,17 @@
 """
-Generic wrapper for creating maps with Basemap
+LayeredBasemap class
 """
+
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 
 try:
 	## Python 2
 	basestring
+	PY2 = True
 except:
 	## Python 3
+	PY2 = False
 	basestring = str
 
 
@@ -22,9 +27,12 @@ import shapely
 import shapely.geometry
 
 
-from styles import *
-from data_types import *
-import cm
+from .styles import *
+from .styles import ThematicStyle
+from .data_types import *
+
+
+__all__ = ['MapLayer', 'LayeredBasemap']
 
 
 # TODO: draw labels with lines/arrows
@@ -264,7 +272,7 @@ class LayeredBasemap:
 			extra_kwargs = {}
 			## Fill color
 			if isinstance(style.fill_color, ThematicStyle):
-				if not extra_kwargs.has_key("edgecolors"):
+				if not "edgecolors" in extra_kwargs:
 					extra_kwargs["edgecolors"] = "None"
 				cmap = style.fill_color.to_colormap()
 				norm = style.fill_color.get_norm()
@@ -275,7 +283,7 @@ class LayeredBasemap:
 			else:
 				extra_kwargs["facecolors"] = style.fill_color
 			if isinstance(style.line_color, ThematicStyle):
-				if not extra_kwargs.has_key("facecolors"):
+				if not "facecolors" in extra_kwargs:
 					extra_kwargs["facecolors"] = "None"
 				## Note: it does not seem possible to fill symbols with a
 				## fixed color while edge is colored using thematic style,
@@ -397,7 +405,7 @@ class LayeredBasemap:
 		:param line_style:
 			instance of :class:`LineStyle`
 		"""
-		from frontline import draw_frontline
+		from .frontline import draw_frontline
 
 		x, y = self.map(line.lons, line.lats)
 		style = line.get_overriding_style(line_style)
@@ -411,7 +419,7 @@ class LayeredBasemap:
 		lh = draw_frontline(x, y, self.ax, zorder=self.zorder, **style_dict)
 		if legend_label and legend_label != "_nolegend_":
 			## Note: doesn't work in matplotlib 1.3.1
-			dummy_artist = type('DummyArtist', (), {})()
+			dummy_artist = type(str('DummyArtist'), (), {})()
 			tl_artists, tl_labels = self.get_thematic_legend_artists_and_labels(legend_name)
 			tl_artists.append(dummy_artist)
 			tl_labels.append(legend_label)
@@ -467,7 +475,7 @@ class LayeredBasemap:
 			instance of :class:`TextData`, :class:`MultiTextData`,
 			instance of :class:`PointData`, :class:`MultiPointData`
 		"""
-		from contrib.text_true_align import TextTrueAlign
+		from .contrib.text_true_align import TextTrueAlign
 
 		## Compute offset in map units (not needed for annotate method)
 		#display_x, display_y = self.lonlat_to_display_coordinates(text_points.lons, text_points.lats)
@@ -493,7 +501,7 @@ class LayeredBasemap:
 		for i, label in enumerate(text_points.labels):
 			label = text_style.get_text(label)
 			style = text_points.get_overriding_style(text_style, i)
-			if isinstance(label, str):
+			if PY2 and isinstance(label, str):
 				label = label.decode('iso-8859-1')
 			#self.ax.text(x[i], y[i], label, zorder=self.zorder, **style.to_kwargs())
 
@@ -924,7 +932,7 @@ class LayeredBasemap:
 					tl_labels.extend(legend_labels)
 
 	def draw_composite_layer(self, point_data=[], point_style=None, line_data=[], line_style=None, polygon_data=[], polygon_style=None, text_data=[], text_style=None, legend_label={"points": "_nolegend_", "lines": "_nolegend_", "polygons": "_nolegend_"}):
-		#print len(point_data), len(line_data), len(polygon_data)
+		#print(len(point_data), len(line_data), len(polygon_data))
 		if polygon_data and len(polygon_data) > 0 and (polygon_style or line_style):
 			if not polygon_style:
 				polygon_style = line_style.to_polygon_style()
@@ -1072,7 +1080,7 @@ class LayeredBasemap:
 				pie_rads += np.radians(pie_style.start_angle)
 				pie_x = [0] + np.cos(pie_rads).tolist()
 				pie_y = [0] + np.sin(pie_rads).tolist()
-				pie_xy = zip(pie_x, pie_y)
+				pie_xy = list(zip(pie_x, pie_y))
 				start += ratio
 				self.map.scatter(X[p], Y[p], marker=(pie_xy, 0), s=size**2,
 					facecolor=pie_style.fill_colors[r], zorder=self.zorder,
@@ -1084,7 +1092,7 @@ class LayeredBasemap:
 
 		# TODO: Note that pcolor(mesh), if the dimensions or X and Y are the same as C, then the last row and column of C will be ignored
 		# Is this the case for contourf as well?? No!
-		from cm.norm import PiecewiseLinearNorm
+		from .cm.norm import PiecewiseLinearNorm
 
 		## Projected center and edge coordinates of grid cells
 		xc, yc = self.map(grid_data.center_lons, grid_data.center_lats)
@@ -1382,7 +1390,7 @@ class LayeredBasemap:
 		"""
 		# TODO: limit ticks to interval between norm.vmin and norm.vmax,
 		# but then we need to pass norm as well...
-		from cm.norm import PiecewiseConstantNorm
+		from .cm.norm import PiecewiseConstantNorm
 
 		if style.location in ("top", "bottom"):
 			orientation = "horizontal"
@@ -1526,7 +1534,7 @@ class LayeredBasemap:
 			fill_colors = [focmec_style.fill_color] * len(focmec_data)
 
 		## Handle offset
-		if focmec_data.style_params.has_key('offset') or focmec_style.offset:
+		if 'offset' in focmec_data.style_params or focmec_style.offset:
 			offsets = focmec_data.style_params.get('offset') or [focmec_style.offset] * len(focmec_data)
 			offsets = np.array(offsets)
 			offset_coord_frame = focmec_style.offset_coord_frame
@@ -1542,7 +1550,7 @@ class LayeredBasemap:
 				## Offsets correspond to lon, lat coordinates
 				x, y = self.map(offsets[:,0], offsets[:,1])
 				#for (lon, lat) in zip(x, y):
-				#	print "%s, %s" % (lon, lat)
+				#	print("%s, %s" % (lon, lat))
 			elif offset_coord_frame == "data":
 				## Offsets correspond to data
 				x, y = offsets[:,0], offsets[:,1]
@@ -1690,12 +1698,12 @@ class LayeredBasemap:
 		grid_points = np.transpose((x.ravel(), y.ravel()))
 
 		x, y = self.map(polygon.lons, polygon.lats)
-		vertices = zip(x, y)
+		vertices = list(zip(x, y))
 		path = matplotlib.path.Path(vertices)
 
 		mask = path.contains_points(grid_points)
 		mask = mask.reshape(height, width)
-		print mask
+		print(mask)
 		if not outside:
 			mask = -mask
 
@@ -1797,7 +1805,7 @@ class LayeredBasemap:
 		for thematic_legend in self.thematic_legends:
 			if thematic_legend.style:
 				title = thematic_legend.style.title
-				if isinstance(title, str):
+				if PY2 and isinstance(title, str):
 					title = title.decode('iso-8859-1')
 				title_style = thematic_legend.style.title_style
 
@@ -1827,7 +1835,7 @@ class LayeredBasemap:
 		## Main legend
 		if self.legend_style and len(self.legend_artists):
 			title = self.legend_style.title
-			if isinstance(title, str):
+			if PY2 and isinstance(title, str):
 				title = title.decode('iso-8859-1')
 			title_style = self.legend_style.title_style
 
@@ -1854,7 +1862,7 @@ class LayeredBasemap:
 				frame.set_linewidth(self.legend_style.frame_width)
 
 	def draw_title(self):
-		if isinstance(self.title, str):
+		if PY2 and isinstance(self.title, str):
 			title = self.title.decode('iso-8859-1')
 		else:
 			title = self.title
@@ -1959,7 +1967,7 @@ class LayeredBasemap:
 		return (lons, lats)
 
 	def map_to_display_coordinates(self, x, y):
-		return zip(*self.ax.transData.transform(zip(x, y)))
+		return zip(*self.ax.transData.transform(list(zip(x, y))))
 
 	def map_to_lonlat_coordinates(self, x, y):
 		return self.map(x, y, inverse=True)
@@ -1970,7 +1978,7 @@ class LayeredBasemap:
 		return self.map(x, y, inverse=True)
 
 	def map_from_display_coordinates(self, display_x, display_y):
-		return zip(*self.ax.transData.inverted().transform(zip(display_x, display_y)))
+		return zip(*self.ax.transData.inverted().transform(list(zip(display_x, display_y))))
 
 	def get_srs(self):
 		import osr
@@ -2064,9 +2072,9 @@ class LayeredBasemap:
 
 		img = self.get_map_image(dpi=dpi)
 		if verbose:
-			print img.size
+			print(img.size)
 			png_filespec = os.path.splitext(out_filespec)[0] + ".png"
-			print png_filespec
+			print(png_filespec)
 			img.save(png_filespec, format='png', dpi=(dpi, dpi))
 
 		srs = self.get_srs()
@@ -2084,7 +2092,7 @@ class LayeredBasemap:
 		extent = (x[0], x[1], y[0], y[1])
 		if verbose:
 			print("Extent: %s" % (extent,))
-			print srs.ExportToWkt()
+			print(srs.ExportToWkt())
 
 		write_multi_band_geotiff(out_filespec, img, extent, srs, cell_registration="corner", north_up=True)
 
