@@ -5,6 +5,51 @@ Styles used in LayeredBasemap
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 
+"""
+IDEA: Refactor as follows:
+
+base:
+	BasemapStyle
+
+text:
+	FontStyle
+	TextStyle
+	DefaultTitleTextStyle
+
+thematic:
+	ThematicStyle
+	ThematicStyleIndividual
+	ThematicStyleRanges
+	ThematicStyleGradient
+	ThematicStyleColormap
+
+shape:
+	PointStyle
+	LineStyle
+	PolygonStyle
+	CompositeStyle?
+
+grid:
+	GridStyle
+	GridImageStyle
+	VectorStyle?
+	ImageStyle
+	HillshadeStyle
+	WMSStyle
+
+other:
+	FocmecStyle
+	FrontStyle
+	PiechartStyle
+
+decoration:
+	ColorbarStyle
+	LegendStyle
+	ScalebarStyle
+	MapBorderStyle
+	GraticuleStyle
+"""
+
 try:
 	## Python 2
 	basestring
@@ -39,7 +84,9 @@ class BasemapStyle(object):
 		Construct style from dictionary.
 
 		:param style_dict:
-			dictionary containing style properties as keys
+			dictionary containing style properties as keys.
+			Note that an error will be raised if style_dict contains keys
+			that are not properties of the style!
 
 		:return:
 			instance of :class:`BasemapStyle` or derived class
