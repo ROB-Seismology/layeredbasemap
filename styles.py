@@ -2,11 +2,16 @@
 Styles used in LayeredBasemap
 """
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+
 try:
 	## Python 2
 	basestring
+	PY2 = True
 except:
 	## Python 3
+	PY2 = False
 	basestring = str
 
 
@@ -14,6 +19,14 @@ import numpy as np
 import matplotlib
 import matplotlib.cm
 
+
+__all__ = ['FontStyle', 'TextStyle', 'DefaultTitleTextStyle', 'PointStyle',
+			'LineStyle', 'PolygonStyle', 'FocmecStyle', 'CompositeStyle',
+			'ThematicStyleIndividual', 'ThematicStyleRanges', 'ThematicStyleGradient',
+			'ThematicStyleColormap', 'ColorbarStyle', 'GridStyle', 'LegendStyle',
+			'ScalebarStyle', 'MapBorderStyle', 'GraticuleStyle', 'GridImageStyle',
+			'ImageStyle', 'HillshadeStyle', 'WMSStyle', 'FrontStyle', 'VectorStyle',
+			'PiechartStyle']
 
 
 class BasemapStyle(object):
@@ -1168,9 +1181,9 @@ class ThematicStyleIndividual(ThematicStyle):
 		else:
 			self.labels = []
 			for val in self.values:
-				if isinstance(val, str):
-					self.labels.append(val.decode('iso-8859-1'))
-				elif isinstance(val, unicode):
+				if PY2 and isinstance(val, str):
+					val = val.decode('iso-8859-1')
+				if isinstance(val, basestring):
 					self.labels.append(val)
 				else:
 					self.labels.append(str(val))
@@ -1597,7 +1610,7 @@ class ThematicStyleGradient(ThematicStyle):
 		if self.is_color_style():
 			#x = self.values / self.values.max()
 			x = np.linspace(0., 1., len(self.values))
-			cmap = matplotlib.colors.LinearSegmentedColormap.from_list(self.value_key, zip(x, self.styles))
+			cmap = matplotlib.colors.LinearSegmentedColormap.from_list(self.value_key, list(zip(x, self.styles)))
 			cmap._init()
 			if self.style_under:
 				cmap.set_under(self.style_under)
@@ -1611,7 +1624,7 @@ class ThematicStyleGradient(ThematicStyle):
 		"""
 		Get corresponding Normalize object
 		"""
-		from cm.norm import PiecewiseLinearNorm
+		from .cm.norm import PiecewiseLinearNorm
 		return PiecewiseLinearNorm(self.values)
 		#return matplotlib.colors.Normalize(vmin=self.values.min(), vmax=self.values.max())
 
