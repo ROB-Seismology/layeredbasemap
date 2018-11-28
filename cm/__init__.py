@@ -1,6 +1,19 @@
-#
-# Empty file necessary for python to recognise directory as package
-#
+"""
+Color maps and norms for layeredbasemap
+"""
+
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+
+try:
+	## Python 2
+	basestring
+	PY2 = True
+except:
+	## Python 3
+	PY2 = False
+	basestring = str
+
 
 import os
 import numpy as np
@@ -63,9 +76,9 @@ def from_cpt(cpt_filespec, override_bad_color=True):
 	import colorsys
 	import numpy as np
 	from matplotlib.colors import LinearSegmentedColormap
-	from norm import PiecewiseLinearNorm
+	from .norm import PiecewiseLinearNorm
 
-	if isinstance(cpt_filespec, (str, unicode)):
+	if isinstance(cpt_filespec, basestring):
 		if not os.path.splitext(cpt_filespec)[-1]:
 			cpt_filespec += ".cpt"
 		cpt_fd = open(cpt_filespec)
@@ -79,9 +92,12 @@ def from_cpt(cpt_filespec, override_bad_color=True):
 	colorModel = "RGB"
 	discrete = True
 	for line in cpt_fd:
+		if not PY2 and isinstance(line, bytes):
+			## zipfile's open function doesn't do unicode...
+			line = line.decode('ascii')
 		cols = line.split()
 		if cols:
-			if line[0] == "#":
+			if line[0] in "#":
 				if cols[-1] == "HSV":
 					colorModel = "HSV"
 					continue
@@ -137,7 +153,7 @@ def from_cpt(cpt_filespec, override_bad_color=True):
 
 	norm = PiecewiseLinearNorm(x)
 
-	colors = np.asarray(zip(r, g, b))
+	colors = np.asarray(list(zip(r, g, b)))
 	cmap = LinearSegmentedColormap.from_list(cpt_name, colors)
 
 	min_index, max_index = x.argmin(), x.argmax()
