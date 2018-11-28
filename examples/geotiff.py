@@ -2,11 +2,14 @@
 GeoTIFF example
 """
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+
 import os
 import mapping.layeredbasemap as lbm
 
 
-os.environ["CPL_TMPDIR"] = r"C:\Temp"
+os.environ["CPL_TMPDIR"] = "C:\\Temp"
 
 
 #region = (1, 8, 49, 52)
@@ -18,9 +21,9 @@ title = "GeoTIFF example"
 layers = []
 
 ## GeoTiff / WCS
-geotiff_filespec = r"D:\seismo-gis\collections\ASTER_GDEM\GEOTIFF\ASTGTM_N50E006.tif"
-#geotiff_filespec = r"C:\Temp\ASTGTM_N50E006.tif"
-#geotiff_filespec = r"C:\Temp\matplotlib.tif"
+geotiff_filespec = "D:\\seismo-gis\\collections\\ASTER_GDEM\\GEOTIFF\\ASTGTM_N50E006.tif"
+#geotiff_filespec = "C:\\Temp\\ASTGTM_N50E006.tif"
+#geotiff_filespec = "C:\\Temp\\matplotlib.tif"
 gdal_data = lbm.GdalRasterData(geotiff_filespec, band_nr=1, down_sampling=3)
 url = 'http://seishaz.oma.be:8080/geoserver/wcs'
 layer_name, resolution, bbox = 'ngi:DTM10k', 1000, []

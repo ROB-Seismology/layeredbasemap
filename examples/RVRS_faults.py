@@ -2,13 +2,16 @@
 Plot map of the RVRS fault model
 """
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+
 import os
 
 from eqcatalog.source_models import rob_source_models_dict
 import mapping.layeredbasemap as lbm
 
 
-fig_folder = r"E:\Home\_kris\Publications\2014 - DGEB"
+fig_folder = "E:\\Home\\_kris\\Publications\\2014 - DGEB"
 fig_filespec = None
 #fig_filespec = os.path.join(fig_folder, "SourceModel_RVRS_CSS.png")
 

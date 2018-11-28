@@ -3,6 +3,9 @@ Test plotting of maps in multiple axes
 """
 
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+
 import pylab
 import matplotlib.gridspec as gridspec
 import mapping.layeredbasemap as lbm

@@ -3,6 +3,10 @@ Plot focal mechanisms in ROB catalog
 This script demonstrates how to plot focal mechanisms (aka beach balls)
 using thematic styles for their size and color
 """
+
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+
 import eqcatalog.seismodb as seismodb
 from eqcatalog.source_models import rob_source_models_dict
 from mapping.geotools.read_gis import read_gis_file

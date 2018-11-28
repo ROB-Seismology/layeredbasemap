@@ -3,6 +3,10 @@
 """
 Plot poster-size map of ROB earthquake catalog.
 """
+
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+
 import os
 import numpy as np
 import pylab

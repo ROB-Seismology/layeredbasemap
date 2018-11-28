@@ -3,6 +3,9 @@ Example showing how information from e.g. a database can be joined with
 geographic objects from a GIS file.
 """
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+
 import numpy as np
 import eqcatalog.seismodb as seismodb
 from mapping.geotools.read_gis import read_gis_file
@@ -13,8 +16,8 @@ import mapping.layeredbasemap as lbm
 db_records = list(seismodb.query_seismodb_table("communes", where_clause='country="BE"'))
 
 ## Read GIS table
-#gis_filespec = r"D:\seismo-gis\collections\Bel_administrative_ROB\TAB\Bel_villages_points.TAB"
-gis_filespec = r"D:\seismo-gis\collections\Bel_administrative_ROB\TAB\Bel_communes_avant_fusion.TAB"
+#gis_filespec = "D:\\seismo-gis\\collections\\Bel_administrative_ROB\\TAB\\Bel_villages_points.TAB"
+gis_filespec = "D:\\seismo-gis\\collections\\Bel_administrative_ROB\\TAB\\Bel_communes_avant_fusion.TAB"
 gis_records = read_gis_file(gis_filespec)
 
 
@@ -66,5 +69,5 @@ layers.append(province_layer)
 
 map = lbm.LayeredBasemap(layers, title, projection, region=region)
 fig_filespec = None
-#fig_filespec = r"C:\Temp\seismodb_%s.png" % attribute
+#fig_filespec = "C:\\Temp\\seismodb_%s.png" % attribute
 map.plot(fig_filespec=fig_filespec)
