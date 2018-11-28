@@ -2,11 +2,16 @@
 Data types used in LayeredBasemap
 """
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+
 try:
 	## Python 2
 	basestring
+	PY2 = True
 except:
 	## Python 3
+	PY2 = False
 	basestring = str
 
 
@@ -14,7 +19,17 @@ import numpy as np
 import shapely
 import shapely.geometry
 import shapely.wkt
-import ogr, osr
+import osr, ogr, gdal
+
+gdal.UseExceptions()
+
+
+__all__ = ['BuiltinData', 'PointData', 'MultiPointData', 'LineData', 'MultiLineData',
+			'PolygonData', 'MultiPolygonData', 'FocmecData', 'CircleData', 'MaskData',
+			'CompositeData', 'GridData', 'MeshGridData', 'UnstructuredGridData',
+			'GdalRasterData', 'GisData', 'GreatCircleData', 'ImageData', 'WMSData',
+			'WCSData', 'MeshGridVectorData', 'TextData', 'MultiTextData',
+			'PiechartData']
 
 
 ## Define WGS84 spatial reference system
@@ -128,7 +143,7 @@ class MultiData(BasemapData):
 		"""
 		if isinstance(values, dict):
 			for key in values.keys():
-				if isinstance(value, dict) and value.has_key(key):
+				if isinstance(value, dict) and key in value:
 					values[key].append(value[key])
 				else:
 					values[key].append(None)
@@ -505,9 +520,9 @@ class MultiPointData(MultiData):
 			(default: True)
 		"""
 		if include_z:
-			return shapely.geometry.MultiPoint(zip(self.lons, self.lats, self.z))
+			return shapely.geometry.MultiPoint(list(zip(self.lons, self.lats, self.z)))
 		else:
-			return shapely.geometry.MultiPoint(zip(self.lons, self.lats))
+			return shapely.geometry.MultiPoint(list(zip(self.lons, self.lats)))
 
 	def to_wkt(self):
 		"""
@@ -664,9 +679,9 @@ class LineData(SingleData):
 			(default: True)
 		"""
 		if include_z:
-			return shapely.geometry.LineString(zip(self.lons, self.lats, self.z))
+			return shapely.geometry.LineString(list(zip(self.lons, self.lats, self.z)))
 		else:
-			return shapely.geometry.LineString(zip(self.lons, self.lats))
+			return shapely.geometry.LineString(list(zip(self.lons, self.lats)))
 
 	def to_wkt(self):
 		return self.to_shapely().wkt
@@ -833,9 +848,9 @@ class MultiLineData(MultiData):
 			(default: True)
 		"""
 		if include_z:
-			coords = [zip(self.lons[i], self.lats[i], self.z[i]) for i in range(len(self.lons))]
+			coords = [list(zip(self.lons[i], self.lats[i], self.z[i])) for i in range(len(self.lons))]
 		else:
-			coords = [zip(self.lons[i], self.lats[i]) for i in range(len(self.lons))]
+			coords = [list(zip(self.lons[i], self.lats[i])) for i in range(len(self.lons))]
 		return shapely.geometry.MultiLineString(coords)
 
 	def to_wkt(self):
@@ -909,12 +924,12 @@ class PolygonData(SingleData):
 			(default: True)
 		"""
 		if include_z:
-			return shapely.geometry.Polygon(zip(self.lons, self.lats, self.z),
-				[zip(self.interior_lons[i], self.interior_lats[i], self.interior_z[i])
+			return shapely.geometry.Polygon(list(zip(self.lons, self.lats, self.z)),
+				[list(zip(self.interior_lons[i], self.interior_lats[i], self.interior_z[i]))
 				for i in range(len(self.interior_lons))])
 		else:
-			return shapely.geometry.Polygon(zip(self.lons, self.lats),
-				[zip(self.interior_lons[i], self.interior_lats[i])
+			return shapely.geometry.Polygon(list(zip(self.lons, self.lats)),
+				[list(zip(self.interior_lons[i], self.interior_lats[i]))
 				for i in range(len(self.interior_lons))])
 
 	def to_wkt(self):
@@ -1024,7 +1039,7 @@ class PolygonData(SingleData):
 			# TODO: set values, labels !
 			return MultiPolygonData.from_wkt(intersection.wkt)
 		else:
-			print intersection.wkt
+			print(intersection.wkt)
 
 	def get_bbox(self):
 		lonmin, lonmax = np.min(self.lons), np.max(self.lons)
@@ -1183,7 +1198,7 @@ class MultiPolygonData(MultiData):
 		elif intersection.geom_type == "MultiPolygon":
 			return self.from_wkt(intersection.wkt)
 		else:
-			print intersection.wkt
+			print(intersection.wkt)
 
 
 class FocmecData(MultiPointData):
@@ -1247,7 +1262,7 @@ class GreatCircleData(MultiPointData):
 		self.resolution = resolution
 
 	def __len__(self):
-		return len(self.lons) / 2
+		return len(self.lons) // 2
 
 	def __getitem__(self, index):
 		"""
@@ -2553,10 +2568,12 @@ class GdalRasterData(MeshGridData):
 		values = self.interpolate(xout, yout, srs=srs, checkbounds=checkbounds, masked=masked, order=order)
 		return MeshGridData(xout, yout, values)
 
-	def cross_section(self, (x0, y0), (x1, y1), num_points=100):
+	def cross_section(self, xy0, xy1, num_points=100):
 		"""
 		Native coordinates!
 		"""
+		x0, y0 = xy0
+		x1, y1 = xy1
 		X = np.linspace(x0, x1, num_points)
 		Y = np.linspace(y0, y1, num_points)
 		## TODO: distances in km (take into account lon-lat rasters)
@@ -2717,7 +2734,12 @@ class WCSData(GdalRasterData):
 
 		response = self.get_coverage(self.layer_name)
 		if verbose:
-			print urllib.unquote(response.geturl())
+			if PY2:
+				unquote_func = urllib.unquote
+			else:
+				import urllib.parse
+				unquote_func = urllib.parse.unquote
+			print(unquote_func(response.geturl()))
 
 		#import tempfile
 		#fd = tempfile.NamedTemporaryFile(suffix=".tif")
@@ -2729,7 +2751,7 @@ class WCSData(GdalRasterData):
 			super(WCSData, self).__init__(response.geturl(), band_nr=band_nr,
 									down_sampling=1)
 		except:
-			print response.read()
+			print(response.read())
 			raise
 
 	def init_wcs(self, verbose=True):
@@ -2746,7 +2768,7 @@ class WCSData(GdalRasterData):
 		from owslib.wcs import WebCoverageService
 		wcs = WebCoverageService(self.url, version=self.wcs_version)
 		if verbose:
-			print sorted(wcs.contents.keys())
+			print(sorted(wcs.contents.keys()))
 		return wcs
 
 	def get_coverage_info(self, layer_name):
@@ -2900,7 +2922,7 @@ class WCSData(GdalRasterData):
 
 		response = self.get_coverage(self.layer_name)
 		if verbose:
-			print urllib.unquote(response.geturl())
+			print(urllib.unquote(response.geturl()))
 
 		#import tempfile
 		#fd = tempfile.NamedTemporaryFile(suffix=".tif")
@@ -2912,7 +2934,7 @@ class WCSData(GdalRasterData):
 			data = GdalRasterData(response.geturl(), band_nr=self.band_nr,
 									down_sampling=1)
 		except:
-			print response.read()
+			print(response.read())
 			raise
 		else:
 			return data
