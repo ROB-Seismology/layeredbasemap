@@ -429,7 +429,7 @@ class LayeredBasemap:
 					legend_name="main"):
 		if isinstance(polygon_style, LineStyle):
 			self._draw_line(polygon, polygon_style, legend_label)
-		if polygon_style.fill_color in (None, "None", "none"):
+		if polygon_style.fill_color is None or polygon_style.fill_color in ('None', 'none'):
 			fill = 0
 		else:
 			fill = 1
@@ -450,7 +450,7 @@ class LayeredBasemap:
 			proj_polygon = self.get_projected_polygon(polygon)
 			exterior_x, exterior_y = proj_polygon.lons, proj_polygon.lats
 			interior_x, interior_y = proj_polygon.interior_lons, proj_polygon.interior_lats
-			if style.fill_color in (None, 'None', 'none') and style.fill_hatch in (None, 'None', "none"):
+			if (style.fill_color is None or polygon_style.fill_color in ('None', 'none')) and style.fill_hatch in (None, 'None', "none"):
 				self.map.plot(exterior_x, exterior_y, label=legend_label, zorder=self.zorder, axes=self.ax, **style.to_line_style().to_kwargs())
 				for x, y in zip(interior_x, interior_y):
 					self.map.plot(x, y, label="_nolegend_", zorder=self.zorder, axes=self.ax, **style.to_line_style().to_kwargs())
