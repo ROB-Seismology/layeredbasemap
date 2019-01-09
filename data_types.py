@@ -39,6 +39,7 @@ WGS84.ImportFromEPSG(WGS84_EPSG)
 
 
 # TODO: add srs parameter (default: WGS84)
+# TODO: remove ambiguity between region and bbox (llx, lly, urx, ury)
 
 class BasemapData(object):
 	"""
