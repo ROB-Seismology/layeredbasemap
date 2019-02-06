@@ -1798,6 +1798,52 @@ class ThematicStyleColormap(ThematicStyle):
 			sm.set_array(values)
 		return sm
 
+	def scale_hls(self, hue_factor=1.0, lightness_factor=1.0, saturation_factor=1.0):
+		"""
+		Scale hue, lightness and/or saturation of entire colormap.
+		If factor is positive, it will be simply multiplied.
+		If factor is negative, scaling is applied to the inverse property:
+			1 - scale_factor * (1 - property)
+		E.g., if ligthness factor is -0.6, the result would be to make
+		the colormap 60% less dark, which is not the same as making it
+		60% lighter.
+
+		:param hue_factor:
+			float, hue scaling factor
+			(default: 1.0)
+		:param lightness_factor:
+			float, lightness scaling factor
+			(default: 1.0)
+		:param saturation_factor:
+			float, saturation scaling factor
+			(default: 1.0)
+		"""
+		# TODO: combine with adjust_cmap_luminosity and adjust_cmap_saturation
+		# functions in cm submodule.
+		import colorsys
+		num_colors = self.color_map._lut.shape[0]
+		#self.color_map._lut[,:3] *= factor
+		for i in range(num_colors):
+			rgb = self.color_map._lut[i,:3]
+			hls = np.array(colorsys.rgb_to_hls(*rgb))
+			#rgb = colorsys.hls_to_rgb(hls[0], 1 - lightness_factor * (1 - hls[1]), hls[2])
+			#hls *= np.array([hue_factor, lightness_factor, saturation_factor])
+			if hue_factor >= 0:
+				hls[0] *= hue_factor
+			else:
+				hls[0] = 1 - np.abs(hue_factor) * (1 - hls[0])
+			if lightness_factor >= 0:
+				hls[1] *= lightness_factor
+			else:
+				hls[1] = 1 - np.abs(lightness_factor) * (1 - hls[1])
+			if saturation_factor >= 0:
+				hls[2] *= saturation_factor
+			else:
+				hls[2] = 1 - np.abs(saturation_factor) * (1 - hls[2])
+			hls = np.maximum(0, np.minimum(1, hls))
+			rgb = colorsys.hls_to_rgb(*hls)
+			self.color_map._lut[i,:3] = rgb
+
 
 class ColorbarStyle(BasemapStyle):
 	"""
