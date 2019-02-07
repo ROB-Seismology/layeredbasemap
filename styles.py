@@ -1297,19 +1297,19 @@ class ThematicStyleIndividual(ThematicStyle):
 		:return:
 			float or rgba array
 		"""
-		out_styles = [self.style_dict.get(val) for val in self.apply_value_key(values)]
+		values = self.apply_value_key(values)
+		out_styles = [self.style_dict.get(val) for val in values]
 		if self.is_monotonously_increasing():
 			if self.style_under:
-				for idx in np.argwhere(values < self.values[0]):
+				for idx in np.where(values < self.values[0])[0]:
 					out_styles[idx] = self.style_under
 			if self.style_over:
-				for idx in np.argwhere(values > self.values[-1]):
+				for idx in np.where(values > self.values[-1])[0]:
 					out_styles[idx] = self.style_over
 			if self.style_bad:
-				for idx in np.argwhere(np.isnan(values)):
+				for idx in np.where(np.isnan(values))[0]:
 					out_styles[idx] = self.style_bad
 		return out_styles
-
 
 	def to_colormap(self):
 		"""
@@ -1473,13 +1473,13 @@ class ThematicStyleRanges(ThematicStyle):
 		bin_indexes = np.clip(bin_indexes, 0, len(self.styles) - 1)
 		out_styles = [self.styles[bi] for bi in bin_indexes]
 		if self.style_under:
-			for idx in np.argwhere(values < self.values[0]):
+			for idx in np.where(values < self.values[0])[0]:
 				out_styles[idx] = self.style_under
 		if self.style_over:
-			for idx in np.argwhere(values > self.values[-1]):
+			for idx in np.where(values > self.values[-1])[0]:
 				out_styles[idx] = self.style_over
 		if self.style_bad:
-			for idx in np.argwhere(np.isnan(values)):
+			for idx in np.where(np.isnan(values))[0]:
 				out_styles[idx] = self.style_bad
 		return out_styles
 
