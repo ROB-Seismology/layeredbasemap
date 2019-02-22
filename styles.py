@@ -1244,13 +1244,15 @@ class ThematicStyleIndividual(ThematicStyle):
 				self.colorbar_style.tick_labels = self.labels
 
 	def is_numeric(self):
-		return np.array([not isinstance(self.values[idx], basestring)
-						for idx in range(len(self.values))]).any()
+		return np.array([not isinstance(self.values[idx], (basestring, list))
+						for idx in range(len(self.values))]).all()
 
 	def is_monotonously_increasing(self):
 		if self.is_numeric():
 			sign_diff = np.sign(np.diff(self.values))
 			return np.all(sign_diff == sign_diff[0])
+		else:
+			return False
 
 	def set_styles(self, styles):
 		self.styles = styles
