@@ -11,10 +11,11 @@ import os
 import numpy as np
 import pylab
 import mapping.layeredbasemap as lbm
-import eqcatalog.seismodb as seismodb
+import eqcatalog.rob.seismodb as seismodb
 
 
-out_folder = "E:\\Home\\_kris\\Meetings\\2018 - Opendeurdagen"
+#out_folder = "E:\\Home\\_kris\\Meetings\\2018 - Opendeurdagen"
+out_folder = "C:\\Temp"
 
 
 
@@ -104,11 +105,11 @@ layer = lbm.MapLayer(data, river_style)
 
 
 ## ROB earthquake catalog
-catalog = seismodb.query_ROB_LocalEQCatalog(region=region)
+catalog = seismodb.query_local_eq_catalog(region=region, start_date=1350)
 values = {}
 values['magnitude'] = catalog.get_magnitudes()
 values['depth'] = catalog.get_depths()
-values['year'] = [eq.datetime.year for eq in catalog]
+values['year'] = [eq.year for eq in catalog]
 point_data = lbm.MultiPointData(catalog.get_longitudes(), catalog.get_latitudes(), values=values)
 
 legend_label_style = lbm.TextStyle(font_size=10)
@@ -124,22 +125,24 @@ thematic_size = lbm.ThematicStyleGradient([1,3,5,6.3], [1,4,10,15],
 
 ## Color scale for time
 ## Discontinuous color scale
-"""
-colorbar_style = lbm.ColorbarStyle(title=u"Jaar - Année - Year", location="bottom", format="%d",
+#cb_title = u"Jaar - Année - Year"
+cb_title = "Year"
+colorbar_style = lbm.ColorbarStyle(title=cb_title, location="bottom", format="%d",
 					label_size=15, tick_label_size=8, spacing="uniform")
 thematic_color = lbm.ThematicStyleRanges([1350,1910,1985,2000,2015,2018], ['blue', 'green', 'yellow', 'orange', 'red'], value_key="year", colorbar_style=colorbar_style)
 file_name_ext = "_discont_colorscale"
-"""
+
 
 ## Continuous color scale
-colorbar_style = lbm.ColorbarStyle(title=u"Jaar - Année - Year", location="bottom", format="%d",
+"""
+colorbar_style = lbm.ColorbarStyle(title=cb_title, location="bottom", format="%d",
 					label_size=15, tick_label_size=8, spacing="uniform",
 					ticks=[1350, 1910, 1985,2018])
 cmap = pylab.get_cmap("rainbow", 6)
 colors = cmap(np.linspace(0, 1, 6))
 thematic_color = lbm.ThematicStyleGradient([1350,1910,1985,2000,2015,2018], colors, value_key="year", colorbar_style=colorbar_style)
 file_name_ext = "_cont_colorscale"
-
+"""
 
 point_style = lbm.PointStyle(shape='o', size=thematic_size, line_color='k', fill_color=thematic_color, line_width=0.5, thematic_legend_style=thematic_legend_style)
 layer = lbm.MapLayer(point_data, point_style, legend_label="ROB Catalog")
@@ -148,7 +151,7 @@ layers.append(layer)
 
 ## Seismic stations
 import datetime
-station_recs = seismodb.query_ROB_Stations(activity_date_time=datetime.date.today())
+station_recs = seismodb.query_stations(activity_date_time=datetime.date.today())
 seismometers = [r for r in station_recs if r['instrument_type'] == 'S']
 accelerometers = [r for r in station_recs if r['instrument_type'] == 'A']
 instruments_list = (seismometers, accelerometers)
@@ -191,8 +194,8 @@ map = lbm.LayeredBasemap(layers, title, projection, region=region, resolution=re
 
 
 fig_filename = "ROB_catalog%s.PNG" % file_name_ext
-#fig_filespec = os.path.join(out_folder, fig_filename)
-fig_filespec = None
+fig_filespec = os.path.join(out_folder, fig_filename)
+#fig_filespec = None
 if fig_filespec:
 	dpi = 600
 else:
