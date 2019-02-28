@@ -745,8 +745,9 @@ class LineStyle(BasemapStyle):
 			instance of :class:`PolygonStyle`
 		"""
 		return PolygonStyle(self.line_pattern, self.line_width, self.line_color,
-							fill_color="none", label_style=self.label_style,
-							label_anchor=self.label_anchor, alpha=self.alpha,
+							fill_color="none", dash_pattern=self.dash_pattern,
+							label_style=self.label_style, label_anchor=self.label_anchor,
+							alpha=self.alpha,
 							thematic_legend_style=self.thematic_legend_style)
 
 	def to_kwargs(self):
@@ -815,14 +816,14 @@ class PolygonStyle(BasemapStyle):
 		labels will be added to (e.g., "main")
 		(default: None)
 	"""
-	# TODO: add dash_pattern as well!
-	def __init__(self, line_pattern="solid", line_width=1, line_color='k', fill_color='w', fill_hatch=None, hatch_color='k', label_style=None, label_anchor="centroid", alpha=1., thematic_legend_style=None):
+	def __init__(self, line_pattern="solid", line_width=1, line_color='k', fill_color='w', fill_hatch=None, hatch_color='k', dash_pattern=[], label_style=None, label_anchor="centroid", alpha=1., thematic_legend_style=None):
 		self.line_pattern = {'-': 'solid', '--': 'dashed', ':': 'dotted', '-.': 'dashdot'}.get(line_pattern, line_pattern)
 		self.line_width = line_width
 		self.line_color = line_color
 		self.fill_color = fill_color
 		self.fill_hatch = fill_hatch
 		self.hatch_color = hatch_color
+		self.dash_pattern = dash_pattern
 		self.label_style = label_style
 		self.label_anchor = label_anchor
 		self.alpha = alpha
@@ -870,7 +871,7 @@ class PolygonStyle(BasemapStyle):
 		else:
 			fill_hatch = self.fill_hatch
 		return PolygonStyle(line_pattern, line_width, line_color, fill_color,
-							fill_hatch, self.hatch_color, self.label_style,
+							fill_hatch, self.hatch_color, self.dash_pattern, self.label_style,
 							self.label_anchor, self.alpha, self.thematic_legend_style)
 
 	def to_line_style(self):
@@ -882,7 +883,8 @@ class PolygonStyle(BasemapStyle):
 		"""
 		return LineStyle(self.line_pattern, self.line_width, self.line_color,
 						label_style=self.label_style, label_anchor=self.label_anchor,
-						alpha=self.alpha, thematic_legend_style=self.thematic_legend_style)
+						dash_pattern=self.dash_pattern, alpha=self.alpha,
+						thematic_legend_style=self.thematic_legend_style)
 
 	def to_polygon_style(self):
 		"""
@@ -896,7 +898,10 @@ class PolygonStyle(BasemapStyle):
 		and which can be passed to the plot function
 		"""
 		d = {}
-		d["ls"] = self.line_pattern
+		if self.dash_pattern:
+			d["dashes"] = self.dash_pattern
+		else:
+			d["ls"] = self.line_pattern
 		d["lw"] = self.line_width
 		d["ec"] = self.line_color
 		d["fc"] = self.fill_color
@@ -2376,9 +2381,10 @@ class GraticuleStyle(BasemapStyle):
 		d["xoffset"] = self.label_offset[0]
 		d["yoffset"] = self.label_offset[1]
 		d["latmax"] = self.lat_max
-		text_kwargs = self.label_style.to_kwargs()
-		del text_kwargs["alpha"]
-		d.update(text_kwargs)
+		if self.label_style:
+			text_kwargs = self.label_style.to_kwargs()
+			del text_kwargs["alpha"]
+			d.update(text_kwargs)
 		d["alpha"] = {True: None, False: self.alpha}[self.alpha == 1]
 		return d
 
@@ -2435,16 +2441,28 @@ class ImageStyle(BasemapStyle):
 		bool, whether or not to plot image on top of all other layers
 		(including graticule)
 		(default: False)
+	:param border_width:
+		int, width of border to draw around image (in pixels corresponding
+		to the original image size)
+		(default: 0)
+	:param border_color:
+		float, greyscale value or
+		float array, RGB[A] values
+		in the range 0 - 1
+		(default: 1 = white)
 	:param alpha:
 		Float in the range 0 - 1, opacity (default: 1.)
 	"""
 	def __init__(self, width=None, height=None, horizontal_alignment='center',
-				vertical_alignment='center', on_top=False, alpha=1.):
+				vertical_alignment='center', on_top=False,
+				border_width=0, border_color=1, alpha=1.):
 		self.width = width
 		self.height = height
 		self.horizontal_alignment = horizontal_alignment
 		self.vertical_alignment = vertical_alignment
 		self.on_top = on_top
+		self.border_width = border_width
+		self.border_color = border_color
 		self.alpha = alpha
 
 
