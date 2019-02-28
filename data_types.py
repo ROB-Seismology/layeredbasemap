@@ -87,6 +87,31 @@ class SingleData(BasemapData):
 			style = default_style
 		return style
 
+	def to_wkt(self):
+		"""
+		Convert to well-known text format
+
+		:return:
+			str
+		"""
+		return self.to_shapely().wkt
+
+	def to_geojson(self):
+		json = shapely.geometry.mapping(self.to_shapely())
+		props = {}
+		if isinstance(self.value, dict):
+			props = self.value.copy()
+		elif self.value	is not None:
+			props = {'value': self.value}
+		if self.label:
+			props['label'] = self.label
+		if props:
+			json["properties"] = props
+		return json
+
+	def to_ogr_geom(self):
+		return ogr.CreateGeometryFromWkt(self.to_wkt())
+
 	def create_buffer(self, distance):
 		"""
 		Create buffer around point, line or polygon feature.
@@ -211,7 +236,6 @@ class MultiData(BasemapData):
 				style_params[key] = value
 		return style_params
 
-
 	def get_overriding_style(self, default_style, index):
 		"""
 		Override given style with information in :prop:`style_params`
@@ -230,6 +254,32 @@ class MultiData(BasemapData):
 		else:
 			style = default_style
 		return style
+
+	def to_wkt(self):
+		"""
+		Convert to well-known text format
+
+		:return:
+			str
+		"""
+		return self.to_shapely().wkt
+
+	def to_geojson(self):
+		json = shapely.geometry.mapping(self.to_shapely())
+		props = {}
+		if isinstance(self.values, dict):
+			props = self.values.copy()
+		elif self.values is not None or len(self.values) != 0:
+			props = {'values': self.values}
+		if self.labels is not None or len(self.labels) != 0:
+			props['label'] = self.labels
+		if props:
+			json["properties"] = props
+		return json
+
+	def to_ogr_geom(self):
+		return ogr.CreateGeometryFromWkt(self.to_wkt())
+
 
 
 class BuiltinData(BasemapData):
@@ -277,7 +327,7 @@ class PointData(SingleData):
 		on the one hand and TextStyle on the other hand.
 		(default: None --> {})
 	"""
-	def __init__(self, lon, lat, z=0, value=None, label="", style_params=None):
+	def __init__(self, lon, lat, z=None, value=None, label="", style_params=None):
 		self.lon = lon
 		self.lat = lat
 		self.z = z
@@ -292,33 +342,14 @@ class PointData(SingleData):
 		for i in range(1):
 			yield self
 
-	def to_shapely(self, include_z=True):
+	def to_shapely(self):
 		"""
 		Convert to shapely Point object
-
-		:param include_z:
-			bool, whether or not to include Z-coordinate(s)
-			(default: True)
 		"""
-		if include_z:
-			return shapely.geometry.Point(self.lon, self.lat, self.z)
-		else:
+		if self.z is None:
 			return shapely.geometry.Point(self.lon, self.lat)
-
-	def to_wkt(self):
-		"""
-		Convert to well-known text format
-
-		:return:
-			str
-		"""
-		return self.to_shapely().wkt
-
-	def to_geojson(self):
-		return shapely.geometry.mapping(self.to_shapely())
-
-	def to_ogr_geom(self):
-		return ogr.CreateGeometryFromWkt(self.to_wkt())
+		else:
+			return shapely.geometry.Point(self.lon, self.lat, self.z)
 
 	def get_ogr_geomtype(self):
 		return ogr.wkbPoint
@@ -351,7 +382,7 @@ class PointData(SingleData):
 			instance of :class:`PointData`
 		"""
 		assert pt.geom_type == "Point"
-		z = pt.z if pt.has_z else 0.
+		z = pt.z if pt.has_z else None
 		return PointData(pt.x, pt.y, z=z, value=value, label=label,
 						style_params=style_params)
 
@@ -424,7 +455,7 @@ class MultiPointData(MultiData):
 	def __init__(self, lons, lats, z=None, values=None, labels=None, style_params=None):
 		self.lons = lons
 		self.lats = lats
-		self.z = z or [0.] * len(lons)
+		self.z = z or [None] * len(lons)
 		self.values = values or []
 		self.labels = labels or []
 		self.style_params = style_params or {}
@@ -512,33 +543,14 @@ class MultiPointData(MultiData):
 		return MultiPointData(lons, lats, z=Z, values=values, labels=labels,
 							style_params=style_params)
 
-	def to_shapely(self, include_z=True):
+	def to_shapely(self):
 		"""
 		Convert to shapely Point object
-
-		:param include_z:
-			bool, whether or not to include Z-coordinate(s)
-			(default: True)
 		"""
-		if include_z:
-			return shapely.geometry.MultiPoint(list(zip(self.lons, self.lats, self.z)))
-		else:
+		if self.z is None or set(self.z) == set([None]):
 			return shapely.geometry.MultiPoint(list(zip(self.lons, self.lats)))
-
-	def to_wkt(self):
-		"""
-		Convert to well-known text format
-
-		:return:
-			str
-		"""
-		return self.to_shapely().wkt
-
-	def to_geojson(self):
-		return shapely.geometry.mapping(self.to_shapely())
-
-	def to_ogr_geom(self):
-		return ogr.CreateGeometryFromWkt(self.to_wkt())
+		else:
+			return shapely.geometry.MultiPoint(list(zip(self.lons, self.lats, self.z)))
 
 	def get_ogr_geomtype(self):
 		return ogr.wkbMultiPoint
@@ -559,7 +571,7 @@ class MultiPointData(MultiData):
 			instance of :class:`MultiPointData`
 		"""
 		assert mp.geom_type == "MultiPoint"
-		Z = [pt.z for pt in mp] if mp.has_z else [0.] * len(mp)
+		Z = [pt.z for pt in mp] if mp.has_z else None
 		return MultiPointData([pt.x for pt in mp], [pt.y for pt in mp], Z,
 						values=values, labels=labels, style_params=style_params)
 
@@ -661,7 +673,7 @@ class LineData(SingleData):
 	def __init__(self, lons, lats, z=None, value=None, label="", style_params=None):
 		self.lons = lons
 		self.lats = lats
-		self.z = z or [0.] * len(lons)
+		self.z = z or [None] * len(lons)
 		self.value = value
 		self.label = label
 		self.style_params = style_params or {}
@@ -673,26 +685,13 @@ class LineData(SingleData):
 		for i in range(1):
 			yield self
 
-	def to_shapely(self, include_z=True):
+	def to_shapely(self):
 		"""
-		:param include_z:
-			bool, whether or not to include Z-coordinate(s)
-			(default: True)
 		"""
-		if include_z:
-			return shapely.geometry.LineString(list(zip(self.lons, self.lats, self.z)))
-		else:
+		if self.z is None or set(self.z) == set([None]):
 			return shapely.geometry.LineString(list(zip(self.lons, self.lats)))
-
-	def to_wkt(self):
-		return self.to_shapely().wkt
-
-	def to_geojson(self):
-		return shapely.geometry.mapping(self.to_shapely())
-
-	def to_ogr_geom(self):
-		return ogr.CreateGeometryFromWkt(self.to_wkt())
-		#return ogr.CreateGeometryFromJson(self.to_geojson())
+		else:
+			return shapely.geometry.LineString(list(zip(self.lons, self.lats, self.z)))
 
 	def get_ogr_geomtype(self):
 		return ogr.wkbLineString
@@ -810,7 +809,7 @@ class MultiLineData(MultiData):
 		if z:
 			assert isinstance(z[0], (list, tuple, np.ndarray)), "z items must be sequences"
 		else:
-			z = [[0] * len(seq) for seq in lons]
+			z = [[None] * len(seq) for seq in lons]
 		self.z = z
 		self.values = values or []
 		self.labels = labels or []
@@ -842,26 +841,17 @@ class MultiLineData(MultiData):
 			self.labels.extend(line.labels or [""] * len(line))
 			self._extend_multi_values(self.style_params, line.style_params)
 
-	def to_shapely(self, include_z=True):
+	def to_shapely(self):
 		"""
 		:param include_z:
 			bool, whether or not to include Z-coordinate(s)
 			(default: True)
 		"""
-		if include_z:
-			coords = [list(zip(self.lons[i], self.lats[i], self.z[i])) for i in range(len(self.lons))]
-		else:
+		if self.z is None or set(self.z[0]) == set([None]):
 			coords = [list(zip(self.lons[i], self.lats[i])) for i in range(len(self.lons))]
+		else:
+			coords = [list(zip(self.lons[i], self.lats[i], self.z[i])) for i in range(len(self.lons))]
 		return shapely.geometry.MultiLineString(coords)
-
-	def to_wkt(self):
-		return self.to_shapely().wkt
-
-	def to_geojson(self):
-		return shapely.geometry.mapping(self.to_shapely())
-
-	def to_ogr_geom(self):
-		return ogr.CreateGeometryFromWkt(self.to_wkt())
 
 	def get_ogr_geomtype(self):
 		return ogr.wkbMultiLineString
@@ -875,7 +865,7 @@ class MultiLineData(MultiData):
 				x, y, z = zip(*ls.coords)
 			else:
 				x, y = zip(*ls.coords)
-				z = [0] * len(x)
+				z = [None] * len(x)
 			lons.append(x)
 			lats.append(y)
 			Z.append(z)
@@ -903,10 +893,10 @@ class PolygonData(SingleData):
 		"""
 		self.lons = lons
 		self.lats = lats
-		self.z = z or [0.] * len(lons)
+		self.z = z or [None] * len(lons)
 		self.interior_lons = interior_lons or []
 		self.interior_lats = interior_lats or []
-		self.interior_z = interior_z or [[0.] * len(seq) for seq in self.interior_lons]
+		self.interior_z = interior_z or [[None] * len(seq) for seq in self.interior_lons]
 		self.value = value
 		self.label = label
 		self.style_params = style_params or {}
@@ -918,29 +908,17 @@ class PolygonData(SingleData):
 		for i in range(1):
 			return self
 
-	def to_shapely(self, include_z=True):
+	def to_shapely(self):
 		"""
-		:param include_z:
-			bool, whether or not to include Z-coordinate(s)
-			(default: True)
 		"""
-		if include_z:
-			return shapely.geometry.Polygon(list(zip(self.lons, self.lats, self.z)),
-				[list(zip(self.interior_lons[i], self.interior_lats[i], self.interior_z[i]))
-				for i in range(len(self.interior_lons))])
-		else:
+		if self.z is None or set(self.z) == set([None]):
 			return shapely.geometry.Polygon(list(zip(self.lons, self.lats)),
 				[list(zip(self.interior_lons[i], self.interior_lats[i]))
 				for i in range(len(self.interior_lons))])
-
-	def to_wkt(self):
-		return self.to_shapely().wkt
-
-	def to_geojson(self):
-		return shapely.geometry.mapping(self.to_shapely())
-
-	def to_ogr_geom(self):
-		return ogr.CreateGeometryFromWkt(self.to_wkt())
+		else:
+			return shapely.geometry.Polygon(list(zip(self.lons, self.lats, self.z)),
+				[list(zip(self.interior_lons[i], self.interior_lats[i], self.interior_z[i]))
+				for i in range(len(self.interior_lons))])
 
 	def get_ogr_geomtype(self):
 		return ogr.wkbPolygon
@@ -952,14 +930,14 @@ class PolygonData(SingleData):
 			exterior_lons, exterior_lats, exterior_z = zip(*pg.exterior.coords)
 		else:
 			exterior_lons, exterior_lats = zip(*pg.exterior.coords)
-			exterior_z = [0.] * len(exterior_lons)
+			exterior_z = [None] * len(exterior_lons)
 		interior_lons, interior_lats, interior_z = [], [], []
 		for interior_ring in pg.interiors:
 			if interior_ring.has_z:
 				lons, lats, z = zip(*interior_ring.coords)
 			else:
 				lons, lats = zip(*interior_ring.coords)
-				z = [0.] * len(lons)
+				z = [None] * len(lons)
 			interior_lons.append(lons)
 			interior_lats.append(lats)
 			interior_z.append(z)
@@ -1063,10 +1041,10 @@ class MultiPolygonData(MultiData):
 		"""
 		self.lons = lons
 		self.lats = lats
-		self.z = z or [[0] * len(pg) for pg in lons]
+		self.z = z or [[None] * len(pg) for pg in lons]
 		self.interior_lons = interior_lons or []
 		self.interior_lats = interior_lats or []
-		self.interior_z = interior_z or [[[0.] * len(seq) for seq in pg] for pg in self.interior_lons]
+		self.interior_z = interior_z or [[[None] * len(seq) for seq in pg] for pg in self.interior_lons]
 		self.values = values or []
 		self.labels = labels or []
 		self.style_params = style_params or {}
@@ -1126,23 +1104,11 @@ class MultiPolygonData(MultiData):
 							interior_z=interior_z, value=value, label=label,
 							style_params=style_params)
 
-	def to_shapely(self, include_z=True):
+	def to_shapely(self):
 		"""
-		:param include_z:
-			bool, whether or not to include Z-coordinate(s)
-			(default: True)
 		"""
-		shapely_polygons = [pg.to_shapely(include_z=include_z) for pg in self]
+		shapely_polygons = [pg.to_shapely() for pg in self]
 		return shapely.geometry.MultiPolygon(shapely_polygons)
-
-	def to_wkt(self):
-		return self.to_shapely().wkt
-
-	def to_geojson(self):
-		return shapely.geometry.mapping(self.to_shapely())
-
-	def to_ogr_geom(self):
-		return ogr.CreateGeometryFromWkt(self.to_wkt())
 
 	def get_ogr_geomtype(self):
 		return ogr.wkbMultiPolygon
@@ -1157,7 +1123,7 @@ class MultiPolygonData(MultiData):
 				lons, lats, z = zip(*pg.exterior.coords)
 			else:
 				lons, lats = zip(*pg.exterior.coords)
-				z = [0.] * len(lons)
+				z = [None] * len(lons)
 			exterior_lons.append(lons)
 			exterior_lats.append(lats)
 			exterior_z.append(z)
@@ -1167,7 +1133,7 @@ class MultiPolygonData(MultiData):
 					lons, lats, z = zip(*interior_ring.coords)
 				else:
 					lons, lats = zip(*interior_ring.coords)
-					z = [0.] * len(lons)
+					z = [None] * len(lons)
 				pg_interior_lons.append(lons)
 				pg_interior_lats.append(lats)
 				pg_interior_z.append(z)
