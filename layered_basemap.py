@@ -319,6 +319,8 @@ class LayeredBasemap:
 				alpha = style.alpha
 
 			cs = self.map.scatter(x, y, marker=style.shape, s=np.power(sizes, 2), c=colors, linewidths=line_widths, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, label=legend_label, alpha=alpha, zorder=self.zorder, axes=self.ax, **extra_kwargs)
+			if extra_kwargs.get("facecolors") == "None":
+				cs.set_facecolor("None")
 
 			## Thematic legend
 			## Fill color
@@ -427,8 +429,11 @@ class LayeredBasemap:
 
 	def _draw_polygon(self, polygon, polygon_style, legend_label="_nolegend_",
 					legend_name="main"):
-		if isinstance(polygon_style, LineStyle):
-			self._draw_line(polygon, polygon_style, legend_label)
+		if isinstance(polygon_style, LineStyle) or polygon_style.dash_pattern:
+			self._draw_line(polygon, polygon_style.to_line_style(), legend_label)
+			polygon_style = polygon_style.copy()
+			polygon_style.dash_pattern = []
+			polygon_style.line_width = 0
 		if polygon_style.fill_color is None or polygon_style.fill_color in ('None', 'none'):
 			fill = 0
 		else:
@@ -1310,6 +1315,25 @@ class LayeredBasemap:
 		img_ar = pylab.imread(image_data.filespec)
 		lon, lat = image_data.lon, image_data.lat
 
+		## Add border around image
+		## Source: https://stackoverflow.com/questions/43261338/adding-a-border-to-and-image-in-my-code
+		if image_style.border_width:
+			bw = image_style.border_width
+			bc = image_style.border_color
+			ny, nx = img_ar.shape[0], img_ar.shape[1]
+			if img_ar.ndim == 3:
+				## rgb or rgba array
+				if isinstance(bc, np.ndarray):
+					bc = bc[:img_ar.shape[2]]
+				framed_img = np.ones((bw+ny+bw, bw+nx+bw, img_ar.shape[2])) * bc
+			elif img.ndim == 2:
+				## grayscale image
+				if isinstance(bc, np.ndarray):
+					bc = bc[0]
+				framed_img = np.ones((bw+ny+bw, bw+nx+bw)) * bc
+			framed_img[bw:-bw, bw:-bw] = img_ar
+			img_ar = framed_img
+
 		if image_data.coord_frame == "geographic":
 			[x], [y] = self.lonlat_to_display_coordinates([lon], [lat])
 		elif image_data.coord_frame == "data":
@@ -1867,12 +1891,14 @@ class LayeredBasemap:
 		else:
 			title = self.title
 		style = self.title_style
-		self.ax.set_title(title, ha=style.horizontal_alignment, family=style.font_family, size=style.font_size, weight=style.font_weight, style=style.font_style, stretch=style.font_stretch, variant=style.font_variant, color=style.color, linespacing=style.line_spacing, va=style.vertical_alignment, alpha=style.alpha)
+		if title and style:
+			self.ax.set_title(title, ha=style.horizontal_alignment, family=style.font_family, size=style.font_size, weight=style.font_weight, style=style.font_style, stretch=style.font_stretch, variant=style.font_variant, color=style.color, linespacing=style.line_spacing, va=style.vertical_alignment, alpha=style.alpha)
 
 	def draw_graticule(self):
 		"""
 		Draw meridians and parallels
 		"""
+		# TODO: find a way to plot only ticks and/or parallel/meridian intersections
 		if self.graticule_style:
 			#if abs(self.region[1] - self.region[0]) == 360:
 			#	labelstyle = "+/-"
@@ -1911,7 +1937,7 @@ class LayeredBasemap:
 
 			if self.projection == "merc":
 				## Modify labels with correct lengths
-				scalebar_style.length = int(scalebar_style.length * corr_factor)
+				scalebar_style.length = int(round(scalebar_style.length * corr_factor))
 				if scalebar_style.bar_style == "fancy":
 					scale[-3].set_text(scalebar_style.length / 2)
 				scale[-2].set_text(scalebar_style.length)
