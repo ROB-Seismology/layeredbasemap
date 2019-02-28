@@ -87,6 +87,14 @@ class SingleData(BasemapData):
 			style = default_style
 		return style
 
+	def to_multi_data(self):
+		if isinstance(self, PointData):
+			return self.to_multi_point()
+		elif isinstance(self, LineData):
+			return self.to_multi_line()
+		elif isinstance(self, PolygonData):
+			return self.to_multi_polygon()
+
 	def to_wkt(self):
 		"""
 		Convert to well-known text format
@@ -111,6 +119,33 @@ class SingleData(BasemapData):
 
 	def to_ogr_geom(self):
 		return ogr.CreateGeometryFromWkt(self.to_wkt())
+
+	def construct_ogr_feature_definition(self, encoding='latin-1'):
+		multi_data = self.to_multi_data()
+		return multi_data.construct_ogr_feature_definition(encoding=encoding)
+
+	def to_ogr_feature(self, feature_definition=None, encoding='latin-1'):
+		if not feature_definition:
+			feature_definition = self.construct_ogr_feature_definition(encoding)
+
+		feature = ogr.Feature(feature_definition)
+
+		if self.value or self.label:
+			json = self.to_geojson()
+			attributes = json["properties"]
+			for idx in range(feature_definition.GetFieldCount()):
+				fd = feature_definition.GetFieldDefn(idx)
+				field_name = fd.GetName()
+				field_value = attributes.get(field_name)
+				if isinstance(field_value, basestring):
+					if not isinstance(field_value, bytes):
+						field_value = field_value.encode(encoding,
+										errors='xmlcharrefreplace')
+				if field_value is not None:
+					feature.SetField(field_name, field_value)
+		#feature.SetFID(0)
+		feature.SetGeometry(self.to_ogr_geom())
+		return feature
 
 	def create_buffer(self, distance):
 		"""
@@ -269,9 +304,11 @@ class MultiData(BasemapData):
 		props = {}
 		if isinstance(self.values, dict):
 			props = self.values.copy()
-		elif self.values is not None or len(self.values) != 0:
+		elif not (self.values is None or len(self.values) == 0
+			or set(self.values) in (set([None]), set(['']), set([]))):
 			props = {'values': self.values}
-		if self.labels is not None or len(self.labels) != 0:
+		if not (self.labels is None or len(self.labels) == 0
+			or set(self.labels) in (set([None]), set(['']), set([]))):
 			props['label'] = self.labels
 		if props:
 			json["properties"] = props
@@ -280,6 +317,100 @@ class MultiData(BasemapData):
 	def to_ogr_geom(self):
 		return ogr.CreateGeometryFromWkt(self.to_wkt())
 
+	def construct_ogr_feature_definition(self, encoding='latin-1'):
+		# TODO: order of field names?
+		import datetime, decimal
+
+		MININT, MAXINT = -2**31, 2**31 - 1
+		feature_definition = ogr.FeatureDefn()
+		if self.values or self.labels:
+			json = self.to_geojson()
+			attributes = json["properties"]
+			for field_name, field_values in attributes.items():
+				field_name = field_name.encode(encoding, errors='xmlcharrefreplace')
+				field_val = field_values[0]
+				if isinstance(field_val, bool):
+					fd = ogr.FieldDefn(field_name, ogr.OFTInteger)
+					fd.SetSubType(ogr.OFSTBoolean)
+				elif isinstance(field_val, int):
+					min_val = np.min(field_values)
+					max_val = np.max(field_values)
+					if min_val >= MININT and max_val <= MAXINT:
+						fd = ogr.FieldDefn(field_name, ogr.OFTInteger)
+					else:
+						fd = ogr.FieldDefn(field_name, ogr.OFTInteger64)
+				elif isinstance(field_val, float):
+					fd = ogr.FieldDefn(field_name, ogr.OFTReal)
+				elif isinstance(field_val, decimal.Decimal):
+					fd = ogr.FieldDefn(field_name, ogr.OFTReal)
+					num_digits = field_val.as_tuple()[1][0]
+					fd.SetPrecision(num_digits)
+					#fd.SetWidth()
+				elif isinstance(field_val, basestring):
+					max_len = max(map(len, field_values))
+					fd = ogr.FieldDefn(field_name, ogr.OFTString)
+					#fd.SetWidth(max_len + 5)
+				elif isinstance(field_val, (datetime.datetime, np.datetime64)):
+					fd = ogr.FieldDefn(field_name, ogr.OFTDateTime)
+				elif isinstance(field_val, datetime.date):
+					fd = ogr.FieldDefn(field_name, ogr.OFTDate)
+				elif isinstance(field_val, datetime.time):
+					fd = ogr.FieldDefn(field_name, ogr.OFTTime)
+				else:
+					fd = ogr.FieldDefn(field_name, ogr.OFTBinary)
+
+				feature_definition.AddFieldDefn(fd)
+
+		return feature_definition
+
+	def to_ogr_features(self, encoding='latin-1'):
+		feature_definition = self.construct_ogr_feature_definition(encoding=encoding)
+		features = []
+		for item in self:
+			features.append(item.to_ogr_feature(feature_definition,
+												encoding=encoding))
+		return features
+
+	def export_gis(self, format, out_filespec, encoding='latin-1'):
+		"""
+		Export to GIS file
+
+		:param format:
+			str, OGR format specification (or 'MEMORY')
+		:param out_filespec:
+			str, full path to output file, will also be used as layer name
+		"""
+		import os
+
+		# TODO: determine out_filespec automatically from format, or
+		# determine driver from out_filespec extension
+		driver = ogr.GetDriverByName(format)
+		if not driver:
+			print("Format %s not supported by ogr!" % format)
+		else:
+			ds = driver.CreateDataSource(out_filespec)
+			name = os.path.splitext(os.path.split(out_filespec)[-1])[0]
+			features = self.to_ogr_features(encoding=encoding)
+			feature = features[0]
+			geom_type = feature.GetGeometryRef().GetGeometryType()
+			layer = ds.CreateLayer(name, WGS84, geom_type)
+
+			## Set layer definition from feature definition
+			for i in range(feature.GetFieldCount()):
+				field = feature.GetFieldDefnRef(i)
+				layer.CreateField(field)
+
+			## Add all features to layer
+			for feature in features:
+				layer.CreateFeature(feature)
+				## Dereference the feature
+				feature = None
+
+			if format.upper() == 'MEMORY':
+				return ds
+			else:
+				## Save and close the data source
+				ds = None
 
 
 class BuiltinData(BasemapData):
