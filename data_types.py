@@ -105,7 +105,8 @@ class SingleData(BasemapData):
 		return self.to_shapely().wkt
 
 	def to_geojson(self):
-		json = shapely.geometry.mapping(self.to_shapely())
+		json = {'type': 'Feature'}
+		json['geometry'] = shapely.geometry.mapping(self.to_shapely())
 		props = {}
 		if isinstance(self.value, dict):
 			props = self.value.copy()
@@ -299,19 +300,25 @@ class MultiData(BasemapData):
 		"""
 		return self.to_shapely().wkt
 
-	def to_geojson(self):
-		json = shapely.geometry.mapping(self.to_shapely())
-		props = {}
-		if isinstance(self.values, dict):
-			props = self.values.copy()
-		elif not (self.values is None or len(self.values) == 0
-			or set(self.values) in (set([None]), set(['']), set([]))):
-			props = {'values': self.values}
-		if not (self.labels is None or len(self.labels) == 0
-			or set(self.labels) in (set([None]), set(['']), set([]))):
-			props['label'] = self.labels
-		if props:
-			json["properties"] = props
+	def to_geojson(self, as_multi=False):
+		if as_multi:
+			json = shapely.geometry.mapping(self.to_shapely())
+			props = {}
+			if isinstance(self.values, dict):
+				props = self.values.copy()
+			elif not (self.values is None or len(self.values) == 0
+				or set(self.values) in (set([None]), set(['']), set([]))):
+				props = {'values': self.values}
+			if not (self.labels is None or len(self.labels) == 0
+				or set(self.labels) in (set([None]), set(['']), set([]))):
+				props['label'] = self.labels
+			if props:
+				json["properties"] = props
+		else:
+			json = {'type': 'FeatureCollection',
+					'features': []}
+			for item in self:
+				json['features'].append(item.to_geojson())
 		return json
 
 	def to_ogr_geom(self):
@@ -324,7 +331,7 @@ class MultiData(BasemapData):
 		MININT, MAXINT = -2**31, 2**31 - 1
 		feature_definition = ogr.FeatureDefn()
 		if self.values or self.labels:
-			json = self.to_geojson()
+			json = self.to_geojson(as_multi=True)
 			attributes = json["properties"]
 			for field_name, field_values in attributes.items():
 				field_name = field_name.encode(encoding, errors='xmlcharrefreplace')
@@ -376,7 +383,7 @@ class MultiData(BasemapData):
 		Export to GIS file
 
 		:param format:
-			str, OGR format specification (or 'MEMORY')
+			str, OGR format specification (e.g., 'ESRI Shapefile', 'MEMORY')
 		:param out_filespec:
 			str, full path to output file, will also be used as layer name
 		"""
@@ -439,6 +446,9 @@ class PointData(SingleData):
 		float, longitude
 	:param lat:
 		float, latitude
+	:param z:
+		float depth
+		(default: None)
 	:param value:
 		str, int, float or dictionary mapping keywords to str, int or
 		float. Used for thematic mapping, in conjunction with a layer
@@ -563,6 +573,9 @@ class MultiPointData(MultiData):
 		list or array of floats, longitudes
 	:param lats:
 		list or array of floats, latitudes
+	:param z:
+		list or array of floats, depths
+		(default: None)
 	:param values:
 		list of strings, ints or floats, or dictionary mapping
 		keywords to lists of strings, ints or floats.
