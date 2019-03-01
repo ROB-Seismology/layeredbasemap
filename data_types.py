@@ -3,6 +3,7 @@ Data types used in LayeredBasemap
 """
 
 from __future__ import absolute_import, division, print_function, unicode_literals
+from builtins import int
 
 
 try:
@@ -40,6 +41,8 @@ WGS84.ImportFromEPSG(WGS84_EPSG)
 
 # TODO: add srs parameter (default: WGS84)
 # TODO: remove ambiguity between region and bbox (llx, lly, urx, ury)
+
+# TODO: add to_folium methods
 
 class BasemapData(object):
 	"""
@@ -107,6 +110,12 @@ class SingleData(BasemapData):
 		return self.to_shapely().wkt
 
 	def to_geojson(self):
+		"""
+		Convert to GeoJSON.
+
+		:return:
+			dict
+		"""
 		json = {'type': 'Feature'}
 		json['geometry'] = shapely.geometry.mapping(self.to_shapely())
 		props = {}
@@ -120,14 +129,47 @@ class SingleData(BasemapData):
 			json["properties"] = props
 		return json
 
+	# TODO: dump_geojson method with json_handler for arrays and datetimes cf. eqcatalog
+
 	def to_ogr_geom(self):
+		"""
+		Convert to ogr geometry
+
+		:return:
+			instance of :class:`ogr.Geometry`
+		"""
 		return ogr.CreateGeometryFromWkt(self.to_wkt())
 
 	def construct_ogr_feature_definition(self, encoding='latin-1'):
+		"""
+		Construct ogr feature/layer definition based on :prop:`value`.
+		Use OrderedDict for :prop:`value` if you want to control
+		order of attribute columns
+
+		:param encoding:
+			str, encoding to use for non-ASCII characters
+			(default: 'latin-1')
+
+		:return:
+			instance of :class:`ogr.FeatureDefn`
+		"""
 		multi_data = self.to_multi_data()
 		return multi_data.construct_ogr_feature_definition(encoding=encoding)
 
 	def to_ogr_feature(self, feature_definition=None, encoding='latin-1'):
+		"""
+		Convert to ogr feature
+
+		:param feature_definition:
+			instance of :class:`ogr.FeatureDefn`
+			(default: None, will construct automatically from :prop:`value`
+		:param encoding:
+			str, encoding to use for non-ASCII characters
+			(default: 'latin-1')
+
+		:return:
+			instance of :class:`ogr.Feature`
+		"""
 		import datetime
 
 		if not feature_definition:
@@ -146,11 +188,12 @@ class SingleData(BasemapData):
 					if not isinstance(field_value, bytes):
 						field_value = field_value.encode(encoding,
 										errors='xmlcharrefreplace')
-				elif isinstance(field_value, np.datetime64):
-					field_value = str(field_value)
-				elif isinstance(field_value, (datetime.datetime, datetime.date,
-												datetime.time)):
-					field_value = field_value.isoformat()
+				elif isinstance(field_value, (np.datetime64, datetime.datetime,
+												datetime.date, datetime.time)):
+					field_value = bytes(field_value)
+				elif np.isnan(field_value):
+					field_value = None
+
 				if field_value is not None:
 					feature.SetField(field_name, field_value)
 		#feature.SetFID(0)
@@ -310,6 +353,17 @@ class MultiData(BasemapData):
 		return self.to_shapely().wkt
 
 	def to_geojson(self, as_multi=False):
+		"""
+		Convert to GeoJSON.
+
+		:param as_multi:
+			bool, whether or not to export as 1 MultiData object (True)
+			or as collection of SingleData objects (False)
+			(default: False)
+
+		:return:
+			dict
+		"""
 		if as_multi:
 			json = shapely.geometry.mapping(self.to_shapely())
 			props = {}
@@ -331,9 +385,27 @@ class MultiData(BasemapData):
 		return json
 
 	def to_ogr_geom(self):
+		"""
+		Convert to ogr geometry
+
+		:return:
+			instance of :class:`ogr.Geometry`
+		"""
 		return ogr.CreateGeometryFromWkt(self.to_wkt())
 
 	def construct_ogr_feature_definition(self, encoding='latin-1'):
+		"""
+		Construct ogr feature/layer definition based on :prop:`values`.
+		Use OrderedDict for :prop:`values` if you want to control
+		order of attribute columns
+
+		:param encoding:
+			str, encoding to use for non-ASCII characters
+			(default: 'latin-1')
+
+		:return:
+			instance of :class:`ogr.FeatureDefn`
+		"""
 		# TODO: order of field names?
 		import datetime, decimal
 
@@ -363,8 +435,8 @@ class MultiData(BasemapData):
 					fd.SetPrecision(num_digits)
 					#fd.SetWidth()
 				elif isinstance(field_val, basestring):
-					max_len = max(map(len, field_values))
 					fd = ogr.FieldDefn(field_name, ogr.OFTString)
+					#max_len = max(map(len, field_values))
 					#fd.SetWidth(max_len + 5)
 				elif isinstance(field_val, (datetime.datetime, np.datetime64)):
 					fd = ogr.FieldDefn(field_name, ogr.OFTDateTime)
@@ -380,6 +452,16 @@ class MultiData(BasemapData):
 		return feature_definition
 
 	def to_ogr_features(self, encoding='latin-1'):
+		"""
+		Convert to ogr features
+
+		:param encoding:
+			str, encoding to use for non-ASCII characters
+			(default: 'latin-1')
+
+		:return:
+			list with instances of :class:`ogr.Feature`
+		"""
 		feature_definition = self.construct_ogr_feature_definition(encoding=encoding)
 		features = []
 		for item in self:
@@ -390,11 +472,20 @@ class MultiData(BasemapData):
 	def export_gis(self, format, out_filespec, encoding='latin-1'):
 		"""
 		Export to GIS file
+		Use OrderedDict for :prop:`values` if you want to control
+		order of attribute columns
 
 		:param format:
 			str, OGR format specification (e.g., 'ESRI Shapefile', 'MEMORY')
 		:param out_filespec:
 			str, full path to output file, will also be used as layer name
+		:param encoding:
+			str, encoding to use for non-ASCII characters
+			(default: 'latin-1')
+
+		:return:
+			instance of :class:`ogr.DataSource` if :param:`format`
+			== 'MEMORY', else None
 		"""
 		import os
 
