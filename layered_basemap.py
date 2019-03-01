@@ -922,6 +922,7 @@ class LayeredBasemap:
 
 		self.zorder += 1
 		if getattr(point_data, 'labels', False) and point_style.label_style:
+			#point_data.style_params = {}
 			self._draw_texts(point_data, point_style.label_style)
 			self.zorder += 1
 
@@ -1117,6 +1118,8 @@ class LayeredBasemap:
 		hillshade = None
 		hillshade_style = grid_style.hillshade_style
 		if hillshade_style:
+			## Copy grid_data mask, as it seems to disappear when it is accessed...
+			hillshade_mask = np.copy(grid_data.values.mask)
 			azimuth = hillshade_style.azimuth
 			elevation_angle = hillshade_style.elevation_angle
 			scale = hillshade_style.scale
@@ -1173,6 +1176,11 @@ class LayeredBasemap:
 					#rgba = cmap_obj((data - data_min) / float(data_max - data_min))
 					rgba = grid_style.color_map_theme(data)
 
+					## Make NaN and masked hillshade values transparent
+					rgba[:,:,3][np.isnan(hillshade)] = 0.
+					if isinstance(grid_data.values, np.ma.core.MaskedArray):
+						rgba[:,:,3][hillshade_mask] = 0.
+
 					## Blend colormapped values with hillshading
 					rgb = rgba[:,:,:3]
 					if hillshade_style.blend_mode == "pegtop":
@@ -1192,6 +1200,11 @@ class LayeredBasemap:
 						elif hillshade_style.blend_mode == "soft":
 							## This should be similar to pegtop
 							rgba[:,:,:3] = ls.blend_soft_light(rgb, hillshade)
+
+					## Some hillshading algorithms may result in rgba values
+					## outside the range 0 - 1
+					rgba = np.maximum(0, rgba)
+					rgba = np.minimum(1, rgba)
 
 					## Hillshade in matplotlib, doesn't work yet
 					"""
