@@ -94,6 +94,8 @@ class SingleData(BasemapData):
 			return self.to_multi_line()
 		elif isinstance(self, PolygonData):
 			return self.to_multi_polygon()
+		elif isinstance(self, TextData):
+			return self.to_multi_text()
 
 	def to_wkt(self):
 		"""
@@ -126,6 +128,8 @@ class SingleData(BasemapData):
 		return multi_data.construct_ogr_feature_definition(encoding=encoding)
 
 	def to_ogr_feature(self, feature_definition=None, encoding='latin-1'):
+		import datetime
+
 		if not feature_definition:
 			feature_definition = self.construct_ogr_feature_definition(encoding)
 
@@ -142,6 +146,11 @@ class SingleData(BasemapData):
 					if not isinstance(field_value, bytes):
 						field_value = field_value.encode(encoding,
 										errors='xmlcharrefreplace')
+				elif isinstance(field_value, np.datetime64):
+					field_value = str(field_value)
+				elif isinstance(field_value, (datetime.datetime, datetime.date,
+												datetime.time)):
+					field_value = field_value.isoformat()
 				if field_value is not None:
 					feature.SetField(field_name, field_value)
 		#feature.SetFID(0)
@@ -1964,6 +1973,7 @@ class MeshGridData(GridData):
 			shade = ls.hillshade(self.values, dx=np.sign(self.dlon), dy=-np.sign(self.dlat))
 
 		## Eliminate nan values, they result in black when blended
+		# TODO: maybe these values should be masked or made transparent
 		shade[np.isnan(shade)] = 0.5
 
 		return shade
