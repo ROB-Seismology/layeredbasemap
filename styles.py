@@ -137,6 +137,17 @@ class BasemapStyle(object):
 				if not val is None:
 					setattr(self, attr, val)
 
+		## Allow setting properties of substyles,
+		## e.g. label_style in higher-order styles
+		## (Not working at the moment in layered_basemap.py)
+		if isinstance(other, dict):
+			for attr in other.keys():
+				if '.' in attr:
+					main_attr, subattr = attr.split('.')
+					val = other[attr]
+					setattr(getattr(self, main_attr), subattr, val)
+
+
 
 class FontStyle(BasemapStyle):
 	"""
