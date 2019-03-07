@@ -2049,7 +2049,7 @@ class LayeredBasemap:
 		if not self.is_drawn:
 			self.draw()
 		if fig_filespec == "hold":
-			return
+			return self
 		elif fig_filespec:
 			pylab.savefig(fig_filespec, dpi=dpi)
 			pylab.clf()
