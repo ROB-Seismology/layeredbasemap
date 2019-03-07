@@ -171,6 +171,7 @@ class SingleData(BasemapData):
 			instance of :class:`ogr.Feature`
 		"""
 		import datetime
+		import decimal
 
 		if not feature_definition:
 			feature_definition = self.construct_ogr_feature_definition(encoding)
@@ -184,15 +185,30 @@ class SingleData(BasemapData):
 				fd = feature_definition.GetFieldDefn(idx)
 				field_name = fd.GetName()
 				field_value = attributes.get(field_name)
-				if isinstance(field_value, basestring):
+				if field_value is None or isinstance(field_value, (bool, int,
+							np.integer, float, np.floating, decimal.Decimal)):
+					pass
+				#elif isinstance(field_value, np.integer):
+				#	field_value = int(field_value)
+				#elif isinstance(field_value, np.floating):
+				#	field_value = float(field_value)
+				elif isinstance(field_value, basestring):
 					if not isinstance(field_value, bytes):
 						field_value = field_value.encode(encoding,
 										errors='xmlcharrefreplace')
 				elif isinstance(field_value, (np.datetime64, datetime.datetime,
 												datetime.date, datetime.time)):
 					field_value = bytes(field_value)
-				elif np.isnan(field_value):
-					field_value = None
+				elif isinstance(field_value, (list, np.ndarray)):
+					field_value = ','.join(map(str, field_value))
+				else:
+					try:
+						isnan = np.isnan(field_value)
+					except:
+						field_value = str(field_value)
+					else:
+						if isnan:
+							field_value = None
 
 				if field_value is not None:
 					feature.SetField(field_name, field_value)
@@ -420,14 +436,14 @@ class MultiData(BasemapData):
 				if isinstance(field_val, bool):
 					fd = ogr.FieldDefn(field_name, ogr.OFTInteger)
 					fd.SetSubType(ogr.OFSTBoolean)
-				elif isinstance(field_val, int):
+				elif isinstance(field_val, (int, np.integer)):
 					min_val = np.min(field_values)
 					max_val = np.max(field_values)
 					if min_val >= MININT and max_val <= MAXINT:
 						fd = ogr.FieldDefn(field_name, ogr.OFTInteger)
 					else:
 						fd = ogr.FieldDefn(field_name, ogr.OFTInteger64)
-				elif isinstance(field_val, float):
+				elif isinstance(field_val, (float, np.floating)):
 					fd = ogr.FieldDefn(field_name, ogr.OFTReal)
 				elif isinstance(field_val, decimal.Decimal):
 					fd = ogr.FieldDefn(field_name, ogr.OFTReal)
@@ -445,7 +461,11 @@ class MultiData(BasemapData):
 				elif isinstance(field_val, datetime.time):
 					fd = ogr.FieldDefn(field_name, ogr.OFTTime)
 				else:
-					fd = ogr.FieldDefn(field_name, ogr.OFTBinary)
+					msg = "Warning: Data type %s of field %s not recognized!"
+					msg %= (type(field_val), field_name)
+					print(msg)
+					#fd = ogr.FieldDefn(field_name, ogr.OFTBinary)
+					fd = ogr.FieldDefn(field_name, ogr.OFTString)
 
 				feature_definition.AddFieldDefn(fd)
 
@@ -476,7 +496,8 @@ class MultiData(BasemapData):
 		order of attribute columns
 
 		:param format:
-			str, OGR format specification (e.g., 'ESRI Shapefile', 'MEMORY')
+			str, OGR format specification (e.g., 'ESRI Shapefile',
+			'MapInfo File', 'GeoJSON', 'MEMORY', ...)
 		:param out_filespec:
 			str, full path to output file, will also be used as layer name
 		:param encoding:
@@ -3247,39 +3268,45 @@ class GisData(BasemapData):
 		:return:
 			(MultiPointData, MultiLineData, MultiPolygonData) tuple
 		"""
+		from collections import OrderedDict
 		from mapping.geotools.read_gis import read_gis_file
 
-		if None in (point_value_colnames, line_value_colnames, polygon_value_colnames):
-			colnames = self.get_attributes()
+		colnames = self.get_attributes()
 		if point_value_colnames is None:
-			point_value_colnames = set(colnames)
+			point_value_colnames = colnames[:]
 		if line_value_colnames is None:
-			line_value_colnames = set(colnames)
+			line_value_colnames = colnames[:]
 		if polygon_value_colnames is None:
-			polygon_value_colnames = set(colnames)
+			polygon_value_colnames = colnames[:]
 
 		## Make sure attributes needed to link with joined_attributes are stored too
-		joined_attribute_colnames = set()
+		linked_attributes = []
 		for attrib_name in self.joined_attributes.keys():
-			joined_attribute_colnames.add(self.joined_attributes[attrib_name]['key'])
-		point_value_colnames = point_value_colnames.union(joined_attribute_colnames)
-		line_value_colnames = line_value_colnames.union(joined_attribute_colnames)
-		polygon_value_colnames = polygon_value_colnames.union(joined_attribute_colnames)
+			linked_attribute = self.joined_attributes[attrib_name]['key']
+			if not linked_attribute in linked_attributes:
+				linked_attributes.append(linked_attribute)
+		## while preserving order of original GIS attributes
+		point_value_colnames = [col for col in colnames if (col in point_value_colnames
+								or col in linked_attributes)]
+		line_value_colnames = [col for col in colnames if (col in line_value_colnames
+								or col in linked_attributes)]
+		polygon_value_colnames = [col for col in colnames if (col in polygon_value_colnames
+								or col in linked_attributes)]
 
 		## Note: it is absolutely necessary to initialize all empty lists
 		## explicitly, otherwise unexpected things may happen in subsequent
 		## calls of this method!
 		point_data = MultiPointData([], [], values=[], labels=[])
-		point_data.values = {}
+		point_data.values = OrderedDict()
 		for colname in point_value_colnames:
 			point_data.values[colname] = []
 		line_data = MultiLineData([], [], values=[], labels=[])
-		line_data.values = {}
+		line_data.values = OrderedDict()
 		for colname in line_value_colnames:
 			line_data.values[colname] = []
 		polygon_data = MultiPolygonData([], [], interior_lons=[], interior_lats=[],
 				values=[], labels=[])
-		polygon_data.values = {}
+		polygon_data.values = OrderedDict()
 		for colname in polygon_value_colnames:
 			polygon_data.values[colname] = []
 
