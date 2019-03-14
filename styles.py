@@ -1241,14 +1241,7 @@ class ThematicStyleIndividual(ThematicStyle):
 		if not (labels is None or labels == []):
 			self.labels = labels
 		else:
-			self.labels = []
-			for val in self.values:
-				if PY2 and isinstance(val, str):
-					val = val.decode('iso-8859-1')
-				if isinstance(val, basestring):
-					self.labels.append(val)
-				else:
-					self.labels.append(str(val))
+			self.labels = self.gen_labels()
 
 		## Override colorbar default ticks and tick_labels
 		if self.colorbar_style and self.is_color_style():
@@ -1257,6 +1250,27 @@ class ThematicStyleIndividual(ThematicStyle):
 				self.colorbar_style.ticks = sm.get_array()
 			if self.colorbar_style.tick_labels is None:
 				self.colorbar_style.tick_labels = self.labels
+
+	def gen_labels(self, as_ranges=None):
+		"""
+		Generate labels from values
+
+		:param as_ranges:
+			dummy argument for compatibility with other ThematicStyle
+			classes, has no effect
+
+		:return:
+			list of strings
+		"""
+		labels = []
+		for val in self.values:
+			if PY2 and isinstance(val, str):
+				val = val.decode('iso-8859-1')
+			if isinstance(val, basestring):
+				labels.append(val)
+			else:
+				labels.append(str(val))
+		return labels
 
 	def is_numeric(self):
 		return np.array([not isinstance(self.values[idx], (basestring, list))
@@ -1439,9 +1453,7 @@ class ThematicStyleRanges(ThematicStyle):
 		if not (labels is None or labels == []):
 			self.labels = labels
 		else:
-			self.labels = []
-			for i in range(len(self.styles)):
-				self.labels.append("%s - %s" % (self.values[i], self.values[i+1]))
+			self.labels = self.gen_labels()
 
 		## Override colorbar default ticks and tick_labels
 		if self.colorbar_style and self.is_color_style():
@@ -1450,6 +1462,25 @@ class ThematicStyleRanges(ThematicStyle):
 				self.colorbar_style.ticks = sm.get_array()
 			if self.colorbar_style.tick_labels is None and labels:
 				self.colorbar_style.tick_labels = labels
+
+	def gen_labels(self, as_ranges=True):
+		"""
+		Generate labels from values
+
+		:param as_ranges:
+			bool, whether or not to generate range labels
+			(default: True)
+
+		:return:
+			list of strings
+		"""
+		if as_ranges:
+			labels = []
+			for i in range(len(self.styles)):
+				labels.append("%s - %s" % (self.values[i], self.values[i+1]))
+		else:
+			labels = ["%s" % val for val in self.values]
+		return labels
 
 	def set_styles(self, styles):
 		self.styles = styles
@@ -1606,11 +1637,7 @@ class ThematicStyleGradient(ThematicStyle):
 		if not (labels is None or labels == []):
 			self.labels = labels
 		else:
-			#self.labels = map(str, self.values)
-			self.labels = []
-			for i in range(len(self.values) - 1):
-				self.labels.append("[%s - %s[" % (self.values[i], self.values[i+1]))
-			self.labels.append("[%s -" % self.values[-1])
+			self.labels = self.gen_labels()
 
 		## Override colorbar default ticks and tick_labels
 		if self.colorbar_style and self.is_color_style():
@@ -1619,6 +1646,26 @@ class ThematicStyleGradient(ThematicStyle):
 				self.colorbar_style.ticks = sm.get_array()
 			if self.colorbar_style.tick_labels is None and labels:
 				self.colorbar_style.tick_labels = labels
+
+	def gen_labels(self, as_ranges=True):
+		"""
+		Generate labels from values
+
+		:param as_ranges:
+			bool, whether or not to generate range labels
+			(default: True)
+
+		:return:
+			list of strings
+		"""
+		if as_ranges:
+			labels = []
+			for i in range(len(self.values) - 1):
+				self.labels.append("[%s - %s[" % (self.values[i], self.values[i+1]))
+			labels.append("[%s -" % self.values[-1])
+		else:
+			labels = ["%s" % val for val in self.values]
+		return labels
 
 	def set_styles(self, styles):
 		self.styles = styles
