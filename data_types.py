@@ -2487,11 +2487,11 @@ class GdalRasterData(MeshGridData):
 
 	@property
 	def ncols(self):
-		return int(abs((self.x0 - self.x1) / self.dx)) + 1
+		return int(round(abs((self.x0 - self.x1) / self.dx))) + 1
 
 	@property
 	def nrows(self):
-		return int(abs((self.y0 - self.y1) / self.dy)) + 1
+		return int(round(abs((self.y0 - self.y1) / self.dy))) + 1
 
 	def get_bbox_from_region(self, region, margin_fraction=1./20):
 		from mapping.geotools.coordtrans import transform_coordinates
@@ -2674,8 +2674,8 @@ class GdalRasterData(MeshGridData):
 		yoff = self._get_y_index(self.y0)
 		buf_xsize = self.ncols
 		buf_ysize = self.nrows
-		win_xsize = int(self.ncols * self.down_sampling)
-		win_ysize = int(self.nrows * self.down_sampling)
+		win_xsize = int(round(abs((self._x0 - self._x1) / self._dx))) + 1
+		win_ysize = int(round(abs((self._y0 - self._y1) / self._dy))) + 1
 
 		values = band.ReadAsArray(xoff=xoff, yoff=yoff, win_xsize=win_xsize,
 				win_ysize=win_ysize, buf_xsize=buf_xsize, buf_ysize=buf_ysize)
