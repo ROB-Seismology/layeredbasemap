@@ -51,13 +51,15 @@ class PiecewiseLinearNorm(matplotlib.colors.Normalize):
 	def __call__(self, value, clip=None):
 		breakpoint_values = np.linspace(0, 1, len(self.breakpoints))
 		values, is_scalar = self.process_value(value)
+		values = np.ma.masked_invalid(values)
 		out_values = interpolate(self.breakpoints, breakpoint_values, values)
 		out_values[values < self.breakpoints[0]] = -0.16666667
 		out_values[values > self.breakpoints[-1]] = 1.16666667
+		#out_values[np.isnan(value)] = np.nan
 		if is_scalar:
 			out_values = out_values[0]
 		else:
-			mask = getattr(value, "mask", None)
+			mask = getattr(values, "mask", None)
 			out_values = ma.masked_array(out_values, mask)
 		return out_values
 
@@ -91,15 +93,16 @@ class PiecewiseConstantNorm(matplotlib.colors.Normalize):
 	def __call__(self, value, clip=None):
 		breakpoint_values = np.linspace(0, 1, len(self.breakpoints))
 		values, is_scalar = self.process_value(value)
+		values = np.ma.masked_invalid(values)
 		bin_indexes = np.digitize(value, self.breakpoints) - 1
 		bin_indexes = bin_indexes.clip(0, len(self.breakpoints)-1)
 		out_values = breakpoint_values[bin_indexes]
 		out_values[values < self.breakpoints[0]] = -0.16666667
 		out_values[values > self.breakpoints[-1]] = 1.16666667
-		out_values[np.isnan(value)] = np.nan
+		#out_values[np.isnan(value)] = np.nan
 		if is_scalar:
 			out_values = out_values[0]
 		else:
-			mask = getattr(value, "mask", None)
+			mask = getattr(values, "mask", None)
 			out_values = ma.masked_array(out_values, mask)
 		return out_values
