@@ -148,7 +148,6 @@ class BasemapStyle(object):
 					setattr(getattr(self, main_attr), subattr, val)
 
 
-
 class FontStyle(BasemapStyle):
 	"""
 	Class representing matplotlib font properties
@@ -1288,9 +1287,13 @@ class ThematicStyleIndividual(ThematicStyle):
 		sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=color_map)
 		styles = [sm.to_rgba(i) for i in range(N)]
 		self.set_styles(styles)
-		self.style_under = color_map._rgba_under
-		self.style_over = color_map._rgba_over
-		self.style_bad = color_map._rgba_bad
+		## Set style_under/_over/_bad if not set yet
+		if not self.style_under:
+			self.style_under = color_map._rgba_under
+		if not self.style_over:
+			self.style_over = color_map._rgba_over
+		if not self.style_bad:
+			self.style_bad = color_map._rgba_bad
 
 	def set_styles_from_random_colors(self, random_seed=None):
 		import random
@@ -1459,9 +1462,13 @@ class ThematicStyleRanges(ThematicStyle):
 		sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=color_map)
 		styles = [sm.to_rgba(i) for i in range(N)]
 		self.set_styles(styles)
-		self.style_under = color_map._rgba_under
-		self.style_over = color_map._rgba_over
-		self.style_bad = color_map._rgba_bad
+		## Set style_under/_over/_bad if not set yet
+		if not self.style_under:
+			self.style_under = color_map._rgba_under
+		if not self.style_over:
+			self.style_over = color_map._rgba_over
+		if not self.style_bad:
+			self.style_bad = color_map._rgba_bad
 
 	def set_styles_from_random_colors(self, random_seed=None):
 		import random
@@ -1624,9 +1631,13 @@ class ThematicStyleGradient(ThematicStyle):
 		sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=color_map)
 		styles = [sm.to_rgba(i) for i in range(N)]
 		self.set_styles(styles)
-		self.style_under = color_map._rgba_under
-		self.style_over = color_map._rgba_over
-		self.style_bad = color_map._rgba_bad
+		## Set style_under/_over/_bad if not set yet
+		if not self.style_under:
+			self.style_under = color_map._rgba_under
+		if not self.style_over:
+			self.style_over = color_map._rgba_over
+		if not self.style_bad:
+			self.style_bad = color_map._rgba_bad
 
 	def set_styles_from_random_colors(self, random_seed=None):
 		import random
