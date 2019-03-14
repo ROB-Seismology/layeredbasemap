@@ -2038,6 +2038,9 @@ class LayeredBasemap:
 		#fig = pylab.figure()
 		#subplot = fig.draw_subplot(111)
 		#subplot.set_axes(self.ax)
+		if fig_filespec == "hold":
+			return self
+
 		if dpi:
 			if fig_filespec:
 				default_figsize = pylab.rcParams['figure.figsize']
@@ -2048,13 +2051,13 @@ class LayeredBasemap:
 				self.fig.set_dpi(dpi)
 		if not self.is_drawn:
 			self.draw()
-		if fig_filespec == "hold":
-			return self
-		elif fig_filespec:
+
+		if fig_filespec:
 			pylab.savefig(fig_filespec, dpi=dpi)
 			pylab.clf()
 		else:
 			pylab.show()
+
 		## Reset dpi to original value
 		self.fig.set_dpi(self.dpi)
 
