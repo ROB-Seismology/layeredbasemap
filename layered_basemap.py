@@ -28,7 +28,7 @@ import shapely.geometry
 
 
 from .styles import *
-from .styles import ThematicStyle
+from .styles.thematic import ThematicStyle
 from .data_types import *
 
 
