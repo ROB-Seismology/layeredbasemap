@@ -380,7 +380,7 @@ class MultiPointData(MultiData):
 				self.style_params[key] = np.array(self.style_params[key])[sorted_indexes]
 		return sorted_indexes
 
-	def to_unstructured_grid_data(self, unit=""):
+	def to_unstructured_grid_data(self, value_key=None, unit=""):
 		"""
 		Cast point cloud to unstructured grid.
 		Note that values must not be empty for this to work
@@ -389,4 +389,8 @@ class MultiPointData(MultiData):
 			instance of :class:`UnstructuredGrid`
 		"""
 		assert not self.values in (None, [])
+		if not isinstance(self.values, dict):
+			values = self.values
+		else:
+			values = self.values[value_key]
 		return UnstructuredGridData(self.lons, self.lats, self.values, unit=unit)
