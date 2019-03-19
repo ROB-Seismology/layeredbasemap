@@ -577,7 +577,7 @@ class ThematicStyleGradient(ThematicStyle):
 		if as_ranges:
 			labels = []
 			for i in range(len(self.values) - 1):
-				self.labels.append("[%s - %s[" % (self.values[i], self.values[i+1]))
+				labels.append("[%s - %s[" % (self.values[i], self.values[i+1]))
 			labels.append("[%s -" % self.values[-1])
 		else:
 			labels = ["%s" % val for val in self.values]
