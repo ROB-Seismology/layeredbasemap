@@ -20,7 +20,7 @@ import ogr
 from .base import BasemapData
 from .point import MultiPointData
 from .line import MultiLineData
-from .polygon import MultiPolygonData
+from .polygon import PolygonData, MultiPolygonData
 
 
 __all__ = ['CompositeData', 'GisData']
