@@ -122,7 +122,8 @@ class UnstructuredGridData(GridData):
 		values = self.values.flatten()
 		return MultiPointData(lons, lats, list(values))
 
-	def to_mesh_grid_data(self, num_cells, extent=(None, None, None, None), interpolation_method='cubic'):
+	def to_mesh_grid_data(self, num_cells, extent=(None, None, None, None),
+						interpolation_method='cubic', max_dist=5000.):
 		"""
 		Convert to meshed grid data
 
@@ -133,12 +134,12 @@ class UnstructuredGridData(GridData):
 			(default: (None, None, None, None)
 		:param interpolation_method:
 			Str, interpolation method supported by griddata (either
-			"linear", "nearest" or "cubic") (default: "cubic")
+			"linear", "nearestN", "cubic" or "idwP")
+			(default: "cubic")
 
 		:return:
 			instance of :class:`MeshGridData`
 		"""
-		from scipy.interpolate import griddata
 		if isinstance(num_cells, int):
 			num_cells = (num_cells, num_cells)
 		num_lons, num_lats = num_cells
@@ -154,7 +155,60 @@ class UnstructuredGridData(GridData):
 		lons = np.linspace(lonmin, lonmax, num_lons)
 		lats = np.linspace(latmin, latmax, num_lats)
 		mesh_lons, mesh_lats = np.meshgrid(lons, lats)
-		mesh_values = griddata((self.lons, self.lats), self.values, (mesh_lons, mesh_lats), method=interpolation_method)
+
+		if (interpolation_method in ('linear', 'cubic') or
+			interpolation_method[:7] == 'nearest'):
+			from scipy.interpolate import griddata
+			from mapping.geotools.coordtrans import lonlat_to_meter
+			## Convert geographic to cartesian coordinates
+			ref_lat = np.mean([latmin, latmax])
+			x, y = lonlat_to_meter(self.lons, self.lats, ref_lat=ref_lat)
+			mesh_x, mesh_y = lonlat_to_meter(mesh_lons, mesh_lats, ref_lat=ref_lat)
+
+			if interpolation_method[:7] == 'nearest':
+				from scipy.spatial import cKDTree
+				tree = cKDTree(zip(x, y))
+				num_neighbors = 1
+				if len(interpolation_method) > 7:
+					num_neighbors = int(interpolation_method[7:])
+				d, idxs = tree.query(zip(mesh_x.flatten(), mesh_y.flatten()),
+						k=num_neighbors, eps=0, distance_upper_bound=max_dist)
+				if num_neighbors == 1:
+					## When k == 1, the last dimension of the output is squeezed
+					idxs.shape += (1,)
+				if max_dist == np.inf:
+					mesh_values = self.values[idxs]
+				else:
+					mesh_values = np.ones_like(idxs) * np.nan
+					for i in range(idxs.shape[0]):
+						i_idxs = idxs[i]
+						## Missing neighbors are indicated with index = len(tree)
+						i_idxs = i_idxs[i_idxs < len(self.lons)]
+						mesh_values[i,:len(i_idxs)] = self.values[idxs[i,:len(i_idxs)]]
+				mesh_values = np.nanmean(mesh_values, axis=-1)
+				mesh_values.shape = mesh_lons.shape
+			else:
+				mesh_values = griddata((x, y), self.values,
+							(mesh_x, mesh_y), method=interpolation_method)
+
+		elif interpolation_method[:3] == 'idw':
+			from mapping.geotools.geodetic import spherical_distance
+			pow = 1
+			if len(interpolation_method) > 3:
+				pow = int(interpolation_method[3:])
+			mesh_values = np.ones_like(mesh_lons) * np.nan
+			for i in range(num_lons):
+				lon = lons[i]
+				for j in range(num_lats):
+					lat = lats[j]
+					d = spherical_distance(lon, lat, self.lons, self.lats)
+					idxs = (d <= max_dist)
+					weights = 1. / d[idxs]
+					if pow != 1:
+						weights **= pow
+					if np.sum(weights):
+						mesh_values[j, i] = np.average(self.values[idxs], weights=weights)
+
 		return MeshGridData(mesh_lons, mesh_lats, mesh_values)
 
 
