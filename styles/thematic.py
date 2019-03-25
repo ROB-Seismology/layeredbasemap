@@ -354,7 +354,7 @@ class ThematicStyleRanges(ThematicStyle):
 				colorbar_style=None, style_under=None, style_over=None, style_bad=None):
 		super(ThematicStyleRanges, self).__init__(value_key, add_legend, colorbar_style,
 													style_under, style_over, style_bad)
-		self.values = np.array(values, dtype='f')
+		self.values = np.asarray(values)
 		if isinstance(styles, (list, tuple, np.ndarray)):
 			assert len(values) == len(styles) + 1
 			self.set_styles(styles)
@@ -537,7 +537,7 @@ class ThematicStyleGradient(ThematicStyle):
 				colorbar_style=None, style_under=None, style_over=None, style_bad=None):
 		super(ThematicStyleGradient, self).__init__(value_key, add_legend, colorbar_style,
 													style_under, style_over, style_bad)
-		self.values = np.array(values, dtype='f')
+		self.values = np.asarray(values)
 		if isinstance(styles, (list, tuple, np.ndarray)):
 			assert len(values) == len(styles)
 			self.set_styles(styles)
@@ -663,7 +663,7 @@ class ThematicStyleGradient(ThematicStyle):
 		"""
 		Get corresponding Normalize object
 		"""
-		from .cm.norm import PiecewiseLinearNorm
+		from ..cm.norm import PiecewiseLinearNorm
 		return PiecewiseLinearNorm(self.values)
 		#return matplotlib.colors.Normalize(vmin=self.values.min(), vmax=self.values.max())
 
@@ -709,6 +709,15 @@ class ThematicStyleColormap(ThematicStyle):
 	:param add_legend:
 	:param colorbar_style:
 		see :class:`ThematicStyle`
+	:param style_over:
+		color corresponding to data values lower than :param:`vmin`
+		(default: None)
+	:param style_under:
+		color corresponding to data values lower than :param:`vmax`
+		(default: None)
+	:param style_bad:
+		color corresponding to invalid data values
+		(default: None)
 
 	Note: if norm is specified, vmin and vmax will only determine the
 	range shown in the colorbar; the norm itself will not be affected.
@@ -716,7 +725,9 @@ class ThematicStyleColormap(ThematicStyle):
 	# TODO: add param labels too?
 	# TODO: add bad_rgba, over_rgba, under_rgba
 	# TODO: style_under, style_over, style_bad?
-	def __init__(self, color_map="jet", norm=None, vmin=None, vmax=None, alpha=1.0, value_key=None, add_legend=True, colorbar_style=None):
+	def __init__(self, color_map="jet", norm=None, vmin=None, vmax=None, alpha=1.0,
+				value_key=None, add_legend=True, colorbar_style=None,
+				style_under=None, style_over=None, style_bad=None):
 		super(ThematicStyleColormap, self).__init__(value_key, add_legend, colorbar_style)
 		if isinstance(color_map, matplotlib.colors.Colormap):
 			self.color_map = color_map
@@ -729,6 +740,17 @@ class ThematicStyleColormap(ThematicStyle):
 		self.vmax = vmax
 		self.alpha = alpha
 		self._set_cmap_alpha()
+
+		## Override
+		self.style_under = style_under
+		if style_under:
+			self.color_map.set_under(style_under)
+		self.style_over = style_over
+		if style_over:
+			self.color_map.set_over(style_over)
+		self.style_bad = style_bad
+		if style_bad:
+			self.color_map.set_bad(style_bad)
 
 	@property
 	def values(self):
