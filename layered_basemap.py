@@ -1445,6 +1445,20 @@ class LayeredBasemap:
 			imin = np.digitize(sm.norm.vmin, boundaries) - 1
 			imax = np.digitize(sm.norm.vmax, boundaries)
 			boundaries = boundaries[imin:imax]
+			## Add -inf/inf if colorbar is extended
+			if style.extend == "min":
+				#boundaries = [-np.inf] + list(boundaries)
+				neg_val = boundaries[0] - (boundaries[1] - boundaries[0])
+				boundaries = [neg_val] + list(boundaries)
+			elif style.extend == "max":
+				pos_val = boundaries[-1] + (boundaries[-1] - boundaries[-2])
+				#boundaries = list(boundaries) + [np.inf]
+				boundaries = list(boundaries) + [pos_val]
+			elif style.extend == "both":
+				neg_val = boundaries[0] - (boundaries[1] - boundaries[0])
+				pos_val = boundaries[-1] + (boundaries[-1] - boundaries[-2])
+				#boundaries = [-np.inf] + list(boundaries) + [np.inf]
+				boundaries = [neg_val] + list(boundaries) + [pos_val]
 
 		if self.cax == "fig":
 			cbar = self.map.colorbar(sm, ax=None, fig=self.fig, boundaries=boundaries,
