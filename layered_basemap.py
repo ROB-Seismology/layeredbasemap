@@ -1445,7 +1445,7 @@ class LayeredBasemap:
 			imin = np.digitize(sm.norm.vmin, boundaries) - 1
 			imax = np.digitize(sm.norm.vmax, boundaries)
 			boundaries = boundaries[imin:imax]
-			## Add -inf/inf if colorbar is extended
+			## Add lower/higher values if colorbar is extended
 			if style.extend == "min":
 				#boundaries = [-np.inf] + list(boundaries)
 				neg_val = boundaries[0] - (boundaries[1] - boundaries[0])
@@ -1767,9 +1767,33 @@ class LayeredBasemap:
 		self.zorder += 1
 
 	def draw_text_box(self, pos, text, text_style, zorder=None):
+		"""
+		:param pos:
+			(x, y) position in image coordinates
+			or 2-char string:
+			- 1st char denoting vertical position: b(ottom), t(op), c(enter)
+			- 2nd char denoting horizontal position: l(eft), r(ight), c(enter)
+		:param text:
+			str, text
+		:param text_style:
+			instance of :class:`TextStyle`
+		"""
 		if zorder is None:
 			zorder = self.zorder
 			self.zorder += 1
+		if isinstance(pos, basestring) and len(pos) == 2:
+			vlocation, hlocation = pos
+			margin = 0.035
+			## Map l(ower) to b(ottom) and u(pper) to t(op)
+			vlocation = {'l': 'b', 'u': 't'}.get(vlocation, vlocation)
+			hpos = {'l': margin, 'r': 1 - margin, 'c': 0.5}[hlocation]
+			vpos = {'b': margin, 't': 1 - margin, 'c': 0.5}[vlocation]
+			pos = (hpos, vpos)
+			ha = {'l': 'left' , 'r': 'right', 'c': 'center'}[hlocation]
+			va = {'b': 'bottom', 't': 'top', 'c': 'center'}[vlocation]
+			text_style.horizontal_alignment = ha
+			text_style.vertical_alignment = va
+		print(text, pos)
 		self.ax.text(pos[0], pos[1], text, transform=self.ax.transAxes, zorder=zorder,
 					**text_style.to_kwargs())
 
