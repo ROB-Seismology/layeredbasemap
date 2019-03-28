@@ -123,7 +123,7 @@ class UnstructuredGridData(GridData):
 		return MultiPointData(lons, lats, list(values))
 
 	def to_mesh_grid_data(self, num_cells, extent=(None, None, None, None),
-						interpolation_method='cubic', max_dist=5000.):
+						interpolation_method='cubic', max_dist=5.):
 		"""
 		Convert to meshed grid data
 
@@ -133,9 +133,14 @@ class UnstructuredGridData(GridData):
 			(lonmin, lonmax, latmin, latmax) tuple of floats
 			(default: (None, None, None, None)
 		:param interpolation_method:
-			Str, interpolation method supported by griddata (either
-			"linear", "nearestN", "cubic" or "idwP")
+			Str, interpolation method supported by griddata, either
+			"linear", "nearestN" (with N number of neighbors to consider),
+			"cubic" or "idwP" (with P power to raise distances to)
 			(default: "cubic")
+		:param max_dist:
+			float, maximum interpolation distance (in km)
+			Only relevant for "nearestN" and "idwP" methods
+			(default: 5.)
 
 		:return:
 			instance of :class:`MeshGridData`
@@ -155,6 +160,8 @@ class UnstructuredGridData(GridData):
 		lons = np.linspace(lonmin, lonmax, num_lons)
 		lats = np.linspace(latmin, latmax, num_lats)
 		mesh_lons, mesh_lats = np.meshgrid(lons, lats)
+
+		max_dist *= 1000  ## km --> m
 
 		if (interpolation_method in ('linear', 'cubic') or
 			interpolation_method[:7] == 'nearest'):
