@@ -122,18 +122,24 @@ class UnstructuredGridData(GridData):
 		values = self.values.flatten()
 		return MultiPointData(lons, lats, list(values))
 
-	def to_mesh_grid_data(self, num_cells, extent=(None, None, None, None),
+	def to_mesh_grid_data(self, num_cells, cell_size=None,
+						extent=(None, None, None, None),
 						interpolation_method='cubic', max_dist=5.):
 		"""
 		Convert to meshed grid data
 
 		:param num_cells:
-			Integer or tuple, number of grid cells in lon and lat direction
+			int or tuple of ints, number of grid cells in lon and lat
+			direction
+		:param cell_size:
+			float or tuple of floats, cell width in lon and lat direction
+			If specified, takes precedence over :param:`num_cells`
+			(default: None)
 		:param extent:
 			(lonmin, lonmax, latmin, latmax) tuple of floats
 			(default: (None, None, None, None)
 		:param interpolation_method:
-			Str, interpolation method supported by griddata, either
+			str, interpolation method supported by griddata, either
 			"linear", "nearestN" (with N number of neighbors to consider),
 			"cubic" or "idwP" (with P power to raise distances to)
 			(default: "cubic")
@@ -145,9 +151,8 @@ class UnstructuredGridData(GridData):
 		:return:
 			instance of :class:`MeshGridData`
 		"""
-		if isinstance(num_cells, int):
-			num_cells = (num_cells, num_cells)
-		num_lons, num_lats = num_cells
+		assert num_cells or cell_size
+
 		lonmin, lonmax, latmin, latmax = extent
 		if lonmin is None:
 			lonmin = self.lonmin()
@@ -157,6 +162,17 @@ class UnstructuredGridData(GridData):
 			latmin = self.latmin()
 		if latmax is None:
 			latmax = self.latmax()
+
+		if cell_size:
+			if isinstance(cell_size, int):
+				cell_size = (cell_size, cell_size)
+			num_lons = int(round((lonmax - lonmin) / cell_size[0])) + 1
+			num_lats = int(round((latmax - latmin) / cell_size[1])) + 1
+		else:
+			if isinstance(num_cells, int):
+				num_cells = (num_cells, num_cells)
+			num_lons, num_lats = num_cells
+
 		lons = np.linspace(lonmin, lonmax, num_lons)
 		lats = np.linspace(latmin, latmax, num_lats)
 		mesh_lons, mesh_lats = np.meshgrid(lons, lats)
