@@ -179,7 +179,9 @@ class FocmecStyle(BasemapStyle):
 		labels will be added to (e.g., "main")
 		(default: None)
 	"""
-	def __init__(self, size=50, line_width=1, line_color='k', fill_color='k', bg_color='w', offset=(0,0), offset_coord_frame="offset points", alpha=1., thematic_legend_style=None):
+	def __init__(self, size=50, line_width=1, line_color='k', fill_color='k',
+				bg_color='w', offset=(0,0), offset_coord_frame="offset points",
+				alpha=1., thematic_legend_style=None):
 		self.size = size
 		self.line_width = line_width
 		self.line_color = line_color
@@ -261,6 +263,8 @@ class PiechartStyle():
 	:param fill_colors:
 		list of matplotlib color specifications for the different
 		pie chart categories
+	:param labels:
+		list of labels for the different pie chart categories
 	:param line_color:
 		matplotlib color specification for pie outlines
 		(default: 'k')
@@ -273,15 +277,21 @@ class PiechartStyle():
 		(default: 0)
 	:param alpha:
 		float in the range 0 - 1, opacity (default: 1.)
+	:param thematic_legend_style:
+		instance of :class:`LegendStyle` or str, title of thematic legend
+		labels will be added to (e.g., "main")
+		(default: None)
 	"""
-	def __init__(self, fill_colors, line_color='k', line_width=1, start_angle=0,
-				alpha=1.):
+	def __init__(self, fill_colors, labels, line_color='k', line_width=1,
+				start_angle=0, alpha=1., thematic_legend_style=None):
 		self.fill_colors = fill_colors
+		self.labels = labels
 		#self.size = size
 		self.line_color = line_color
 		self.line_width = line_width
 		self.start_angle = start_angle
 		self.alpha = alpha
+		self.thematic_legend_style = thematic_legend_style
 
 	def to_kwargs(self):
 		"""
