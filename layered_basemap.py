@@ -1056,7 +1056,7 @@ class LayeredBasemap:
 		for (start_lon, start_lat, end_lon, end_lat) in gc_data:
 			self.map.drawgreatcircle(start_lon, start_lat, end_lon, end_lat, del_s=gc_data.resolution, **gc_style.to_kwargs())
 
-	def draw_piecharts(self, pie_data, pie_style, legend_label="_nolegend_"):
+	def draw_piecharts(self, pie_data, pie_style):
 		"""
 		Draw pie charts on map
 		Idea from http://www.geophysique.be/2010/11/15/matplotlib-basemap-tutorial-05-adding-some-pie-charts/
@@ -1069,7 +1069,6 @@ class LayeredBasemap:
 			str, label to put in legend for this data set
 			(default: "_nolegend_", will not add entry in legend)
 		"""
-		# TODO: labels and/or legend
 		circle_num_pts = 100
 		sorted_idxs = np.argsort(pie_data.sizes)[::-1]
 		lons, lats, ratios, sizes = pie_data[sorted_idxs]
@@ -1091,7 +1090,27 @@ class LayeredBasemap:
 				self.map.scatter(X[p], Y[p], marker=(pie_xy, 0), s=size**2,
 					facecolor=pie_style.fill_colors[r], zorder=self.zorder,
 					**pie_style.to_kwargs())
+
 			self.zorder += 1
+
+		## Legend
+		legend_name = ''
+		if isinstance(pie_style.thematic_legend_style, basestring):
+			legend_name = pie_style.thematic_legend_style
+		elif isinstance(pie_style.thematic_legend_style, LegendStyle):
+			thematic_legend = ThematicLegend([], [], pie_style.thematic_legend_style)
+			self.thematic_legends.append(thematic_legend)
+			legend_name = pie_style.thematic_legend_style.title
+
+		if legend_name:
+			tl_artists, tl_labels = self.get_thematic_legend_artists_and_labels(legend_name)
+			for l, label in enumerate(pie_style.labels):
+				patch = matplotlib.patches.Rectangle((0, 0), 1, 1, fill=1,
+							facecolor=pie_style.fill_colors[l],
+							edgecolor=pie_style.line_color,
+							linewidth=pie_style.line_width)
+				tl_artists.append(patch)
+				tl_labels.append(label)
 
 	def draw_grid_layer(self, grid_data, grid_style, legend_label=""):
 		# TODO: add ax=self.ax to plot functions??
@@ -1793,7 +1812,6 @@ class LayeredBasemap:
 			va = {'b': 'bottom', 't': 'top', 'c': 'center'}[vlocation]
 			text_style.horizontal_alignment = ha
 			text_style.vertical_alignment = va
-		print(text, pos)
 		self.ax.text(pos[0], pos[1], text, transform=self.ax.transAxes, zorder=zorder,
 					**text_style.to_kwargs())
 
