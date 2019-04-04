@@ -89,15 +89,24 @@ class PolygonData(SingleData):
 
 	@classmethod
 	def from_ogr(cls, geom, value=None, label="", style_params=None):
-		## Correct invalid polygons with more than 1 linear ring
+		## Correct invalid polygons containing rings with insufficient points
 		import ogr
-		num_rings = geom.GetGeometryCount()
-		if num_rings > 1:
-			ring_lengths = [geom.GetGeometryRef(i).GetPointCount() for i in range(num_rings)]
-			idx = int(np.argmax(ring_lengths))
+		if not geom.IsValid():
 			poly = ogr.Geometry(ogr.wkbPolygon)
-			poly.AddGeometry(geom.GetGeometryRef(idx))
-			geom = poly
+			for i in range(geom.GetGeometryCount()):
+				num_points = geom.GetGeometryRef(i).GetPointCount()
+				## linear ring must have at least 3 points
+				if num_points > 2:
+					poly.AddGeometry(geom.GetGeometryRef(i))
+			if poly.GetGeometryCount():
+				geom = poly
+			else:
+				print("Skipped invalid polygon")
+				return
+		## Remove remaining self-intersections
+		#if not geom.IsValid():
+			#geom = geom.Buffer(0)
+			#geom = geom.SimplifyPreserveTopology(0.1)
 		return cls.from_wkt(geom.ExportToWkt(), value=value, label=label,
 							style_params=style_params)
 
@@ -179,7 +188,7 @@ class PolygonData(SingleData):
 		"""
 		ogr_geom = self.to_ogr_geom()
 		if isinstance(geom_data, SingleData):
-			inside = ogr_geom.Contains(geom_data)
+			inside = ogr_geom.Contains(geom_data.to_ogr_geom())
 		elif isinstance(geom_data, MultiData):
 			inside = np.zeros(len(geom_data), dtype='bool')
 			for s, single_data in enumerate(geom_data):
@@ -193,16 +202,45 @@ class PolygonData(SingleData):
 		:return:
 			float, polygon area (in square m)
 		"""
-		## Set up transformation to projection with units in meters
-		from mapping.geotools.coordtrans import WGS84
-		target_srs = osr.SpatialReference()
-		target_srs.ImportFromEPSG(3857)
-		transform = osr.CoordinateTransformation(WGS84, target_srs)
+		## Set up transformation to projection with units in meters (Google projection)
+		from mapping.geotools.coordtrans import WGS84, GGL_MERCATOR
+		transform = osr.CoordinateTransformation(WGS84, GGL_MERCATOR)
 
 		ogr_geom = self.to_ogr_geom()
 		ogr_geom.Transform(transform)
 
 		return ogr_geom.GetArea()
+
+	def get_overlap_ratio(self, other_pg):
+		"""
+		Calculate overlap fraction with other polygon as the ratio
+		between the smallest of the two areas and the overlapping area
+
+		:param other_pg:
+			instance of :class:`PolygonData` or :class:`ogr.Geometry`
+
+		:return:
+			float in the range 0 - 1
+		"""
+		from mapping.geotools.coordtrans import WGS84, GGL_MERCATOR
+		transform = osr.CoordinateTransformation(WGS84, GGL_MERCATOR)
+
+		ogr_geom = self.to_ogr_geom()
+		ogr_geom.Transform(transform)
+
+		if isinstance(other_pg, ogr.Geometry):
+			other_ogr_geom = other_pg.Clone()
+		elif isinstance(other_pg, (PolygonData, MultiPolygonData)):
+			other_ogr_geom = other_pg.to_ogr_geom()
+		other_ogr_geom.Transform(transform)
+
+		original_area = min(ogr_geom.GetArea(), other_ogr_geom.GetArea())
+		intersection = ogr_geom.Intersection(other_ogr_geom)
+		if intersection:
+			overlapping_area = intersection.GetArea()
+		else:
+			overlapping_area = 0.
+		return overlapping_area / original_area
 
 
 class MultiPolygonData(MultiData):
