@@ -186,6 +186,24 @@ class PolygonData(SingleData):
 				inside[s] = ogr_geom.Contains(single_data.to_ogr_geom())
 		return inside
 
+	def get_area(self):
+		"""
+		Calculate area of polygon
+
+		:return:
+			float, polygon area (in square m)
+		"""
+		## Set up transformation to projection with units in meters
+		from mapping.geotools.coordtrans import WGS84
+		target_srs = osr.SpatialReference()
+		target_srs.ImportFromEPSG(3857)
+		transform = osr.CoordinateTransformation(WGS84, target_srs)
+
+		ogr_geom = self.to_ogr_geom()
+		ogr_geom.Transform(transform)
+
+		return ogr_geom.GetArea()
+
 
 class MultiPolygonData(MultiData):
 	def __init__(self, lons, lats, z=None, interior_lons=None, interior_lats=None,
