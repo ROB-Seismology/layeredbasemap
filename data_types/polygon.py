@@ -167,6 +167,25 @@ class PolygonData(SingleData):
 		else:
 			return False
 
+	def contains(self, geom_data):
+		"""
+		Check if given geometries are situated inside the polygon.
+
+		:param geom_data:
+			instance of :class:`SingleData` or :class:`MultiData`
+
+		:return:
+			bool or bool array
+		"""
+		ogr_geom = self.to_ogr_geom()
+		if isinstance(geom_data, SingleData):
+			inside = ogr_geom.Contains(geom_data)
+		elif isinstance(geom_data, MultiData):
+			inside = np.zeros(len(geom_data), dtype='bool')
+			for s, single_data in enumerate(geom_data):
+				inside[s] = ogr_geom.Contains(single_data.to_ogr_geom())
+		return inside
+
 
 class MultiPolygonData(MultiData):
 	def __init__(self, lons, lats, z=None, interior_lons=None, interior_lats=None,
