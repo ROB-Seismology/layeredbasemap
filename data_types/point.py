@@ -143,6 +143,20 @@ class PointData(SingleData):
 		return cls.from_wkt(geom.ExportToWkt(), value=value, label=label,
 							style_params=style_params)
 
+	def is_inside(self, pg_data):
+		"""
+		Check if this point is inside given polygon
+
+		:param pg_data:
+			instance of :class:`PolygonData`
+
+		:return:
+			bool
+		"""
+		from .polygon import PolygonData
+		assert isinstance(pg_data, PolygonData)
+		return pg_data.contains(self)
+
 
 class MultiPointData(MultiData):
 	"""
@@ -394,3 +408,17 @@ class MultiPointData(MultiData):
 		else:
 			values = self.values[value_key]
 		return UnstructuredGridData(self.lons, self.lats, self.values, unit=unit)
+
+	def is_inside(self, pg_data):
+		"""
+		Check if points are inside given polygon
+
+		:param pg_data:
+			instance of :class:`PolygonData`
+
+		:return:
+			bool array
+		"""
+		from .polygon import PolygonData
+		assert isinstance(pg_data, PolygonData)
+		return pg_data.contains(self)
