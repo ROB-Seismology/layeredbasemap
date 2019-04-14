@@ -552,13 +552,15 @@ class MultiData(BasemapData):
 			for feature in features:
 				layer.CreateFeature(feature)
 				## Dereference the feature
-				feature = None
+				feature.Destroy()
 
 			if format.upper() == 'MEMORY':
 				return ds
 			else:
+				## Make sure to write the file to disk
+				layer.SyncToDisk()
 				## Save and close the data source
-				ds = None
+				ds.Destroy()
 
 
 def export_ogr(lbm_data, layer_name):
