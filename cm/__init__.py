@@ -5,6 +5,23 @@ Color maps and norms for layeredbasemap
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 
+## Reloading mechanism
+try:
+	reloading
+except NameError:
+	## Module is imported for the first time
+	reloading = False
+else:
+	## Module is reloaded
+	reloading = True
+	try:
+		## Python 3
+		from importlib import reload
+	except ImportError:
+		## Python 2
+		pass
+
+
 try:
 	## Python 2
 	basestring
@@ -17,6 +34,13 @@ except:
 
 import os
 import numpy as np
+
+
+## norm submodule
+if not reloading:
+	from . import norm
+else:
+	reload(norm)
 
 
 def get_cmap(category, name):
