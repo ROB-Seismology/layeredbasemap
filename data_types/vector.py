@@ -18,7 +18,7 @@ import numpy as np
 import ogr
 
 from .base import BasemapData
-from .point import MultiPointData
+from .point import PointData, MultiPointData
 from .line import MultiLineData
 from .polygon import PolygonData, MultiPolygonData
 
