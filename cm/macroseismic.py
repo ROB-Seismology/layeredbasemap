@@ -7,7 +7,7 @@ import matplotlib
 from .norm import PiecewiseLinearNorm
 
 
-usgs_rgb = np.array([(255, 255, 255),
+usgs_rgb = np.array([(225, 225, 225),
 			(204, 212, 251),
 			(151, 239, 253),
 			(125, 253, 202),
