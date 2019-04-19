@@ -462,7 +462,7 @@ class LayeredBasemap:
 			else:
 				from descartes.patch import PolygonPatch
 				## Remove Z coordinates to avoid exception in PolygonPatch
-				proj_polygon = proj_polygon.to_shapely(include_z=False)
+				proj_polygon = proj_polygon.to_shapely()
 				## Make sure exterior and interior rings of polygon are properly oriented
 				proj_polygon = shapely.geometry.polygon.orient(proj_polygon)
 				#patch = PolygonPatch(proj_polygon, fill=fill, label=legend_label, **style.to_kwargs())
@@ -572,7 +572,7 @@ class LayeredBasemap:
 			fill_hatches = [polygon_style.fill_hatch] * num_polygons
 		if isinstance(polygon_style.alpha, ThematicStyle):
 			alphas = polygon_style.alpha(polygon_data.values)
-			if not list(np.unique(fill_colors)) == [None]:
+			if not list(set(fill_colors)) == [None]:
 				## Apply to fill colors only if they are not None
 				for c, color in enumerate(fill_colors):
 					if color is not None and not np.isnan(alphas[c]):
