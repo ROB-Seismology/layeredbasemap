@@ -35,6 +35,9 @@ class GridStyle(BasemapStyle):
 	:param contour_levels:
 		list or array, defining contour-line values
 		(default: None, will be determined automatically by matplotlib)
+	:param contour_labels:
+		list or array, containing contour levels to be labeled
+		(default: None)
 	:param colorbar_style:
 		instance of :class:`ColorbarStyle`, will override colorbar_style
 		property of color_map_theme
@@ -50,12 +53,16 @@ class GridStyle(BasemapStyle):
 	Note: format of contour labels is determined by format property
 	of colorbar_style.
 	"""
-	def __init__(self, color_map_theme=ThematicStyleColormap("jet"), color_gradient="continuous", pixelated=False, line_style=None, contour_levels=None, colorbar_style=None, hillshade_style=None, fill_hatches=[]):
+	def __init__(self, color_map_theme=ThematicStyleColormap("jet"),
+				color_gradient="continuous", pixelated=False, line_style=None,
+				contour_levels=None, contour_labels=None, colorbar_style=None,
+				hillshade_style=None, fill_hatches=[]):
 		self.color_map_theme = color_map_theme
 		self.color_gradient = color_gradient
 		self.pixelated = pixelated
 		self.line_style = line_style
 		self.contour_levels = contour_levels
+		self.contour_labels = contour_labels
 		if colorbar_style:
 			self.color_map_theme.colorbar_style = colorbar_style
 		self.hillshade_style = hillshade_style
