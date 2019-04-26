@@ -1315,10 +1315,15 @@ class LayeredBasemap:
 					## Note: colors refers to background color, edgecolor does
 					## not seem to be implemented yet, so hatches are always black
 					cl = self.map.contourf(xc, yc, grid_data.values, levels=grid_style.contour_levels, colors=line_style.line_color, linestyles=line_style.line_pattern, hatches=grid_style.fill_hatches, alpha=line_style.alpha, zorder=self.zorder)
+			if line_style.dash_pattern:
+				for c in cl.collections:
+					c.set_dashes([(0, line_style.dash_pattern)])
 			label_style = line_style.label_style
 			if label_style:
 				## other font properties do not seem to be supported
-				self.ax.clabel(cl, colors=label_style.color, inline=True, fontsize=label_style.font_size, fmt=grid_style.label_format, alpha=label_style.alpha, zorder=self.zorder)
+				clabels = self.ax.clabel(cl, grid_style.contour_labels, colors=label_style.color, inline=True, fontsize=label_style.font_size, fmt=grid_style.label_format, alpha=label_style.alpha, zorder=self.zorder)
+				bbox_args = label_style.to_kwargs()['bbox']
+				[txt.set_bbox(bbox_args) for txt in clabels]
 			self.zorder += 1
 
 		## Draw color bar
