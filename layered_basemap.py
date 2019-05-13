@@ -1321,7 +1321,7 @@ class LayeredBasemap:
 			label_style = line_style.label_style
 			if label_style:
 				## other font properties do not seem to be supported
-				clabels = self.ax.clabel(cl, grid_style.contour_labels, colors=label_style.color, inline=True, fontsize=label_style.font_size, fmt=grid_style.label_format, alpha=label_style.alpha, zorder=self.zorder)
+				clabels = self.ax.clabel(cl, grid_style.contour_labels or cl.levels, colors=label_style.color, inline=True, fontsize=label_style.font_size, fmt=grid_style.label_format, alpha=label_style.alpha, zorder=self.zorder)
 				bbox_args = label_style.to_kwargs()['bbox']
 				[txt.set_bbox(bbox_args) for txt in clabels]
 			self.zorder += 1
