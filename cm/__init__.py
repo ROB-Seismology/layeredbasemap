@@ -81,7 +81,7 @@ def get_norm(category, name):
 	except:
 		pass
 
-def from_cpt(cpt_filespec, override_bad_color=True):
+def from_cpt(cpt_filespec, N=256, override_bad_color=True):
 	"""
 	Convert GMT CPT file to matplotlib colormap
 	Modified from the cookbook at SciPy.org
@@ -89,6 +89,10 @@ def from_cpt(cpt_filespec, override_bad_color=True):
 
 	:param cpt_filespec:
 		str, full path to CPT file, or file descriptor
+	:param N:
+		int, number of colors in resulting color palette
+		If None, N will correspond to the number of actual colors
+		(default: 256)
 	:param override_bad_color:
 		bool, whether or not to override the color specified for bad data
 		with transparency
@@ -178,7 +182,9 @@ def from_cpt(cpt_filespec, override_bad_color=True):
 	norm = PiecewiseLinearNorm(x)
 
 	colors = np.asarray(list(zip(r, g, b)))
-	cmap = LinearSegmentedColormap.from_list(cpt_name, colors)
+	if N is None:
+		N = len(colors)
+	cmap = LinearSegmentedColormap.from_list(cpt_name, colors, N=N)
 
 	min_index, max_index = x.argmin(), x.argmax()
 	if r_under is None:
