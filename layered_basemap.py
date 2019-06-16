@@ -2099,7 +2099,7 @@ class LayeredBasemap:
 		#fig = pylab.figure()
 		#subplot = fig.draw_subplot(111)
 		#subplot.set_axes(self.ax)
-		if fig_filespec == "hold":
+		if fig_filespec in ("wait", "hold"):
 			return self
 
 		if dpi:
