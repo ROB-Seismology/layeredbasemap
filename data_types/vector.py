@@ -19,7 +19,7 @@ import ogr
 
 from .base import BasemapData
 from .point import PointData, MultiPointData
-from .line import MultiLineData
+from .line import LineData, MultiLineData
 from .polygon import PolygonData, MultiPolygonData
 
 
