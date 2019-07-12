@@ -244,7 +244,7 @@ class ScalebarStyle(BasemapStyle):
 		annotations are offset from the scale bar.
 		(default: None, corresponds to 0.02 times the height of the map)
 	:param label_style:
-		str, either "simple" or "default", or False. If False, label
+		str, either "simple" or "fancy", or False. If False, label
 		will be empty (default: "simple")
 	:param font_size:
 		int, font size for map scale annotations (default: 9)
