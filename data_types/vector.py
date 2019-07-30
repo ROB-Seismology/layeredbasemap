@@ -141,7 +141,13 @@ class GisData(BasemapData):
 		for colname in polygon_value_colnames:
 			polygon_data.values[colname] = []
 
-		for rec in read_gis_file(self.filespec, layer_num=layer_num):
+		if not self.invert_selection:
+			## Delegate selection to read_gis_file
+			attribute_filter = self.selection_dict
+		else:
+			attribute_filter = None
+		for rec in read_gis_file(self.filespec, layer_num=layer_num,
+								attribute_filter=attribute_filter):
 			selected = np.zeros(len(self.selection_dict.keys()))
 			for i, (selection_colname, selection_value) in enumerate(self.selection_dict.items()):
 				if rec[selection_colname] == selection_value:
