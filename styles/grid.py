@@ -38,6 +38,9 @@ class GridStyle(BasemapStyle):
 	:param contour_labels:
 		list or array, containing contour levels to be labeled
 		(default: None)
+	:param label_format:
+		str, format of contour labels
+		(default: None, will use format property of :param:`colorbar_style`)
 	:param colorbar_style:
 		instance of :class:`ColorbarStyle`, will override colorbar_style
 		property of color_map_theme
@@ -49,20 +52,18 @@ class GridStyle(BasemapStyle):
 		levels: "/" | "\\" | "|" | "-" | "+" | "x" | "o" | "O" | "." | "*"
 		Note: repeat pattern format to increase density, e.g. "//"
 		or "..."
-
-	Note: format of contour labels is determined by format property
-	of colorbar_style.
 	"""
 	def __init__(self, color_map_theme=ThematicStyleColormap("jet"),
 				color_gradient="continuous", pixelated=False, line_style=None,
-				contour_levels=None, contour_labels=None, colorbar_style=None,
-				hillshade_style=None, fill_hatches=[]):
+				contour_levels=None, contour_labels=None, label_format=None,
+				colorbar_style=None, hillshade_style=None, fill_hatches=[]):
 		self.color_map_theme = color_map_theme
 		self.color_gradient = color_gradient
 		self.pixelated = pixelated
 		self.line_style = line_style
 		self.contour_levels = contour_levels
 		self.contour_labels = contour_labels
+		self._label_format = label_format
 		if colorbar_style:
 			self.color_map_theme.colorbar_style = colorbar_style
 		self.hillshade_style = hillshade_style
@@ -79,10 +80,12 @@ class GridStyle(BasemapStyle):
 
 	@property
 	def label_format(self):
-		if self.color_map_theme and self.color_map_theme.colorbar_style:
+		if self._label_format is not None:
+			return self._label_format
+		elif self.color_map_theme and self.color_map_theme.colorbar_style:
 			return self.color_map_theme.colorbar_style.format
 		else:
-			return "%s"
+			return "%E"
 
 
 class HillshadeStyle(BasemapStyle):
