@@ -138,14 +138,15 @@ class LineData(SingleData):
 
 	def get_mean_strike(self):
 		import mapping.geotools.geodetic as geodetic
-		from mapping.geotools.angle import mean_angle
+		from mapping.geotools.angle import Azimuth
 		lons, lats = np.array(self.lons), np.array(self.lats)
 		lons1, lats1 = lons[:-1], lats[:-1]
 		lons2, lats2 = lons[1:], lats[1:]
 		distances = geodetic.spherical_distance(lons1, lats1, lons2, lats2)
 		azimuths = geodetic.spherical_azimuth(lons1, lats1, lons2, lats2)
+		azimuths = Azimuth(azimuths, 'deg')
 		weights = distances / np.add.reduce(distances)
-		mean_strike = mean_angle(azimuths, weights)
+		mean_strike = azimuths.mean(weights).deg()
 		return mean_strike
 
 
