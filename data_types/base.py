@@ -174,7 +174,8 @@ class SingleData(BasemapData):
 		multi_data = self.to_multi_data()
 		return multi_data.construct_ogr_feature_definition(encoding=encoding)
 
-	def to_ogr_feature(self, feature_definition=None, encoding='latin-1'):
+	def to_ogr_feature(self, feature_definition=None, encoding='latin-1',
+						replace_null_values=None):
 		"""
 		Convert to ogr feature
 
@@ -184,6 +185,10 @@ class SingleData(BasemapData):
 		:param encoding:
 			str, encoding to use for non-ASCII characters
 			(default: 'latin-1')
+		:param replace_null_values:
+			None or str or scalar, value to replace NULL (None, NaN)
+			values with
+			(default: None, will not replace NULL values)
 
 		:return:
 			instance of :class:`ogr.Feature`
@@ -203,9 +208,11 @@ class SingleData(BasemapData):
 				fd = feature_definition.GetFieldDefn(idx)
 				field_name = fd.GetName()
 				field_value = attributes.get(field_name)
-				if field_value is None or isinstance(field_value, (bool, int,
-							np.integer, float, np.floating, decimal.Decimal)):
+				if field_value is None or isinstance(field_value, (bool, decimal.Decimal)):
 					pass
+				elif isinstance(field_value, (int, np.integer, float, np.floating)):
+					if np.isnan(field_value):
+						field_value = None
 				#elif isinstance(field_value, np.integer):
 				#	field_value = int(field_value)
 				#elif isinstance(field_value, np.floating):
@@ -220,16 +227,15 @@ class SingleData(BasemapData):
 				elif isinstance(field_value, (list, np.ndarray)):
 					field_value = ','.join(map(str, field_value))
 				else:
-					try:
-						isnan = np.isnan(field_value)
-					except:
-						field_value = str(field_value)
-					else:
-						if isnan:
-							field_value = None
+					field_value = str(field_value)
 
 				if field_value is not None:
 					feature.SetField(field_name, field_value)
+				else:
+					if replace_null_values is not None:
+						feature.SetField(field_name, replace_null_values)
+					else:
+						feature.SetField(field_name, np.nan)
 		#feature.SetFID(0)
 		feature.SetGeometry(self.to_ogr_geom())
 		return feature
@@ -491,13 +497,17 @@ class MultiData(BasemapData):
 
 		return feature_definition
 
-	def to_ogr_features(self, encoding='latin-1'):
+	def to_ogr_features(self, encoding='latin-1', replace_null_values=None):
 		"""
 		Convert to ogr features
 
 		:param encoding:
 			str, encoding to use for non-ASCII characters
 			(default: 'latin-1')
+		:param replace_null_values:
+			None or str or scalar, value to replace NULL (None, NaN)
+			values with
+			(default: None, will not replace NULL values)
 
 		:return:
 			list with instances of :class:`ogr.Feature`
@@ -506,10 +516,12 @@ class MultiData(BasemapData):
 		features = []
 		for item in self:
 			features.append(item.to_ogr_feature(feature_definition,
-												encoding=encoding))
+												encoding=encoding,
+												replace_null_values=replace_null_values))
 		return features
 
-	def export_gis(self, format, out_filespec, encoding='latin-1'):
+	def export_gis(self, format, out_filespec, encoding='latin-1',
+					replace_null_values=None):
 		"""
 		Export to GIS file
 		Use OrderedDict for :prop:`values` if you want to control
@@ -523,12 +535,19 @@ class MultiData(BasemapData):
 		:param encoding:
 			str, encoding to use for non-ASCII characters
 			(default: 'latin-1')
+		:param replace_null_values:
+			None or str or scalar, value to replace NULL (None, NaN)
+			values with
+			(default: None, will not replace NULL values)
 
 		:return:
 			instance of :class:`ogr.DataSource` if :param:`format`
 			== 'MEMORY', else None
 		"""
 		import os
+
+		if format == 'ESRI Shapefile' and replace_null_values is None:
+			replace_null_values = 0
 
 		# TODO: determine out_filespec automatically from format, or
 		# determine driver from out_filespec extension
@@ -538,7 +557,8 @@ class MultiData(BasemapData):
 		else:
 			ds = driver.CreateDataSource(out_filespec)
 			name = os.path.splitext(os.path.split(out_filespec)[-1])[0]
-			features = self.to_ogr_features(encoding=encoding)
+			features = self.to_ogr_features(encoding=encoding,
+										replace_null_values=replace_null_values)
 			feature = features[0]
 			geom_type = feature.GetGeometryRef().GetGeometryType()
 			layer = ds.CreateLayer(name, WGS84, geom_type)
