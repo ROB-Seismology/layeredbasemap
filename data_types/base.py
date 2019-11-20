@@ -235,7 +235,8 @@ class SingleData(BasemapData):
 					if replace_null_values is not None:
 						feature.SetField(field_name, replace_null_values)
 					else:
-						feature.SetField(field_name, np.nan)
+						feature.SetFieldNull(field_name)
+						#feature.UnsetField(field_name)
 		#feature.SetFID(0)
 		feature.SetGeometry(self.to_ogr_geom())
 		return feature
@@ -546,7 +547,8 @@ class MultiData(BasemapData):
 		"""
 		import os
 
-		if format == 'ESRI Shapefile' and replace_null_values is None:
+		if (format in ('ESRI Shapefile', 'MapInfo File')
+			and replace_null_values is None):
 			replace_null_values = 0
 
 		# TODO: determine out_filespec automatically from format, or
