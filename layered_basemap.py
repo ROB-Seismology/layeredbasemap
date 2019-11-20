@@ -480,6 +480,7 @@ class LayeredBasemap:
 			instance of :class:`TextData`, :class:`MultiTextData`,
 			instance of :class:`PointData`, :class:`MultiPointData`
 		"""
+		import matplotlib.patheffects as PathEffects
 		from .contrib.text_true_align import TextTrueAlign
 
 		## Compute offset in map units (not needed for annotate method)
@@ -529,9 +530,14 @@ class LayeredBasemap:
 			if style.rotation and style.horizontal_alignment != "center" and style.vertical_alignment != "center":
 				# TODO: properly take into account xytext, textcoords, offset...
 				text = TextTrueAlign(x[i], y[i], label, zorder=self.zorder, axes=self.ax, clip_on=style.clip_on, **style.to_kwargs())
-				self.ax.add_artist(text)
+				txt = self.ax.add_artist(text)
 			else:
-				self.ax.annotate(label, (x[i], y[i]), xytext=xytext, textcoords=textcoords, zorder=self.zorder, axes=self.ax, clip_on=style.clip_on, **style.to_kwargs())
+				txt = self.ax.annotate(label, (x[i], y[i]), xytext=xytext, textcoords=textcoords, zorder=self.zorder, axes=self.ax, clip_on=style.clip_on, **style.to_kwargs())
+
+			## Draw outline
+			if style.outline_width:
+				txt.set_path_effects([PathEffects.withStroke(linewidth=style.outline_width,
+															foreground=style.outline_color)])
 
 	def draw_polygon_layer(self, polygon_data, polygon_style, legend_label="_nolegend_"):
 		"""
