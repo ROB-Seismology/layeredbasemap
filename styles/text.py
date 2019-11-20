@@ -129,6 +129,12 @@ class TextStyle(FontStyle):
 		circle, darrow, larrow, rarrow, round, round4, roundtooth,
 		sawtooth, square
 		(default: "square")
+	:param outline_color:
+		matplotlib color spec, color of text outline
+		(default: "w")
+	:param outline_width:
+		float, line width of text outline
+		(default: 0)
 	:param offset:
 		tuple, horizontal and vertical offset in points (default: (0, 0))
 	:param offset_coord_frame:
@@ -165,6 +171,8 @@ class TextStyle(FontStyle):
 				border_width=0.5,
 				border_pad=0.2,
 				border_shape="square",
+				outline_color="w",
+				outline_width=0,
 				offset=(0,0),
 				offset_coord_frame="offset points",
 				clip_on=True,
@@ -182,6 +190,8 @@ class TextStyle(FontStyle):
 		self.border_width = border_width
 		self.border_pad = border_pad
 		self.border_shape = border_shape
+		self.outline_color = outline_color
+		self.outline_width = outline_width
 		self.offset = offset
 		self.offset_coord_frame = offset_coord_frame
 		self.clip_on = clip_on
