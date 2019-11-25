@@ -214,7 +214,9 @@ class GisData(BasemapData):
 							except:
 								print("Warning: Omitting part #%d of multipolygon" % p)
 							else:
-								multi_polygon.append(polygon)
+								if polygon:
+									## polygon may sometimes be None
+									multi_polygon.append(polygon)
 					for polygon in multi_polygon:
 						polygon.label = label
 						polygon.value = {k: rec[k] for k in polygon_value_colnames if k in rec}
