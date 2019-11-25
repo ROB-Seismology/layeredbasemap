@@ -45,7 +45,14 @@ else:
 	reload(text)
 from .text import *
 
-## decoration (depends on text)
+## vector (depends on thematic)
+if not reloading:
+	from . import vector
+else:
+	reload(vector)
+from .vector import *
+
+## decoration (depends on text, vector)
 if not reloading:
 	from . import decoration
 else:
@@ -58,13 +65,6 @@ if not reloading:
 else:
 	reload(misc)
 from .misc import *
-
-## vector (depends on decoration, thematic)
-if not reloading:
-	from . import vector
-else:
-	reload(vector)
-from .vector import *
 
 ## grid (depends on thematic)
 if not reloading:
