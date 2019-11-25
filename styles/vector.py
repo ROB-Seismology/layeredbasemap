@@ -7,6 +7,8 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from .base import BasemapStyle
 from .thematic import ThematicStyle
+
+## Note: we cannot import from .decoration, as .decoration imports from here!
 #from .decoration import LegendStyle
 
 
@@ -76,6 +78,8 @@ class PointStyle(BasemapStyle):
 	if line_color is thematic, fill_color is currently ignored.
 	"""
 	def __init__(self, shape='o', size=10, line_width=1, line_color='k', fill_color='None', fill_style="full", label_style=None, alpha=1., thematic_legend_style=None):
+		from .decoration import LegendStyle
+
 		self.shape = shape
 		self.size = size
 		self.line_width = line_width
