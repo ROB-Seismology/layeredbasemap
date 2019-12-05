@@ -89,7 +89,10 @@ class LayeredBasemap:
 		self.projection = projection
 		self.origin = origin
 		self.extent = extent
-		self.graticule_interval = graticule_interval
+		if graticule_interval == 'auto':
+			self.graticule_interval = self.determine_graticule_interval()
+		else:
+			self.graticule_interval = graticule_interval
 		self.resolution = resolution
 		self.area_thresh = area_thresh
 		self.title_style = title_style
@@ -187,6 +190,48 @@ class LayeredBasemap:
 				'western mediterranean': [-10, 20, 27.5, 47.5]
 				}[region_name.lower()]
 		return region
+
+	def determine_graticule_interval(self):
+		"""
+		Auto-determine graticule interval from map region
+		"""
+		dlon = self.region[1] - self.region[0]
+		if dlon == 360:
+			lon_ticks = 60
+		elif dlon > 180:
+			lon_ticks = 60
+		elif dlon > 60:
+			lon_ticks = 30
+		elif dlon > 30:
+			lon_ticks = 10
+		elif dlon > 10:
+			lon_ticks = 5
+		elif dlon > 5:
+			lon_ticks = 2.5
+		elif dlon > 2.5:
+			lon_ticks = 1
+		elif dlon > 1:
+			lon_ticks = 0.5
+		else:
+			lon_ticks = 0.1
+
+		dlat = self.region[3] - self.region[1]
+		if dlat > 60:
+			lat_ticks = 30
+		elif dlat > 30:
+			lat_ticks = 10
+		elif dlat > 10:
+			lat_ticks = 5
+		elif dlat > 5:
+			lat_ticks = 2.5
+		elif dlat > 2.5:
+			lat_ticks = 1
+		elif dlat > 1:
+			lat_ticks = 0.5
+		else:
+			lat_ticks = 0.1
+
+		return (lon_ticks, lat_ticks)
 
 	def init_basemap(self, ax=None):
 		self.zorder = 0
