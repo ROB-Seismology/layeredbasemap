@@ -80,7 +80,14 @@ class ThematicLegend:
 
 
 class LayeredBasemap:
-	def __init__(self, layers, title, projection, region=(None, None, None, None), origin=(None, None), extent=(None, None), graticule_interval=(None, None), resolution="i", area_thresh=None, title_style=DefaultTitleTextStyle, legend_style=LegendStyle(), scalebar_style=None, border_style=MapBorderStyle(), graticule_style=GraticuleStyle(), ax=None, cax=None, figsize=(8,6), dpi=120, **proj_args):
+	def __init__(self, layers, title, projection, region=(None, None, None, None),
+				origin=(None, None), extent=(None, None), graticule_interval=(None, None),
+				resolution="i", area_thresh=None, title_style=DefaultTitleTextStyle,
+				legend_style=LegendStyle(), scalebar_style=None,
+				border_style=MapBorderStyle(), graticule_style=GraticuleStyle(),
+				ax=None, cax=None, figsize=(8,6), dpi=120, **proj_args):
+		"""
+		"""
 		self.layers = layers
 		self.title = title
 		if isinstance(region, basestring):
@@ -93,7 +100,10 @@ class LayeredBasemap:
 			self.graticule_interval = self.determine_graticule_interval()
 		else:
 			self.graticule_interval = graticule_interval
-		self.resolution = resolution
+		if resolution == 'auto':
+			self.resolution = self.determine_resolution()
+		else:
+			self.resolution = resolution
 		self.area_thresh = area_thresh
 		self.title_style = title_style
 		self.legend_style = legend_style
@@ -194,6 +204,9 @@ class LayeredBasemap:
 	def determine_graticule_interval(self):
 		"""
 		Auto-determine graticule interval from map region
+
+		:return:
+			(lon_tick_interval, lat_tick_interval)
 		"""
 		tick_positions = np.array([0.01, 0.02, 0.025, 0.05,
 									0.1, 0.2, 0.25, 0.5,
@@ -206,6 +219,34 @@ class LayeredBasemap:
 		lat_ticks = tick_positions[tick_positions <= dlat/2.][-1]
 
 		return (lon_ticks, lat_ticks)
+
+	def determine_resolution(self):
+		"""
+		Auto-determine resolution of builtin coastlines / country borders
+
+		:return:
+			char
+		"""
+		dlon = self.region[1] - self.region[0]
+		dlat = self.region[3] - self.region[2]
+		map_range = max(dlon, dlat)
+		if map_range > 75:
+			## crude
+			resolution = 'c'
+		elif map_range > 12.5:
+			## low
+			resolution = 'l'
+		elif map_range > 2.5:
+			## intermediate
+			resolution = 'i'
+		elif map_range > 0.5:
+			## high
+			resolution = 'h'
+		else:
+			## full
+			resolution = 'f'
+
+		return resolution
 
 	def init_basemap(self, ax=None):
 		self.zorder = 0
@@ -2115,11 +2156,15 @@ class LayeredBasemap:
 		srs = self.get_srs()
 		return srs.ExportToWkt()
 
-	def plot(self, fig_filespec=None, fig_width=0, dpi=None):
+	def plot(self, fig_filespec=None, fig_width=0, dpi=None, border_width=0.2):
 		"""
 		:param fig_filespec:
 			str, full path to output file or None (plot on screen)
 			or "hold" (do not show plot)
+		:param border_width:
+			float, width of border around map frame in cm
+			If None, white space will not be removed
+			(default: 0.2)
 		"""
 		#fig = pylab.figure()
 		#subplot = fig.draw_subplot(111)
@@ -2138,8 +2183,14 @@ class LayeredBasemap:
 		if not self.is_drawn:
 			self.draw()
 
+		#if tight_layout:
+		#	self.fig.tight_layout(pad=0)
+
 		if fig_filespec:
-			pylab.savefig(fig_filespec, dpi=dpi)
+			kwargs = {}
+			if border_width is not None:
+				kwargs = dict(bbox_inches="tight", pad_inches=border_width/2.54)
+			pylab.savefig(fig_filespec, dpi=dpi, **kwargs)
 			pylab.clf()
 		else:
 			pylab.show()
