@@ -195,41 +195,15 @@ class LayeredBasemap:
 		"""
 		Auto-determine graticule interval from map region
 		"""
-		dlon = self.region[1] - self.region[0]
-		if dlon == 360:
-			lon_ticks = 60
-		elif dlon > 180:
-			lon_ticks = 60
-		elif dlon > 60:
-			lon_ticks = 30
-		elif dlon > 30:
-			lon_ticks = 10
-		elif dlon > 10:
-			lon_ticks = 5
-		elif dlon > 5:
-			lon_ticks = 2.5
-		elif dlon > 2.5:
-			lon_ticks = 1
-		elif dlon > 1:
-			lon_ticks = 0.5
-		else:
-			lon_ticks = 0.1
+		tick_positions = np.array([0.01, 0.02, 0.025, 0.05,
+									0.1, 0.2, 0.25, 0.5,
+									1.0, 2.0, 2.5, 5.0,
+									10.0, 20.0, 25.0, 30.0])
 
-		dlat = self.region[3] - self.region[1]
-		if dlat > 60:
-			lat_ticks = 30
-		elif dlat > 30:
-			lat_ticks = 10
-		elif dlat > 10:
-			lat_ticks = 5
-		elif dlat > 5:
-			lat_ticks = 2.5
-		elif dlat > 2.5:
-			lat_ticks = 1
-		elif dlat > 1:
-			lat_ticks = 0.5
-		else:
-			lat_ticks = 0.1
+		dlon = self.region[1] - self.region[0]
+		dlat = self.region[3] - self.region[2]
+		lon_ticks = tick_positions[tick_positions <= dlon/2.][-1]
+		lat_ticks = tick_positions[tick_positions <= dlat/2.][-1]
 
 		return (lon_ticks, lat_ticks)
 
