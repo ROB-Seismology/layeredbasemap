@@ -2169,12 +2169,6 @@ class LayeredBasemap:
 		#fig = pylab.figure()
 		#subplot = fig.draw_subplot(111)
 		#subplot.set_axes(self.ax)
-		if not self.is_drawn:
-			self.draw()
-
-		if fig_filespec in ("wait", "hold"):
-			return self
-
 		if dpi:
 			if fig_filespec:
 				default_figsize = pylab.rcParams['figure.figsize']
@@ -2183,6 +2177,12 @@ class LayeredBasemap:
 					dpi = dpi * (fig_width / default_figsize[0])
 			if dpi != self.dpi:
 				self.fig.set_dpi(dpi)
+		if not self.is_drawn:
+			self.draw()
+
+		if fig_filespec in ("wait", "hold"):
+			return self
+
 		#if tight_layout:
 		#	self.fig.tight_layout(pad=0)
 
