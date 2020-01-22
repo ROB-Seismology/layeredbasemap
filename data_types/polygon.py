@@ -242,6 +242,44 @@ class PolygonData(SingleData):
 			overlapping_area = 0.
 		return overlapping_area / original_area
 
+	def get_union(self, other_pg):
+		"""
+		Construct union with other polygon
+
+		:param other_pg:
+			instance of :class:`PolygonData`
+
+		:return:
+			instance of :class:`PolygonData`
+		"""
+		assert isinstance(other_pg, self.__class__)
+
+		ogr_geom = self.to_ogr_geom()
+		other_ogr_geom = other_pg.to_ogr_geom()
+
+		union = ogr_geom.Union(other_ogr_geom)
+
+		return self.from_ogr(union)
+
+	def get_intersection(self, other_pg):
+		"""
+		Construct intersection with other polygon
+
+		:param other_pg:
+			instance of :class:`PolygonData`
+
+		:return:
+			instance of :class:`PolygonData`
+		"""
+		assert isinstance(other_pg, self.__class__)
+
+		ogr_geom = self.to_ogr_geom()
+		other_ogr_geom = other_pg.to_ogr_geom()
+
+		union = ogr_geom.Intersection(other_ogr_geom)
+
+		return self.from_ogr(union)
+
 
 class MultiPolygonData(MultiData):
 	def __init__(self, lons, lats, z=None, interior_lons=None, interior_lats=None,
