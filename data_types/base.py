@@ -262,6 +262,16 @@ class SingleData(BasemapData):
 		poly = geom.Buffer(distance)
 		return PolygonData.from_ogr(poly)
 
+	def get_region(self):
+		"""
+		Determine bounding region
+
+		:return:
+			(xmin, xmax, ymin, ymax) tuple of floats
+		"""
+		geom = self.to_ogr_geom()
+		return geom.GetEnvelope()
+
 
 class MultiData(BasemapData):
 	def __len__(self):
@@ -612,6 +622,16 @@ class MultiData(BasemapData):
 			poly = poly.Union(buf)
 
 		return PolygonData.from_ogr(poly)
+
+	def get_region(self):
+		"""
+		Determine bounding region
+
+		:return:
+			(xmin, xmax, ymin, ymax) tuple of floats
+		"""
+		geom = self.to_ogr_geom()
+		return geom.GetEnvelope()
 
 
 def export_ogr(lbm_data, layer_name):
