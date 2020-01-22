@@ -584,6 +584,35 @@ class MultiData(BasemapData):
 				## Save and close the data source
 				ds.Destroy()
 
+	def create_buffer(self, distance):
+		"""
+		Create buffer around multipoint, multiline or multipolygon feature.
+
+		Note: the buffer distance is in the same units as the dataset,
+		which is normally degrees. If metric distance is required, the
+		dataset should first be reprojected (not supported) or read
+		in the native coordinate system!
+
+		:param distance:
+			float, buffer distance (in dataset units)
+
+		:return:
+			instance of :class:`PolygonData` or :class:`MultiPolygonData`
+		"""
+		from .polygon import PolygonData
+
+		buffers = []
+		for single_data in self:
+			geom = single_data.to_ogr_geom()
+			buf = geom.Buffer(distance)
+			buffers.append(buf)
+
+		poly = buffers[0]
+		for buf in buffers[1:]:
+			poly = poly.Union(buf)
+
+		return PolygonData.from_ogr(poly)
+
 
 def export_ogr(lbm_data, layer_name):
 	"""
