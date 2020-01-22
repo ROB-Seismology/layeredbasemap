@@ -609,7 +609,7 @@ class MultiData(BasemapData):
 		:return:
 			instance of :class:`PolygonData` or :class:`MultiPolygonData`
 		"""
-		from .polygon import PolygonData
+		from .polygon import (PolygonData, MultiPolygonData)
 
 		buffers = []
 		for single_data in self:
@@ -621,7 +621,10 @@ class MultiData(BasemapData):
 		for buf in buffers[1:]:
 			poly = poly.Union(buf)
 
-		return PolygonData.from_ogr(poly)
+		if poly.GetGeometryName() in ('POLYGON', 'LINESTRING'):
+			return PolygonData.from_ogr(poly)
+		else:
+			return MultiPolygonData.from_ogr(poly)
 
 	def get_region(self):
 		"""
