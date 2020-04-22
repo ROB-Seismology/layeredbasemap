@@ -231,7 +231,7 @@ class GisData(BasemapData):
 		for attrib_name in self.joined_attributes.keys():
 			key = self.joined_attributes[attrib_name]['key']
 			value_dict = self.joined_attributes[attrib_name]['values']
-			first_value = value_dict.values()[0]
+			first_value = list(value_dict.values())[0]
 			first_non_none_value = next((val for val in value_dict.values() if val is not None), None)
 			if isinstance(first_non_none_value, (int, float)):
 				default = np.nan
