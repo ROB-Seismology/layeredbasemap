@@ -404,6 +404,19 @@ class MultiPolygonData(MultiData):
 		return cls.from_wkt(geom.ExportToWkt(), values=values, labels=labels,
 							style_params=style_params)
 
+	@classmethod
+	def from_polygons(cls, pg_list):
+		"""
+		Construct from list of polygons
+
+		:param pg_list:
+			list with instances of :class:`PolygonData`
+		"""
+		mpg = pg_list[0].to_multi_polygon()
+		for pg in pg_list[1:]:
+			mpg.append(pg)
+		return mpg
+
 	def clip_to_polygon(self, polygon):
 		# TODO: set style_params
 		shape = self.to_shapely()
