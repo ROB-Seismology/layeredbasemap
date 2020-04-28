@@ -234,3 +234,18 @@ class MultiLineData(MultiData):
 	def from_ogr(cls, geom, values=None, labels=None, style_params=None):
 		return cls.from_wkt(geom.ExportToWkt(), values=values, labels=labels,
 							style_params=style_params)
+
+	@classmethod
+	def from_lines(cls, line_list):
+		"""
+		Construct from list of lines
+
+		:param line_list:
+			list with instances of :class:`LineData`
+		"""
+		ml = line_list[0].to_multi_line()
+		for line in line_list[1:]:
+			ml.append(line)
+		return ml
+
+
