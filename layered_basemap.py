@@ -2047,17 +2047,21 @@ class LayeredBasemap:
 			if self.dlon != None:
 				meridian_style = self.graticule_style.copy()
 				meridian_style.annot_axes = meridian_style.annot_axes.replace('W', '').replace('E', '')
+				style_kwargs = meridian_style.to_kwargs()
+				style_kwargs.pop('va', None)
 				first_meridian = np.ceil(self.region[0] / self.dlon) * self.dlon
 				last_meridian = np.floor(self.region[1] / self.dlon) * self.dlon + self.dlon
 				meridians = np.arange(first_meridian, last_meridian, self.dlon)
-				self.map.drawmeridians(meridians, zorder=self.zorder, **meridian_style.to_kwargs())
+				self.map.drawmeridians(meridians, zorder=self.zorder, **style_kwargs)
 			if self.dlat != None:
 				parallel_style = self.graticule_style.copy()
 				parallel_style.annot_axes = parallel_style.annot_axes.replace('N', '').replace('S', '')
+				style_kwargs = parallel_style.to_kwargs()
+				style_kwargs.pop('ha', None)
 				first_parallel = np.ceil(self.region[2] / self.dlat) * self.dlat
 				last_parallel = np.floor(self.region[3] / self.dlat) * self.dlat + self.dlat
 				parallels = np.arange(first_parallel, last_parallel, self.dlat)
-				self.map.drawparallels(parallels, zorder=self.zorder, **parallel_style.to_kwargs())
+				self.map.drawparallels(parallels, zorder=self.zorder, **style_kwargs)
 			self.zorder += 1
 
 	def draw_scalebar(self):
