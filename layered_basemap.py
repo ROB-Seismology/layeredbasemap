@@ -1204,7 +1204,8 @@ class LayeredBasemap:
 		hillshade_style = grid_style.hillshade_style
 		if hillshade_style:
 			## Copy grid_data mask, as it seems to disappear when it is accessed...
-			hillshade_mask = np.copy(grid_data.values.mask)
+			if isinstance(grid_data.values, np.ma.core.MaskedArray):
+				hillshade_mask = np.copy(grid_data.values.mask)
 			azimuth = hillshade_style.azimuth
 			elevation_angle = hillshade_style.elevation_angle
 			scale = hillshade_style.scale
