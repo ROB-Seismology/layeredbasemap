@@ -607,8 +607,9 @@ class MeshGridData(GridData):
 						if coords.shape[0] > 2:
 							interior_lons.append(coords[:,0])
 							interior_lats.append(coords[:,1])
-				contour_pg = PolygonData(lons, lats, interior_lons, interior_lats,
-										lower_level)
+				contour_pg = PolygonData(lons, lats, interior_lons=interior_lons,
+										interior_lats=interior_lats,
+										z=lower_level)
 				contour_mpg.append(contour_pg)
 			contour_polygons.append(contour_mpg)
 		return contour_polygons
