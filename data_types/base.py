@@ -218,12 +218,15 @@ class SingleData(BasemapData):
 				#elif isinstance(field_value, np.floating):
 				#	field_value = float(field_value)
 				elif isinstance(field_value, basestring):
-					if not isinstance(field_value, bytes):
+					if PY2 and not isinstance(field_value, bytes):
 						field_value = field_value.encode(encoding,
 										errors='xmlcharrefreplace')
 				elif isinstance(field_value, (np.datetime64, datetime.datetime,
 												datetime.date, datetime.time)):
-					field_value = bytes(field_value)
+					if PY2:
+						field_value = bytes(field_value)
+					else:
+						field_value = str(field_value)
 				elif isinstance(field_value, (list, np.ndarray)):
 					field_value = ','.join(map(str, field_value))
 				else:
@@ -468,7 +471,8 @@ class MultiData(BasemapData):
 			json = self.to_geojson(as_multi=True)
 			attributes = json["properties"]
 			for field_name, field_values in attributes.items():
-				field_name = field_name.encode(encoding, errors='xmlcharrefreplace')
+				if PY2:
+					field_name = field_name.encode(encoding, errors='xmlcharrefreplace')
 				field_val = field_values[0]
 				if isinstance(field_val, bool):
 					fd = ogr.FieldDefn(field_name, ogr.OFTInteger)
