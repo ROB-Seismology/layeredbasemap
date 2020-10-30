@@ -48,13 +48,21 @@ class PolygonData(SingleData):
 		"""
 		"""
 		if self.z is None or set(self.z) == set([None]):
-			return shapely.geometry.Polygon(list(zip(self.lons, self.lats)),
-				[list(zip(self.interior_lons[i], self.interior_lats[i]))
-				for i in range(len(self.interior_lons))])
+			if self.interior_lons:
+				shp = shapely.geometry.Polygon(list(zip(self.lons, self.lats)),
+					[list(zip(self.interior_lons[i], self.interior_lats[i]))
+					for i in range(len(self.interior_lons))])
+			else:
+				shp = shapely.geometry.Polygon(list(zip(self.lons, self.lats)))
 		else:
-			return shapely.geometry.Polygon(list(zip(self.lons, self.lats, self.z)),
-				[list(zip(self.interior_lons[i], self.interior_lats[i], self.interior_z[i]))
-				for i in range(len(self.interior_lons))])
+			if self.interior_lons:
+				shp = shapely.geometry.Polygon(list(zip(self.lons, self.lats, self.z)),
+					[list(zip(self.interior_lons[i], self.interior_lats[i], self.interior_z[i]))
+					for i in range(len(self.interior_lons))])
+			else:
+				shp = shapely.geometry.Polygon(list(zip(self.lons, self.lats, self.z)))
+
+		return shp
 
 	def get_ogr_geomtype(self):
 		return ogr.wkbPolygon
