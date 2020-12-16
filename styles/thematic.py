@@ -94,7 +94,7 @@ class ThematicStyle(object):
 			## ThematicStyleColormap
 			return True
 		else:
-			if isinstance(style, (int, float)):
+			if isinstance(style, (int, float, np.integer, np.floating)):
 				return False
 			else:
 				cc = matplotlib.colors.ColorConverter()
@@ -283,7 +283,7 @@ class ThematicStyleIndividual(ThematicStyle):
 		"""
 		## The norm is constructed in such a way that, if classes are numbers,
 		## they will be placed below the corresponding color in the colorbar
-		if isinstance(self.values[0], (int, float)):
+		if isinstance(self.values[0], (int, float, np.integer, np.floating)):
 			values = np.array(self.values)
 		else:
 			values = np.arange(len(self.values))
@@ -309,7 +309,7 @@ class ThematicStyleIndividual(ThematicStyle):
 			cmap = self.to_colormap()
 			sm = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
 			if values is None:
-				if isinstance(self.values[0], (int, float)):
+				if isinstance(self.values[0], (int, float, np.integer, np.floating)):
 					sm.set_array(self.values)
 				else:
 					sm.set_array(np.arange(len(self.values)))
